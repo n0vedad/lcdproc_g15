@@ -1,0 +1,27 @@
+post_install() {
+    echo "Enabling and starting LCDproc services..."
+    systemctl daemon-reload
+    systemctl enable --now lcdd.service
+    systemctl enable --now lcdproc.service
+    echo "LCDproc services started successfully."
+}
+
+post_upgrade() {
+    echo "Restarting LCDproc services..."
+    systemctl daemon-reload
+    systemctl restart lcdd.service
+    systemctl restart lcdproc.service
+}
+
+pre_remove() {
+    echo "Stopping LCDproc services..."
+    systemctl stop lcdproc.service || true
+    systemctl stop lcdd.service || true
+    systemctl disable lcdproc.service || true
+    systemctl disable lcdd.service || true
+}
+
+post_remove() {
+    systemctl daemon-reload
+    echo "LCDproc services stopped and disabled."
+}
