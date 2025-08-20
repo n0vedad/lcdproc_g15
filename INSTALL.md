@@ -96,11 +96,13 @@ The configure command uses these G15-specific options:
 
 ```
 ./configure \
-    --prefix=/usr \                   # Install to /usr
-    --sbindir=/usr/bin \              # Server binaries to /usr/bin
-    --sysconfdir=/etc \               # Configuration files to /etc
-    --enable-lcdproc-menus \          # Enable menu support in lcdproc client
-    --enable-drivers=g15,linux_input  # Build only G15 and linux_input drivers
+    --prefix=/usr \                         # Install base directory
+    --sbindir=/usr/bin \                    # Server binaries to /usr/bin (not /usr/sbin)
+    --sysconfdir=/etc \                     # Configuration files to /etc
+    --enable-libusb \                       # Enable libusb support for G15 device communication
+    --enable-lcdproc-menus \                # Enable menu support in lcdproc client
+    --enable-stat-smbfs \                   # Enable Samba filesystem statistics
+    --enable-drivers=g15,linux_input,debug  # Build available drivers
 ```
 
 But it may not do what you want, so please take a few seconds to type:
