@@ -81,6 +81,8 @@ time_screen(int rep, int display, int *flags_ptr)
 	time_t thetime;
 	struct tm *rtime;
 	double uptime, idle;
+	load_type load;
+	int current_idle;
 
 	if ((*flags_ptr & INITIALIZED) == 0) {
 		*flags_ptr |= INITIALIZED;
@@ -123,6 +125,7 @@ time_screen(int rep, int display, int *flags_ptr)
 		char tmp[40];	/* should be large enough */
 
 		machine_get_uptime(&uptime, &idle);
+		machine_get_load(&load);
 
 		/* display the uptime... */
 		days = (int) uptime / 86400;
@@ -146,7 +149,8 @@ time_screen(int rep, int display, int *flags_ptr)
 			sock_printf(sock, "widget_set T two %i 3 {%s}\n", xoffs, today);
 
 		/* display the time & idle time... */
-		sprintf(tmp, "%s %3i%% idle", now, (int) idle);
+		current_idle = (load.total > 0) ? (int)(100.0 * ((double) load.idle / (double) load.total)) : 0;
+		sprintf(tmp, "%s %3i%% idle", now, current_idle);
 		xoffs = (lcd_wid > strlen(tmp)) ? ((lcd_wid - strlen(tmp)) / 2) + 1 : 1;
 		if (display)
 			sock_printf(sock, "widget_set T three %i 4 {%s}\n", xoffs, tmp);
