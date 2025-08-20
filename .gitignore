@@ -254,3 +254,8 @@ tags
 
 *.patch
 *.diff
+*.tar.gz
+ar-lib
+
+# Claude
+.claude
