@@ -497,5 +497,6 @@ AC_CONFIG_FILES([Makefile
 	server/drivers/Makefile
 	clients/Makefile
 	clients/lcdproc/Makefile
-	clients/lcdexec/Makefile])
+	clients/lcdexec/Makefile
+	services/Makefile])
 AC_OUTPUT
