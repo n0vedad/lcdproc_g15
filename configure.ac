@@ -69,7 +69,6 @@ fi
 
 dnl Checks for programs used in building
 AC_PROG_CC
-AC_PROG_CC_STDC
 AC_PROG_CPP
 AC_PROG_INSTALL
 AC_PROG_RANLIB
@@ -177,7 +176,7 @@ fi
 
 dnl Checks for header files.
 AC_HEADER_DIRENT
-AC_HEADER_STDC
+AC_CHECK_HEADERS([stdc])
 AC_CHECK_HEADERS(fcntl.h sys/ioctl.h sys/time.h unistd.h sys/io.h errno.h)
 AC_CHECK_HEADERS(limits.h kvm.h sys/param.h sys/dkstat.h stdbool.h)
 
@@ -206,13 +205,13 @@ dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 AC_C_INLINE
 AC_TYPE_SIZE_T
-AC_HEADER_TIME
+dnl AC_HEADER_TIME is obsolete - time.h can always be included with sys/time.h
 AC_STRUCT_TM
 AC_TYPE_UID_T
 
 dnl Checks for library functions.
-AC_PROG_GCC_TRADITIONAL
-AC_TYPE_SIGNAL
+dnl AC_PROG_GCC_TRADITIONAL is obsolete - modern compilers don't need this
+dnl AC_TYPE_SIGNAL is obsolete - signal handlers return void on modern systems
 AC_CHECK_FUNCS(select socket strdup strerror strtol uname cfmakeraw snprintf)
 
 dnl Many people on non-GNU/Linux systems don't have getopt
@@ -498,24 +497,5 @@ AC_CONFIG_FILES([Makefile
 	server/drivers/Makefile
 	clients/Makefile
 	clients/lcdproc/Makefile
-	clients/lcdexec/Makefile
-	clients/lcdvc/Makefile
-	clients/examples/Makefile
-	clients/metar/Makefile
-	docs/Makefile
-	docs/Doxyfile
-	docs/lcdproc-dev/Makefile
-	docs/lcdproc-user/Makefile
-	docs/lcdproc-user/drivers/Makefile
-	scripts/Makefile
-	scripts/init-LCDd.LSB
-	scripts/init-lcdproc.LSB
-	scripts/init-lcdexec.LSB
-	scripts/init-lcdvc.LSB
-	scripts/init-LCDd.debian
-	scripts/init-lcdproc.debian
-	scripts/init-lcdexec.debian
-	scripts/init-lcdvc.debian
-	scripts/init-LCDd.rpm
-	scripts/init-lcdproc.rpm])
+	clients/lcdexec/Makefile])
 AC_OUTPUT

@@ -3,16 +3,16 @@
 ## set automake strictness to 'foreign'
 AUTOMAKE_OPTIONS = foreign
 
-SUBDIRS = shared clients server docs scripts
+SUBDIRS = shared clients server
 
-sysconf_DATA = LCDd.conf
+EXTRA_DIST =
 
-EXTRA_DIST = $(sysconf_DATA) CREDITS.md contrib
-
-
-dist-hook:
-	rm -rf `find $(distdir)/contrib -name CVS`
-
+distclean-local:
+	-rm -rf autom4te.cache
+	-rm -f *.tar.gz aclocal.m4 compile configure configure~ depcomp missing
+	-rm -f install-sh config.guess config.sub config.h.in config.h.in~ ar-lib
+	-find . -name "Makefile.in" -delete
+	-find . -name ".deps" -type d -exec rm -rf {} + 2>/dev/null || true
 
 ## convenience targets
 
@@ -25,31 +25,9 @@ clients server: shared
 
 install-server: server
 	$(MAKE) -C server install
-	$(MAKE) -C docs install-server-man
 
 install-clients: clients
 	$(MAKE) -C clients install
-	$(MAKE) -C docs install-client-man
 
-
-.PHONY: install-html-guides install-html-developerguide install-html-userguide
-
-install-html-guides: install-html-developerguide install-html-userguide
-
-install-html-developerguide:
-	$(MAKE) -C docs $@
-
-install-html-userguide:
-	$(MAKE) -C docs $@
-
-
-.PHONY: dox topleveltags
-
-dox:
-	$(MAKE) -C docs $@
-
-topleveltags:
-	$(CTAGS) --format=1 -f - --languages=C --c-kinds=f --recurse=yes  server shared clients \
-	| perl -p -e 's/^([^\t]+)\t[^\t]+\/([^\t\/]+)\t(.*)$/$1\t$2\t$3/' > tags
 
 ## EOF

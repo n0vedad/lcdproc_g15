@@ -4,6 +4,8 @@ SUBDIRS=drivers commands
 
 sbin_PROGRAMS=LCDd
 
+sysconf_DATA = LCDd.conf
+
 LCDd_SOURCES= client.c client.h clients.c clients.h input.c input.h main.c main.h menuitem.c menuitem.h menu.c menu.h menuscreens.c menuscreens.h parse.c parse.h render.c render.h screen.c screen.h screenlist.c screenlist.h serverscreens.c serverscreens.h sock.c sock.h widget.c widget.h drivers.c drivers.h driver.c driver.h
 
 LDADD = ../shared/libLCDstuff.a commands/libLCDcommands.a @LIBPTHREAD_LIBS@
@@ -13,5 +15,7 @@ AM_LDFLAGS = -rdynamic
 endif
 
 AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/shared -DSYSCONFDIR=\"$(sysconfdir)\"
+
+EXTRA_DIST = $(sysconf_DATA)
 
 ## EOF

@@ -7,43 +7,31 @@ AC_MSG_NOTICE([checking which drivers to compile...])
 AC_ARG_ENABLE(drivers,
 	[  --enable-drivers=<list> compile drivers for LCDs in <list>,]
 	[                  which is a comma-separated list of drivers.]
-	[                  Possible drivers are:]
-	[                    bayrad,CFontz,CFontzPacket,curses,CwLnx,ea65,]
-	[                    EyeboxOne,futaba,g15,glcd,glcdlib,glk,hd44780,i2500vfd,]
-	[                    icp_a106,imon,imonlcd,IOWarrior,irman,irtrans,]
-	[                    joy,jw002,lb216,lcdm001,lcterm,linux_input,lirc,lis,MD8800,mdm166a,]
-	[                    ms6931,mtc_s16209x,MtxOrb,mx5000,NoritakeVFD,]
-	[                    Olimex_MOD_LCD1x9,picolcd,pyramid,rawserial,]
-	[                    sdeclcd,sed1330,sed1520,serialPOS,serialVFD,]
-	[                    shuttleVFD,sli,stv5730,SureElec,svga,t6963,text,]
-	[                    tyan,ula200,vlsys_m428,xosd,yard2LCD]
+	[                  Available drivers for this G15-optimized build:]
+	[                    g15,linux_input,debug]
 	[                    ]
-	[                  'all' compiles all drivers;]
+	[                  'all' compiles all available drivers;]
 	[                  'all,!xxx,!yyy' de-selects previously selected drivers],
 	drivers="$enableval",
-	drivers=[bayrad,CFontz,CFontzPacket,curses,CwLnx,glk,lb216,lcdm001,MtxOrb,pyramid,text])
+	drivers=[g15,linux_input])
 
-allDrivers=[bayrad,CFontz,CFontzPacket,curses,CwLnx,ea65,EyeboxOne,futaba,g15,glcd,glcdlib,glk,hd44780,i2500vfd,icp_a106,imon,imonlcd,IOWarrior,irman,irtrans,joy,jw002,lb216,lcdm001,lcterm,linux_input,lirc,lis,MD8800,mdm166a,ms6931,mtc_s16209x,MtxOrb,mx5000,NoritakeVFD,Olimex_MOD_LCD1x9,picolcd,pyramid,sdeclcd,sed1330,sed1520,serialPOS,serialVFD,shuttleVFD,sli,stv5730,SureElec,svga,t6963,text,tyan,ula200,vlsys_m428,xosd,rawserial,yard2LCD]
+dnl For G15-optimized build, simplify driver selection
 if test "$debug" = yes; then
-	allDrivers=["${allDrivers},debug"]
+	available_drivers="g15 linux_input debug"
+else
+	available_drivers="g15 linux_input"
 fi
 
-dnl replace special keyword "all" in a secure manner
-drivers=[" $drivers "]
-drivers=`echo " $drivers " | sed -e "s/ all,/ ${allDrivers} /"`
-drivers=`echo " $drivers " | sed -e "s/ all / ${allDrivers} /"`
+dnl replace special keyword "all" with available drivers
+drivers=`echo "$drivers" | sed -e "s/all/$available_drivers/g"`
 drivers=`echo $drivers | sed -e 's/,/ /g'`
 
-dnl ignore unwanted drivers
-selectdrivers=" "
+dnl simple driver validation - only allow available drivers
+selectdrivers=""
 for driver in $drivers ; do
-	case $driver in
-		!*)
-			driver=`echo "$driver" | sed -e 's/^.//'`
-			selectdrivers=[`echo " $selectdrivers " | sed -e "s/ $driver / /g"`]
-			;;
-		*)
-			selectdrivers=["$selectdrivers $driver "]
+	case " $available_drivers " in
+		*" $driver "*)
+			selectdrivers="$selectdrivers $driver"
 			;;
 	esac
 done
@@ -51,104 +39,10 @@ done
 dnl check for wanted drivers and their dependencies
 for driver in $selectdrivers ; do
 	case "$driver" in
-		bayrad)
-			DRIVERS="$DRIVERS bayrad${SO}"
-			actdrivers=["$actdrivers bayrad"]
-			;;
-		CFontz)
-			DRIVERS="$DRIVERS CFontz${SO}"
-			actdrivers=["$actdrivers CFontz"]
-			;;
-		CFontzPacket)
-			DRIVERS="$DRIVERS CFontzPacket${SO}"
-			actdrivers=["$actdrivers CFontzPacket"]
-			AC_CHECK_FUNCS(select, [
-				AC_CHECK_HEADERS(sys/select.h)
-			],[
-				AC_MSG_WARN([The CFontzPacket driver needs the select() function])
-			])
-			;;
-		curses)
-			AC_CHECK_HEADERS(ncurses.h curses.h)
-			AC_CHECK_LIB(ncurses, main, [
-				AC_CHECK_HEADER(ncurses.h, [
-					dnl We have ncurses.h and libncurses, add driver.
-					LIBCURSES="-lncurses"
-					DRIVERS="$DRIVERS curses${SO}"
-					actdrivers=["$actdrivers curses"]
-				],[
-dnl				else
-					AC_MSG_WARN([Could not find ncurses.h])],
-				[])
-			],[
-dnl			else
-				AC_CHECK_LIB(curses, main, [
-					AC_CHECK_HEADER(curses.h, [
-						dnl We have curses.h and libcurses, add driver.
-						LIBCURSES="-lcurses"
-						DRIVERS="$DRIVERS curses${SO}"
-						actdrivers=["$actdrivers curses"]
-					],[
-dnl					else
-						AC_MSG_WARN([Could not find curses.h])],
-					[])
-				],[
-dnl				else
-					AC_MSG_WARN([The curses driver needs the curses (or ncurses) library.])],
-				[])
-			])
-
-			AC_CURSES_ACS_ARRAY
-
-			AC_CACHE_CHECK([for redrawwin() in curses], ac_cv_curses_redrawwin,
-			[oldlibs="$LIBS"
-			 LIBS="$LIBS $LIBCURSES"
-			 AC_TRY_LINK_FUNC(redrawwin, ac_cv_curses_redrawwin=yes, ac_cv_curses_redrawwin=no)
-			 LIBS="$oldlibs"
-			])
-			if test "$ac_cv_curses_redrawwin" = yes; then
-				AC_DEFINE(CURSES_HAS_REDRAWWIN,[1],[Define to 1 if you have the redrawwin function in the curses library])
-			fi
-
-			AC_CACHE_CHECK([for wcolor_set() in curses], ac_cv_curses_wcolor_set,
-			[oldlibs="$LIBS"
-			 LIBS="$LIBS $LIBCURSES"
-			 AC_TRY_LINK_FUNC(wcolor_set, ac_cv_curses_wcolor_set=yes, ac_cv_curses_wcolor_set=no)
-			 LIBS="$oldlibs"
-			])
-			if test "$ac_cv_curses_wcolor_set" = yes; then
-				AC_DEFINE(CURSES_HAS_WCOLOR_SET,[1],[Define to 1 if you have the wcolor_set function in the curses library])
-			fi
-			;;
-		CwLnx)
-			DRIVERS="$DRIVERS CwLnx${SO}"
-			actdrivers=["$actdrivers CwLnx"]
-			;;
 		debug)
 			DRIVERS="$DRIVERS debug${SO}"
 			actdrivers=["$actdrivers debug"]
 			;;
-		ea65)
-			DRIVERS="$DRIVERS ea65${SO}"
-			actdrivers=["$actdrivers ea65"]
-			;;
-		EyeboxOne)
-			DRIVERS="$DRIVERS EyeboxOne${SO}"
-			actdrivers=["$actdrivers EyeboxOne"]
-			;;
-                futaba)
-			if test "$enable_libusb_1_0" = yes ; then
-	                        DRIVERS="$DRIVERS futaba${SO}"
-				actdrivers=["$actdrivers futaba"]
-				AC_MSG_RESULT([The futaba driver is using the libusb-1.0 library.])
-                        elif test "$enable_libusb" = yes ; then
-                                DRIVERS="$DRIVERS futaba${SO}"
-				actdrivers=["$actdrivers futaba"]
-				AC_MSG_RESULT([The futaba driver is using the libusb-0.1 library.])
-                        else
-                                AC_MSG_WARN([The futaba driver needs the libusb library.])
-                        fi
-                        ;;
 		g15)
 			AC_CHECK_HEADERS([g15daemon_client.h],[
 				AC_CHECK_LIB(g15daemon_client, new_g15_screen,[
@@ -184,175 +78,6 @@ dnl				else
 				AC_MSG_WARN([libg15render is broken without freetype])
 			fi
 			;;
-		glcd)
-			GLCD_DRIVERS=""
-			if test "$ac_cv_port_have_lpt" = yes ; then
-				GLCD_DRIVERS="$GLCD_DRIVERS glcd-glcd-t6963.o t6963_low.o"
-			fi
-			if test "$enable_libpng" = yes ; then
-				GLCD_DRIVERS="$GLCD_DRIVERS glcd-glcd-png.o"
-			fi
-			if test "$enable_libusb" = yes ; then
-				GLCD_DRIVERS="$GLCD_DRIVERS glcd-glcd-glcd2usb.o glcd-glcd-picolcdgfx.o"
-			fi
-			AC_CHECK_HEADERS([serdisplib/serdisp.h],[
-				AC_CHECK_LIB(serdisp, serdisp_nextdisplaydescription,[
-					AC_DEFINE(HAVE_SERDISPLIB,[1],[Define to 1 if you have working serdisplib])
-					LIBSERDISP="-lserdisp"
-					GLCD_DRIVERS="$GLCD_DRIVERS glcd-glcd-serdisp.o"
-				],[
-					AC_MSG_WARN([serdisp library not working])
-				])
-			])
-			AC_SUBST(LIBSERDISP)
-			if test "$enable_libX11" = yes ; then
-				GLCD_DRIVERS="$GLCD_DRIVERS glcd-glcd-x11.o"
-			fi
-			DRIVERS="$DRIVERS glcd${SO}"
-			actdrivers=["$actdrivers glcd"]
-			;;
-		glcdlib)
-			AC_CHECK_HEADERS([glcdproclib/glcdprocdriver.h],[
-				AC_CHECK_LIB(glcdprocdriver, main,[
-					LIBGLCD="-lglcddrivers -lglcdgraphics -lglcdprocdriver"
-					DRIVERS="$DRIVERS glcdlib${SO}"
-					actdrivers=["$actdrivers glcdlib"]
-				],[
-dnl				else
-					AC_MSG_WARN([The glcdlib driver needs the glcdprocdriver library])
-				],
-				[-lglcddrivers -lglcdgraphics -lglcdprocdriver]
-				)
-			],[
-dnl			else
-				AC_MSG_WARN([The glcdlib driver needs glcdproclib/glcdprocdriver.h])
-			])
-			;;
-		glk)
-			DRIVERS="$DRIVERS glk${SO}"
-			actdrivers=["$actdrivers glk"]
-			;;
-		hd44780)
-			HD44780_DRIVERS="hd44780-hd44780-serial.o hd44780-hd44780-lis2.o hd44780-hd44780-usblcd.o"
-			AC_CHECK_LIB(ugpio, main,[
-				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-ugpio.o"
-				LIBUGPIO="-lugpio"
-				AC_DEFINE(HAVE_UGPIO, [1], [Define to 1 if you have libugpio])
-			],[
-				AC_MSG_WARN([Could not find libugpio, not building hd44780-ugpio driver])
-			])
-			AC_CHECK_LIB(gpiod, main,[
-				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-gpiod.o"
-				LIBGPIOD="-lgpiod"
-				AC_DEFINE(HAVE_GPIOD, [1], [Define to 1 if you have libgpiod])
-			],[
-				AC_MSG_WARN([Could not find libgpiod, not building hd44780-gpiod driver])
-			])
-			if test "$ac_cv_port_have_lpt" = yes ; then
-				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-4bit.o hd44780-hd44780-ext8bit.o hd44780-hd44780-winamp.o hd44780-hd44780-serialLpt.o hd44780-hd44780-lcm162.o"
-			fi
-			if test "$enable_libusb" = yes ; then
-				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-bwct-usb.o hd44780-hd44780-uss720.o hd44780-hd44780-usbtiny.o hd44780-hd44780-usb4all.o"
-			fi
-			if test "$enable_libusb_1_0" = yes ; then
-				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-lcd2usb.o"
-			fi
-			if test "$enable_libftdi" = yes ; then
-				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-ftdi.o"
-			fi
-			if test "$enable_ethlcd" = yes ; then
-				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-ethlcd.o"
-				AC_DEFINE(WITH_ETHLCD,[1],[Define to 1 if you want to build hd44780 driver with ethlcd support])
-			fi
-			if test "$x_ac_have_i2c" = yes; then
-				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-i2c.o"
-				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-piplate.o"
-				HD44780_I2C="i2c.o"
-			else
-				HD44780_I2C=""
-			fi
-			if test "$x_ac_have_spi" = yes; then
-				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-spi.o hd44780-hd44780-pifacecad.o"
-			fi
-dnl			The hd4470-rpi driver only works on a Raspberry Pi,
-dnl			which is an ARM platform. Require people to compile on
-dnl			(or for) ARM to get it.
-			case $host in
-			arm*-*-linux*)
-				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-rpi.o"
-				AC_DEFINE([WITH_RASPBERRYPI],[1],[Define if you are using a Raspberry Pi.])
-				;;
-			esac
-			DRIVERS="$DRIVERS hd44780${SO}"
-			actdrivers=["$actdrivers hd44780"]
-			;;
-		i2500vfd)
-			if test "$enable_libftdi" = yes ; then
-				DRIVERS="$DRIVERS i2500vfd${SO}"
-				actdrivers=["$actdrivers i2500vfd"]
-			else
-				AC_MSG_WARN([The i2500vfd driver needs the ftdi library])
-			fi
-			;;
-		icp_a106)
-			DRIVERS="$DRIVERS icp_a106${SO}"
-			actdrivers=["$actdrivers icp_a106"]
-			;;
-		imon)
-			DRIVERS="$DRIVERS imon${SO}"
-			actdrivers=["$actdrivers imon"]
-			;;
-		imonlcd)
-			DRIVERS="$DRIVERS imonlcd${SO}"
-			actdrivers=["$actdrivers imonlcd"]
-			;;
-		IOWarrior)
-			if test "$enable_libusb" = yes ; then
-				DRIVERS="$DRIVERS IOWarrior${SO}"
-				actdrivers=["$actdrivers IOWarrior"]
-			else
-				AC_MSG_WARN([The IOWarrior driver needs the libusb library.])
-			fi
-			;;
-		irman)
-			AC_CHECK_LIB(irman, main,[
-				LIBIRMAN="-lirman"
-				DRIVERS="$DRIVERS irman${SO}"
-				actdrivers=["$actdrivers irman"]
-				],[
-dnl				else
-				AC_MSG_WARN([The irman driver needs the irman library.])
-			])
-			;;
-		irtrans)
-			DRIVERS="$DRIVERS irtrans${SO}"
-			actdrivers=["$actdrivers irtrans"]
-			;;
-		joy)
-			AC_CHECK_HEADER(linux/joystick.h, [
-				DRIVERS="$DRIVERS joy${SO}"
-				actdrivers=["$actdrivers joy"]
-				],[
-dnl				else
-				AC_MSG_WARN([The joy driver needs header file linux/joystick.h.])
-			])
-			;;
-		jw002)
-			DRIVERS="$DRIVERS jw002${SO}"
-			actdrivers="$actdrivers jw002"
-			;;
-		lb216)
-			DRIVERS="$DRIVERS lb216${SO}"
-			actdrivers=["$actdrivers lb216"]
-			;;
-		lcdm001)
-			DRIVERS="$DRIVERS lcdm001${SO}"
-			actdrivers=["$actdrivers lcdm001"]
-			;;
-		lcterm)
-			DRIVERS="$DRIVERS lcterm${SO}"
-			actdrivers=["$actdrivers lcterm"]
-			;;
 		linux_input)
 			case $host in
 			*-*-linux*)
@@ -361,241 +86,6 @@ dnl				else
 				;;
 			esac
 			;;
-		lirc)
-			AC_CHECK_LIB(lirc_client, main,[
-				LIBLIRC_CLIENT="-llirc_client"
-				DRIVERS="$DRIVERS lirc${SO}"
-				actdrivers=["$actdrivers lirc"]
-				],[
-dnl				else
-				AC_MSG_WARN([The lirc driver needs the lirc client library])
-			])
-			;;
-		lis)
-			AC_CHECK_HEADERS([pthread.h],[
-				AC_CHECK_LIB(pthread, pthread_create,[
-					LIBPTHREAD_LIBS="-lpthread"
-					ac_cv_lis_pthread=yes
-				],[
-dnl				else
-					ac_cv_lis_pthread=no
-					AC_MSG_WARN([The lis driver needs the pthread library and pthread_create() from it])
-				])
-			],[
-dnl			else
-				ac_cv_lis_pthread=no
-				AC_MSG_WARN([The lis driver needs pthread.h])
-			])
-			if test "$enable_libftdi" = yes ; then
-				if test "$ac_cv_lis_pthread" = yes; then
-					DRIVERS="$DRIVERS lis${SO}"
-					actdrivers=["$actdrivers lis"]
-				else
-					AC_MSG_WARN([The lis driver needs the pthread library])
-				fi
-			else
-				AC_MSG_WARN([The lis driver needs the ftdi library])
-			fi
-			;;
-		MD8800)
-			DRIVERS="$DRIVERS MD8800${SO}"
-			actdrivers=["$actdrivers MD8800"]
-			;;
-		mdm166a)
-			if test "$enable_libhid" = yes ; then
-				DRIVERS="$DRIVERS mdm166a${SO}"
-				actdrivers=["$actdrivers mdm166a"]
-			else
-				AC_MSG_WARN([The mdm166a driver needs the hid library])
-			fi
-			;;
-		ms6931)
-			DRIVERS="$DRIVERS ms6931${SO}"
-			actdrivers=["$actdrivers ms6931"]
-			;;
-		mtc_s16209x)
-			DRIVERS="$DRIVERS mtc_s16209x${SO}"
-			actdrivers=["$actdrivers mtc_s16209x"]
-			;;
-		MtxOrb)
-			DRIVERS="$DRIVERS MtxOrb${SO}"
-			actdrivers=["$actdrivers MtxOrb"]
-			;;
-		mx5000)
-			AC_CHECK_HEADERS([libmx5000/mx5000.h],[
-				AC_CHECK_LIB(mx5000, mx5000_sc_new_static,[
-					LIBMX5000="-lmx5000"
-					DRIVERS="$DRIVERS mx5000${SO}"
-					actdrivers=["$actdrivers mx5000"]
-				],[
-dnl				else
-					AC_MSG_WARN([The mx5000 driver needs the mx5000tools library])
-				])
-			],[
-dnl			else
-				AC_MSG_WARN([The mx5000 driver needs libmx5000/mx5000.h])
-			])
-			;;
-		NoritakeVFD)
-			DRIVERS="$DRIVERS NoritakeVFD${SO}"
-			actdrivers=["$actdrivers NoritakeVFD"]
-			;;
-		Olimex_MOD_LCD1x9)
-			AC_CHECK_HEADERS([linux/i2c.h],[
-				DRIVERS="$DRIVERS Olimex_MOD_LCD1x9${SO}"
-				actdrivers=["$actdrivers Olimex_MOD_LCD1x9"]
-			],[
-dnl			else
-				AC_MSG_WARN([The Olimex MOD-LCD1x9 driver needs linux/i2c.h])
-			])
-			;;
-		rawserial)
-			DRIVERS="$DRIVERS rawserial${SO}"
-			actdrivers=["$actdrivers rawserial"]
-			;;
-		picolcd)
-			if test "$enable_libusb_1_0" = yes ; then
-				DRIVERS="$DRIVERS picolcd${SO}"
-				actdrivers=["$actdrivers picolcd"]
-				AC_MSG_RESULT([The picolcd driver is using the libusb-1.0 library.])
-			elif test "$enable_libusb" = yes ; then
-				DRIVERS="$DRIVERS picolcd${SO}"
-				actdrivers=["$actdrivers picolcd"]
-				AC_MSG_RESULT([The picolcd driver is using the libusb-0.1 library.])
-			else
-				AC_MSG_WARN([The picolcd driver needs the libusb library.])
-			fi
-			;;
-		pyramid)
-			DRIVERS="$DRIVERS pyramid${SO}"
-			actdrivers=["$actdrivers pyramid"]
-			;;
-		sdeclcd)
-			if test "$ac_cv_port_have_lpt" = yes
-			then
-				DRIVERS="$DRIVERS sdeclcd${SO}"
-				actdrivers=["$actdrivers sdeclcd"]
-			else
-				AC_MSG_WARN([The sdeclcd driver needs a parallel port.])
-			fi
-			;;
-		sed1330)
-			if test "$ac_cv_port_have_lpt" = yes
-			then
-				DRIVERS="$DRIVERS sed1330${SO}"
-				actdrivers=["$actdrivers sed1330"]
-			else
-				AC_MSG_WARN([The sed1330 driver needs a parallel port.])
-			fi
-			;;
-		sed1520)
-			if test "$ac_cv_port_have_lpt" = yes
-			then
-				DRIVERS="$DRIVERS sed1520${SO}"
-				actdrivers=["$actdrivers sed1520"]
-			else
-				AC_MSG_WARN([The sed1520 driver needs a parallel port.])
-			fi
-			;;
-		serialPOS)
-			DRIVERS="$DRIVERS serialPOS${SO}"
-			actdrivers=["$actdrivers serialPOS"]
-			;;
-		serialVFD)
-			DRIVERS="$DRIVERS serialVFD${SO}"
-			actdrivers=["$actdrivers serialVFD"]
-			;;
-		shuttleVFD)
-			if test "$enable_libusb" = yes ; then
-				DRIVERS="$DRIVERS shuttleVFD${SO}"
-				actdrivers=["$actdrivers shuttleVFD"]
-			else
-				AC_MSG_WARN([The shuttleVFD driver needs the libusb library.])
-			fi
-			;;
-		sli)
-			DRIVERS="$DRIVERS sli${SO}"
-			actdrivers=["$actdrivers sli"]
-			;;
-		stv5730)
-			if test "$ac_cv_port_have_lpt" = yes
-			then
-				DRIVERS="$DRIVERS stv5730${SO}"
-				actdrivers=["$actdrivers stv5730"]
-			else
-				AC_MSG_WARN([The stv5730 driver needs a parallel port.])
-			fi
-			;;
-		SureElec)
-			DRIVERS="$DRIVERS SureElec${SO}"
-			actdrivers=["$actdrivers SureElec"]
-			;;
-		svga)
-			AC_CHECK_HEADER([vga.h], [
-				AC_CHECK_HEADER([vgagl.h],[
-					AC_CHECK_LIB(vga, main,[
-						LIBSVGA="-lvga -lvgagl"
-						DRIVERS="$DRIVERS svga${SO}"
-						actdrivers=["$actdrivers svga"]
-					],[
-dnl					else
-						AC_MSG_WARN([The svga driver needs the vga library])
-					])
-				],[
-dnl				else
-					AC_MSG_WARN([The svga driver needs vgagl.h])
-				])
-			],[
-dnl			else
-				AC_MSG_WARN([The svga driver needs vga.h])
-			])
-			;;
-		t6963)
-			if test "$ac_cv_port_have_lpt" = yes
-			then
-				DRIVERS="$DRIVERS t6963${SO}"
-				actdrivers=["$actdrivers t6963"]
-			else
-				AC_MSG_WARN([The sed1330 driver needs a parallel port.])
-			fi
-			;;
-		text)
-			DRIVERS="$DRIVERS text${SO}"
-			actdrivers=["$actdrivers text"]
-			;;
-		tyan)
-			DRIVERS="$DRIVERS tyan${SO}"
-			actdrivers=["$actdrivers tyan"]
-			;;
-		ula200)
-			if test "$enable_libftdi" = yes ; then
-				DRIVERS="$DRIVERS ula200${SO}"
-				actdrivers=["$actdrivers ula200"]
-			else
-				AC_MSG_WARN([The ula200 driver needs the ftdi library])
-			fi
-			;;
-		vlsys_m428)
-			DRIVERS="$DRIVERS vlsys_m428${SO}"
-			actdrivers=["$actdrivers vlsys_m428"]
-			;;
-		xosd)
-			AC_PATH_PROG([LIBXOSD_CONFIG], [xosd-config], [no])
-			if test "$LIBXOSD_CONFIG" = "no"; then
-				AC_MSG_WARN([The xosd driver needs the xosd library])
-			else
-				LIBXOSD_CFLAGS=`$LIBXOSD_CONFIG --cflags`
-				LIBXOSD_LIBS=`$LIBXOSD_CONFIG --libs`
-				AC_SUBST(LIBXOSD_CFLAGS)
-				AC_SUBST(LIBXOSD_LIBS)
-				DRIVERS="$DRIVERS xosd${SO}"
-				actdrivers=["$actdrivers xosd"]
-			fi
-			;;
-		yard2LCD)
-			DRIVERS="$DRIVERS yard2LCD${SO}"
-			actdrivers=["$actdrivers yard2LCD"]
-			;;	
 		*)
 			AC_MSG_ERROR([Unknown driver $driver])
 			;;
@@ -609,46 +99,8 @@ for driver in $actdrivers; do
 done
 AC_MSG_RESULT([---------------------------------------])
 
-AC_SUBST(LIBCURSES)
-AC_SUBST(LIBIRMAN)
-AC_SUBST(LIBLIRC_CLIENT)
-AC_SUBST(LIBSVGA)
 AC_SUBST(DRIVERS)
-AC_SUBST(HD44780_DRIVERS)
-AC_SUBST(HD44780_I2C)
-AC_SUBST(GLCD_DRIVERS)
 AC_SUBST(LIBG15)
-AC_SUBST(LIBGLCD)
-AC_SUBST(LIBFTDI)
-AC_SUBST(LIBXOSD)
-AC_SUBST(LIBPTHREAD_LIBS)
-AC_SUBST(LIBMX5000)
-AC_SUBST(LIBUGPIO)
-AC_SUBST(LIBGPIOD)
-])
-
-
-dnl
-dnl Curses test to check if we use _acs_char* or acs_map*
-dnl
-AC_DEFUN([AC_CURSES_ACS_ARRAY], [
-	AC_CACHE_CHECK([for acs_map in curses.h], ac_cv_curses_acs_map,
-	[AC_TRY_COMPILE([#include <curses.h>], [ char map = acs_map['p'] ], ac_cv_curses_acs_map=yes, ac_cv_curses_acs_map=no)])
-
-	if test "$ac_cv_curses_acs_map" = yes
-	then
-		AC_DEFINE(CURSES_HAS_ACS_MAP,[1],[Define to 1 if <curses.h> defines the acs_map array])
-	else
-
-		AC_CACHE_CHECK([for _acs_char in curses.h], ac_cv_curses__acs_char,
-		[AC_TRY_COMPILE([#include <curses.h>], [ char map = _acs_char['p'] ], ac_cv_curses__acs_char=yes, ac_cv_curses__acs_char=no)])
-
-		if test "$ac_cv_curses__acs_char" = yes
-		then
-			AC_DEFINE(CURSES_HAS__ACS_CHAR,[1],[Define to 1 if <curses.h> defines the _acs_char array])
-		fi
-
-	fi
 ])
 
 
@@ -715,19 +167,17 @@ AC_DEFUN([AC_GET_FS_INFO], [
       # DEC Alpha running OSF/1
       AC_MSG_CHECKING([for 3-argument statfs function (DEC OSF/1)])
       AC_CACHE_VAL(fu_cv_sys_stat_statfs3_osf1,
-      [AC_TRY_RUN([
+      [AC_RUN_IFELSE([AC_LANG_PROGRAM([[
 #include <sys/param.h>
 #include <sys/types.h>
-#include <sys/mount.h>
-      main ()
-      {
+#include <sys/mount.h>]], [[
         struct statfs fsd;
         fsd.f_fsize = 0;
-        exit (statfs (".", &fsd, sizeof (struct statfs)));
-      }],
-      fu_cv_sys_stat_statfs3_osf1=yes,
-      fu_cv_sys_stat_statfs3_osf1=no,
-      fu_cv_sys_stat_statfs3_osf1=no)])
+        return statfs (".", &fsd, sizeof (struct statfs));
+      ]])],
+      [fu_cv_sys_stat_statfs3_osf1=yes],
+      [fu_cv_sys_stat_statfs3_osf1=no],
+      [fu_cv_sys_stat_statfs3_osf1=no])])
       AC_MSG_RESULT($fu_cv_sys_stat_statfs3_osf1)
       if test $fu_cv_sys_stat_statfs3_osf1 = yes; then
         space=yes
@@ -739,7 +189,7 @@ AC_DEFUN([AC_GET_FS_INFO], [
     # AIX
       AC_MSG_CHECKING([for two-argument statfs with statfs.bsize member (AIX, 4.3BSD)])
       AC_CACHE_VAL(fu_cv_sys_stat_statfs2_bsize,
-      [AC_TRY_RUN([
+      [AC_RUN_IFELSE([AC_LANG_PROGRAM([[
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
@@ -748,16 +198,14 @@ AC_DEFUN([AC_GET_FS_INFO], [
 #endif
 #ifdef HAVE_SYS_VFS_H
 #include <sys/vfs.h>
-#endif
-      main ()
-      {
+#endif]], [[
       struct statfs fsd;
       fsd.f_bsize = 0;
-      exit (statfs (".", &fsd));
-      }],
-      fu_cv_sys_stat_statfs2_bsize=yes,
-      fu_cv_sys_stat_statfs2_bsize=no,
-      fu_cv_sys_stat_statfs2_bsize=no)])
+      return statfs (".", &fsd);
+      ]])],
+      [fu_cv_sys_stat_statfs2_bsize=yes],
+      [fu_cv_sys_stat_statfs2_bsize=no],
+      [fu_cv_sys_stat_statfs2_bsize=no])])
       AC_MSG_RESULT($fu_cv_sys_stat_statfs2_bsize)
       if test $fu_cv_sys_stat_statfs2_bsize = yes; then
         space=yes
@@ -769,16 +217,14 @@ AC_DEFUN([AC_GET_FS_INFO], [
     # SVR3
       AC_MSG_CHECKING([for four-argument statfs (AIX-3.2.5, SVR3)])
       AC_CACHE_VAL(fu_cv_sys_stat_statfs4,
-      [AC_TRY_RUN([#include <sys/types.h>
-#include <sys/statfs.h>
-      main ()
-      {
+      [AC_RUN_IFELSE([AC_LANG_PROGRAM([[#include <sys/types.h>
+#include <sys/statfs.h>]], [[
       struct statfs fsd;
-      exit (statfs (".", &fsd, sizeof fsd, 0));
-      }],
-        fu_cv_sys_stat_statfs4=yes,
-        fu_cv_sys_stat_statfs4=no,
-        fu_cv_sys_stat_statfs4=no)])
+      return statfs (".", &fsd, sizeof fsd, 0);
+      ]])],
+        [fu_cv_sys_stat_statfs4=yes],
+        [fu_cv_sys_stat_statfs4=no],
+        [fu_cv_sys_stat_statfs4=no])])
       AC_MSG_RESULT($fu_cv_sys_stat_statfs4)
       if test $fu_cv_sys_stat_statfs4 = yes; then
         space=yes
@@ -790,22 +236,20 @@ AC_DEFUN([AC_GET_FS_INFO], [
       AC_MSG_CHECKING([for two-argument statfs with statfs.fsize dnl
     member (4.4BSD and NetBSD)])
       AC_CACHE_VAL(fu_cv_sys_stat_statfs2_fsize,
-      [AC_TRY_RUN([#include <sys/types.h>
+      [AC_RUN_IFELSE([AC_LANG_PROGRAM([[#include <sys/types.h>
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
 #ifdef HAVE_SYS_MOUNT_H
 #include <sys/mount.h>
-#endif
-      main ()
-      {
+#endif]], [[
       struct statfs fsd;
       fsd.f_fsize = 0;
-      exit (statfs (".", &fsd));
-      }],
-      fu_cv_sys_stat_statfs2_fsize=yes,
-      fu_cv_sys_stat_statfs2_fsize=no,
-      fu_cv_sys_stat_statfs2_fsize=no)])
+      return statfs (".", &fsd);
+      ]])],
+      [fu_cv_sys_stat_statfs2_fsize=yes],
+      [fu_cv_sys_stat_statfs2_fsize=no],
+      [fu_cv_sys_stat_statfs2_fsize=no])])
       AC_MSG_RESULT($fu_cv_sys_stat_statfs2_fsize)
       if test $fu_cv_sys_stat_statfs2_fsize = yes; then
         space=yes
@@ -817,7 +261,7 @@ AC_DEFUN([AC_GET_FS_INFO], [
       # Ultrix
       AC_MSG_CHECKING([for two-argument statfs with struct fs_data (Ultrix)])
       AC_CACHE_VAL(fu_cv_sys_stat_fs_data,
-      [AC_TRY_RUN([
+      [AC_RUN_IFELSE([AC_LANG_PROGRAM([[
 #include <sys/types.h>
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
@@ -827,17 +271,15 @@ AC_DEFUN([AC_GET_FS_INFO], [
 #endif
 #ifdef HAVE_SYS_FS_TYPES_H
 #include <sys/fs_types.h>
-#endif
-      main ()
-      {
+#endif]], [[
       struct fs_data fsd;
       /* Ultrix's statfs returns 1 for success,
          0 for not mounted, -1 for failure.  */
-      exit (statfs (".", &fsd) != 1);
-      }],
-      fu_cv_sys_stat_fs_data=yes,
-      fu_cv_sys_stat_fs_data=no,
-      fu_cv_sys_stat_fs_data=no)])
+      return !(statfs (".", &fsd) == 1);
+      ]])],
+      [fu_cv_sys_stat_fs_data=yes],
+      [fu_cv_sys_stat_fs_data=no],
+      [fu_cv_sys_stat_fs_data=no])])
       AC_MSG_RESULT($fu_cv_sys_stat_fs_data)
       if test $fu_cv_sys_stat_fs_data = yes; then
         space=yes
@@ -863,14 +305,13 @@ dnl http://ac-archive.sourceforge.net/Miscellaneous/etr_sysv_ipc.html
 AC_DEFUN([ETR_SYSV_IPC],
 [
 AC_CACHE_CHECK([for System V IPC headers], ac_cv_sysv_ipc, [
-        AC_TRY_COMPILE(
-                [
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
                         #include <sys/types.h>
                         #include <sys/ipc.h>
                         #include <sys/msg.h>
                         #include <sys/sem.h>
                         #include <sys/shm.h>
-                ],, ac_cv_sysv_ipc=yes, ac_cv_sysv_ipc=no)
+                ]], [[]])], [ac_cv_sysv_ipc=yes], [ac_cv_sysv_ipc=no])
 ])
 
         if test x"$ac_cv_sysv_ipc" = "xyes"
@@ -893,15 +334,11 @@ dnl http://ac-archive.sourceforge.net/Miscellaneous/etr_struct_semun.html
 AC_DEFUN([ETR_UNION_SEMUN],
 [
 AC_CACHE_CHECK([for union semun], ac_cv_union_semun, [
-        AC_TRY_COMPILE(
-                [
+        AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
                         #include <sys/types.h>
                         #include <sys/ipc.h>
                         #include <sys/sem.h>
-                ],
-                [ union semun s ],
-                ac_cv_union_semun=yes,
-                ac_cv_union_semun=no)
+                ]], [[ union semun s; ]])], [ac_cv_union_semun=yes], [ac_cv_union_semun=no])
 ])
 
         if test x"$ac_cv_union_semun" = "xyes"
@@ -1106,19 +543,18 @@ AS_VAR_PUSHDEF([FLAGS],[CFLAGS])dnl
 AS_VAR_PUSHDEF([VAR],[ax_cv_cflags_gcc_option_$1])dnl
 AC_CACHE_CHECK([m4_ifval($2,$2,FLAGS) for gcc m4_ifval($1,$1,-option)],
 VAR,[AS_VAR_SET([VAR],["no, unknown"])
- AC_LANG_SAVE
- AC_LANG_C
+ AC_LANG_PUSH([C])
  ac_save_[]FLAGS="$[]FLAGS"
 for ac_arg dnl
 in "-pedantic -Werror % m4_ifval($1,$1,-option)"  dnl   GCC
    "-pedantic % m4_ifval($1,$1,-option) %% no, obsolete"  dnl new GCC
    #
 do FLAGS="$ac_save_[]FLAGS "`echo $ac_arg | sed -e 's,%%.*,,' -e 's,%,,'`
-   AC_TRY_COMPILE([],[return 0;],
+   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[return 0;])],
    [AS_VAR_SET([VAR],[`echo $ac_arg | sed -e 's,.*% *,,'`]); break])
 done
  FLAGS="$ac_save_[]FLAGS"
- AC_LANG_RESTORE
+ AC_LANG_POP([C])
 ])
 m4_ifdef([AS_VAR_COPY],[AS_VAR_COPY([var],[VAR])],[var=AS_VAR_GET([VAR])])
 case ".$var" in
@@ -1183,10 +619,8 @@ dnl Check if system has SA_RESTART defined. Copied from GNUs make configure.
 dnl
 AC_DEFUN([LCD_SA_RESTART], [
 AC_CACHE_CHECK([for SA_RESTART], lcd_cv_sa_restart, [
-  AC_TRY_COMPILE([#include <signal.h>],
-      [return SA_RESTART;],
-      lcd_cv_sa_restart=yes,
-      lcd_cv_sa_restart=no)])
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <signal.h>]],
+      [[return SA_RESTART;]])], [lcd_cv_sa_restart=yes], [lcd_cv_sa_restart=no])])
 if test "$lcd_cv_sa_restart" != no; then
   AC_DEFINE([HAVE_SA_RESTART], [1],
      [Define to 1 if <signal.h> defines the SA_RESTART constant.])
