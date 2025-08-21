@@ -107,6 +107,33 @@ MODULE_EXPORT int g15_init (Driver *drvthis)
 		return -1;
 	}
 
+	/* Check if device supports RGB backlight (G510 devices) */
+	/* TODO: Implement proper device detection based on USB product ID */
+	p->has_rgb_backlight = 1; /* Assume RGB support for now */
+	
+	/* Read RGB configuration from config file */
+	int config_red = drvthis->config_get_int(drvthis->name, "BacklightRed", 0, 255);
+	int config_green = drvthis->config_get_int(drvthis->name, "BacklightGreen", 0, 255);
+	int config_blue = drvthis->config_get_int(drvthis->name, "BacklightBlue", 0, 255);
+	
+	/* Validate and set RGB values */
+	if (config_red >= 0 && config_red <= 255 &&
+	    config_green >= 0 && config_green <= 255 &&
+	    config_blue >= 0 && config_blue <= 255) {
+		p->rgb_red = (unsigned char)config_red;
+		p->rgb_green = (unsigned char)config_green;
+		p->rgb_blue = (unsigned char)config_blue;
+		report(RPT_INFO, "%s: RGB backlight configured to (%d,%d,%d)",
+		       drvthis->name, config_red, config_green, config_blue);
+	} else {
+		/* Use default white if invalid values */
+		p->rgb_red = 255;
+		p->rgb_green = 255;
+		p->rgb_blue = 255;
+		report(RPT_WARNING, "%s: Invalid RGB config values, using default white",
+		       drvthis->name);
+	}
+
 	p->font = g15r_requestG15DefaultFont(G15_TEXT_LARGE);
 	if (p->font == NULL) {
 		report(RPT_ERR, "%s: unable to load default large font", drvthis->name);
@@ -116,6 +143,11 @@ MODULE_EXPORT int g15_init (Driver *drvthis)
 
 	g15r_initCanvas(&p->canvas);
 	g15r_initCanvas(&p->backingstore);
+
+	/* Set initial RGB backlight colors */
+	if (p->has_rgb_backlight && p->backlight_state == BACKLIGHT_ON) {
+		g15_set_rgb_backlight(drvthis, p->rgb_red, p->rgb_green, p->rgb_blue);
+	}
 
 	return 0;
 }
@@ -413,9 +445,74 @@ MODULE_EXPORT const char * g15_get_key (Driver *drvthis)
 //
 MODULE_EXPORT void g15_backlight(Driver *drvthis, int on)
 {
-	/* Backlight control not implemented for direct hidraw access */
-	/* TODO: Implement direct RGB backlight control for G510 devices */
-	return;
+	PrivateData *p = drvthis->private_data;
+	
+	if (p->backlight_state == on)
+		return;
+	
+	p->backlight_state = on;
+	
+	if (p->has_rgb_backlight) {
+		if (on == BACKLIGHT_ON) {
+			/* Restore saved RGB values */
+			g15_set_rgb_backlight(drvthis, p->rgb_red, p->rgb_green, p->rgb_blue);
+		} else {
+			/* Turn off backlight by setting all colors to 0 */
+			g15_set_rgb_backlight(drvthis, 0, 0, 0);
+		}
+	}
+}
+
+// Set RGB backlight colors (G510 only)
+//
+MODULE_EXPORT int g15_set_rgb_backlight(Driver *drvthis, int red, int green, int blue)
+{
+	PrivateData *p = drvthis->private_data;
+	unsigned char rgb_report[G510_RGB_REPORT_SIZE];
+	int result = 0;
+	
+	if (!p->has_rgb_backlight) {
+		report(RPT_WARNING, "%s: Device does not support RGB backlight", drvthis->name);
+		return -1;
+	}
+	
+	/* Validate RGB values */
+	if (red < 0 || red > 255 || green < 0 || green > 255 || blue < 0 || blue > 255) {
+		report(RPT_ERR, "%s: Invalid RGB values (%d,%d,%d)", drvthis->name, red, green, blue);
+		return -1;
+	}
+	
+	/* Store current RGB values */
+	p->rgb_red = (unsigned char)red;
+	p->rgb_green = (unsigned char)green;
+	p->rgb_blue = (unsigned char)blue;
+	
+	/* Set RGB for both zones (G510 has 2 RGB zones) */
+	
+	/* Zone 0 */
+	rgb_report[0] = G510_FEATURE_RGB_ZONE0;
+	rgb_report[1] = (unsigned char)red;
+	rgb_report[2] = (unsigned char)green;
+	rgb_report[3] = (unsigned char)blue;
+	
+	if (lib_hidraw_send_feature_report(p->hidraw_handle, rgb_report, G510_RGB_REPORT_SIZE) < 0) {
+		report(RPT_ERR, "%s: Failed to set RGB zone 0", drvthis->name);
+		result = -1;
+	}
+	
+	/* Zone 1 */
+	rgb_report[0] = G510_FEATURE_RGB_ZONE1;
+	
+	if (lib_hidraw_send_feature_report(p->hidraw_handle, rgb_report, G510_RGB_REPORT_SIZE) < 0) {
+		report(RPT_ERR, "%s: Failed to set RGB zone 1", drvthis->name);
+		result = -1;
+	}
+	
+	if (result == 0) {
+		report(RPT_INFO, "%s: Set RGB backlight to (%d,%d,%d)", drvthis->name, red, green, blue);
+	}
+	
+	return result;
 }
 
 MODULE_EXPORT void g15_num(Driver *drvthis, int x, int num)

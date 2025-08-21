@@ -105,6 +105,8 @@ The configure command uses these G15-specific options:
     --enable-drivers=g15,linux_input,debug  # Build available drivers
 ```
 
+For more options like setting backlights color please refer to the specific config file (lcdexec.conf, lcdproc.conf, LCDd.conf)
+
 But it may not do what you want, so please take a few seconds to type:
 ```
 ./configure --help
