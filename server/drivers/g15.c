@@ -38,17 +38,7 @@
 # include "config.h"
 #endif
 
-#ifdef HAVE_G15DAEMON_CLIENT
 #include <libg15.h>
-#include <g15daemon_client.h>
-#else
-/* Define stubs for the g15daemon_client (and use hidraw access instead). */
-#define G15_G15RBUF 3
-static inline const char *g15daemon_version(void) { return NULL; }
-static inline int new_g15_screen(int screentype) { return -1; }
-static inline int g15_close_screen(int sock) { return -1; }
-static inline int g15_send(int sock, char *buf, unsigned int len) { return -1; }
-#endif
 
 /*
  * Workaround for upstream bug: Assume libg15render is built with TTF support,
@@ -110,18 +100,11 @@ MODULE_EXPORT int g15_init (Driver *drvthis)
 
 	/* Initialize the PrivateData structure */
 	p->backlight_state = BACKLIGHT_ON;
-	p->g15screen_fd = -1;
-	p->g15d_ver = g15daemon_version();
-
-	if((p->g15screen_fd = new_g15_screen(G15_G15RBUF)) < 0)
-	{
-		/* g15daemon is not running, use hidraw access instead */
-		p->hidraw_handle = lib_hidraw_open(hidraw_ids);
-		if (!p->hidraw_handle) {
-			report(RPT_ERR, "%s: Sorry, cannot find a G15 keyboard", drvthis->name);
-			g15_close(drvthis);
-			return -1;
-		}
+	p->hidraw_handle = lib_hidraw_open(hidraw_ids);
+	if (!p->hidraw_handle) {
+		report(RPT_ERR, "%s: Sorry, cannot find a G15 keyboard", drvthis->name);
+		g15_close(drvthis);
+		return -1;
 	}
 
 	p->font = g15r_requestG15DefaultFont(G15_TEXT_LARGE);
@@ -145,8 +128,6 @@ MODULE_EXPORT void g15_close (Driver *drvthis)
 	drvthis->private_data = NULL;
 
 	g15r_deleteG15Font(p->font);
-	if (p->g15screen_fd != -1)
-		g15_close_screen(p->g15screen_fd);
 	if (p->hidraw_handle)
 		lib_hidraw_close(p->hidraw_handle);
 
@@ -277,12 +258,8 @@ MODULE_EXPORT void g15_flush (Driver *drvthis)
 
 	memcpy(p->backingstore.buffer, p->canvas.buffer, G15_BUFFER_LEN * sizeof(unsigned char));
 
-	if (p->g15screen_fd != -1) {
-		g15_send(p->g15screen_fd, (char*)p->canvas.buffer, 1048);
-	} else {
-		g15_pixmap_to_lcd(lcd_buf, p->canvas.buffer);
-		lib_hidraw_send_output_report(p->hidraw_handle, lcd_buf, sizeof(lcd_buf));
-	}
+	g15_pixmap_to_lcd(lcd_buf, p->canvas.buffer);
+	lib_hidraw_send_output_report(p->hidraw_handle, lcd_buf, sizeof(lcd_buf));
 }
 
 // LCDd 1-dimension char coordinates to g15r 0-(dimension-1) pixel coords */
@@ -424,96 +401,22 @@ MODULE_EXPORT void g15_vbar(Driver *drvthis, int x, int y, int len, int promille
 	g15r_pixelBox(&p->canvas, px1, py1, px2, py2, G15_COLOR_BLACK, 1, G15_PIXEL_FILL);
 }
 
-#ifdef HAVE_G15DAEMON_CLIENT
 //  Return one char from the Keyboard
 //
 MODULE_EXPORT const char * g15_get_key (Driver *drvthis)
 {
-	PrivateData *p = drvthis->private_data;
-	int toread = 0;
-	unsigned int key_state = 0;
-
-	if (p->g15screen_fd == -1)
-		return NULL;
-
-	if ((strncmp("1.2", p->g15d_ver, 3)))
-	  {	/* other than g15daemon-1.2 (should be >=1.9) */
-		fd_set fds;
-		struct timeval tv;
-		memset (&tv, 0, sizeof(struct timeval));
-
-		FD_ZERO(&fds);
-		FD_SET(p->g15screen_fd, &fds);
-
-		toread = select(FD_SETSIZE, &fds, NULL, NULL, &tv);
-	  }
-	else
-	  {	/* g15daemon-1.2 */
-		if(send(p->g15screen_fd, "k", 1, MSG_OOB)<1) /* request key status */
-		  {
-	 	  	report(RPT_INFO, "%s: Error in send to g15daemon", drvthis->name);
-			return NULL;
-		  }
-		toread = 1;
-	  }
-
-	if (toread >= 1)
-	  read(p->g15screen_fd, &key_state, sizeof(key_state));
-	else
-	  return NULL;
-
-	if (key_state & G15_KEY_G1)
-		return "Escape";
-	else if (key_state & G15_KEY_L1)
-	    return "Enter";
-	else if (key_state & G15_KEY_L2)
-	    return "Left";
-	else if (key_state & G15_KEY_L3)
-	    return "Up";
-	else if (key_state & G15_KEY_L4)
-	    return "Down";
-	else if (key_state & G15_KEY_L5)
-	    return "Right";
-	else
-	    return NULL;
+	/* Key input not implemented for direct hidraw access */
+	return NULL;
 }
 
 // Set the backlight
 //
 MODULE_EXPORT void g15_backlight(Driver *drvthis, int on)
 {
-	PrivateData *p = drvthis->private_data;
-
-	if (p->g15screen_fd == -1)
-		return;
-
-	if (p->backlight_state == on)
-		return;
-
-	p->backlight_state = on;
-
-	char msgbuf[256];
-
-	switch (on) {
-		case BACKLIGHT_ON:
-			{
-			msgbuf[0]=G15_BRIGHTNESS_BRIGHT|G15DAEMON_BACKLIGHT;
-			send(p->g15screen_fd,msgbuf,1,MSG_OOB);
-			break;
-			}
-		case BACKLIGHT_OFF:
-			{
-			msgbuf[0]=G15_BRIGHTNESS_DARK|G15DAEMON_BACKLIGHT;
-			send(p->g15screen_fd,msgbuf,1,MSG_OOB);
-			break;
-			}
-		default:
-			{
-			break;
-			}
-		}
+	/* Backlight control not implemented for direct hidraw access */
+	/* TODO: Implement direct RGB backlight control for G510 devices */
+	return;
 }
-#endif
 
 MODULE_EXPORT void g15_num(Driver *drvthis, int x, int num)
 {

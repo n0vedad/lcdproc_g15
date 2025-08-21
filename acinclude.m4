@@ -44,20 +44,6 @@ for driver in $selectdrivers ; do
 			actdrivers=["$actdrivers debug"]
 			;;
 		g15)
-			AC_CHECK_HEADERS([g15daemon_client.h],[
-				AC_CHECK_LIB(g15daemon_client, new_g15_screen,[
-					LIBG15="-lg15daemon_client"
-					AC_DEFINE(HAVE_G15DAEMON_CLIENT, [1], [Define to 1 if you have the g15daemon_client library])
-				],[
-dnl				else
-					AC_MSG_WARN([libg15daemon_client not found, the g15 driver will lack g15daemon support])
-				],
-				[-lg15daemon_client]
-				)
-			],[
-dnl			else
-				AC_MSG_WARN([libg15daemon_client.h not found, the g15 driver will lack g15daemon support])
-			])
 			if test "$enable_freetype" = "yes"; then
 				AC_CHECK_HEADERS([libg15render.h],[
 					AC_CHECK_LIB(g15render, g15r_initCanvas,[
