@@ -1,6 +1,6 @@
 # LCDproc Fork for G15 Devices
 
-This is a specialized fork from the [official LCDproc repository](https://github.com/lcdproc/lcdproc) optimized specifically for Logitech G15 keyboards.
+This is a specialized fork from the [official LCDproc repository](https://github.com/lcdproc/lcdproc) optimized specifically for Logitech G15 keyboards under Arch with Wayland.
 
 ## Introduction
 
