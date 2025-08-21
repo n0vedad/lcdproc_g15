@@ -92,7 +92,7 @@ The simplest way of doing it is with:
 ```
 ### Configure Options Explained
 
-The configure command uses these G15-specific options:
+The usual configure commands to uses this G15-specific build:
 
 ```
 ./configure \
@@ -102,6 +102,7 @@ The configure command uses these G15-specific options:
     --enable-libusb \                       # Enable libusb support for G15 device communication
     --enable-lcdproc-menus \                # Enable menu support in lcdproc client
     --enable-stat-smbfs \                   # Enable Samba filesystem statistics
+    --enable-debug                          # Enable Debug if needed
     --enable-drivers=g15,linux_input,debug  # Build available drivers
 ```
 
