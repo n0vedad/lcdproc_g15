@@ -484,10 +484,24 @@ MODULE_EXPORT void g15_backlight(Driver *drvthis, int on)
 
 // Set RGB backlight colors (G510 only)
 //
+/* Helper function to write to LED subsystem file */
+static int write_led_file(const char *path, const char *value)
+{
+	FILE *f = fopen(path, "w");
+	if (!f) {
+		return -1;
+	}
+	
+	int result = fprintf(f, "%s", value);
+	fclose(f);
+	
+	return (result > 0) ? 0 : -1;
+}
+
 MODULE_EXPORT int g15_set_rgb_backlight(Driver *drvthis, int red, int green, int blue)
 {
 	PrivateData *p = drvthis->private_data;
-	unsigned char rgb_report[G510_RGB_REPORT_SIZE];
+	char color_hex[8];
 	int result = 0;
 	
 	if (!p->has_rgb_backlight) {
@@ -506,29 +520,41 @@ MODULE_EXPORT int g15_set_rgb_backlight(Driver *drvthis, int red, int green, int
 	p->rgb_green = (unsigned char)green;
 	p->rgb_blue = (unsigned char)blue;
 	
-	/* Set RGB for both zones (G510 has 2 RGB zones) */
+	/* Use LED subsystem for RGB control - works with hardware button */
+	snprintf(color_hex, sizeof(color_hex), "#%02x%02x%02x", red, green, blue);
 	
-	/* Zone 0 */
-	rgb_report[0] = G510_FEATURE_RGB_ZONE0;
-	rgb_report[1] = (unsigned char)red;
-	rgb_report[2] = (unsigned char)green;
-	rgb_report[3] = (unsigned char)blue;
-	
-	if (lib_hidraw_send_feature_report(p->hidraw_handle, rgb_report, G510_RGB_REPORT_SIZE) < 0) {
-		report(RPT_ERR, "%s: Failed to set RGB zone 0", drvthis->name);
+	/* Set keyboard backlight color */
+	if (write_led_file("/sys/class/leds/g15::kbd_backlight/color", color_hex) < 0) {
+		report(RPT_ERR, "%s: Failed to set keyboard backlight color via LED subsystem", drvthis->name);
 		result = -1;
 	}
 	
-	/* Zone 1 */
-	rgb_report[0] = G510_FEATURE_RGB_ZONE1;
-	
-	if (lib_hidraw_send_feature_report(p->hidraw_handle, rgb_report, G510_RGB_REPORT_SIZE) < 0) {
-		report(RPT_ERR, "%s: Failed to set RGB zone 1", drvthis->name);
+	/* Set power-on backlight color (persistent setting) */
+	if (write_led_file("/sys/class/leds/g15::power_on_backlight_val/color", color_hex) < 0) {
+		report(RPT_ERR, "%s: Failed to set power-on backlight color via LED subsystem", drvthis->name);
 		result = -1;
+	}
+	
+	/* Ensure backlight is on with full brightness */
+	if (red > 0 || green > 0 || blue > 0) {
+		if (write_led_file("/sys/class/leds/g15::kbd_backlight/brightness", "255") < 0) {
+			report(RPT_ERR, "%s: Failed to set backlight brightness", drvthis->name);
+			result = -1;
+		}
+		if (write_led_file("/sys/class/leds/g15::power_on_backlight_val/brightness", "255") < 0) {
+			report(RPT_ERR, "%s: Failed to set power-on brightness", drvthis->name);
+			result = -1;
+		}
+	} else {
+		/* All colors are 0, turn off backlight */
+		if (write_led_file("/sys/class/leds/g15::kbd_backlight/brightness", "0") < 0) {
+			report(RPT_ERR, "%s: Failed to turn off backlight", drvthis->name);
+			result = -1;
+		}
 	}
 	
 	if (result == 0) {
-		report(RPT_INFO, "%s: Set RGB backlight to (%d,%d,%d)", drvthis->name, red, green, blue);
+		report(RPT_INFO, "%s: Set RGB backlight via LED subsystem to (%d,%d,%d)", drvthis->name, red, green, blue);
 	}
 	
 	return result;
