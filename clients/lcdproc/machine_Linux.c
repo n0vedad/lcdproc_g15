@@ -9,7 +9,7 @@
  * Refer to the COPYING file distributed with this package.
  */
 
-#ifdef linux
+/* Linux x86_64 only - conditional compilation removed */
 
 #include <sys/types.h>
 #include <stdlib.h>
@@ -630,4 +630,4 @@ machine_get_iface_stats(IfaceInfo * interface)
 	}
 }
 
-#endif				/* linux */
+/* End of Linux x86_64 implementation */

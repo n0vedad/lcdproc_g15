@@ -13,31 +13,14 @@ case "$host" in
 	AC_DEFINE([LINUX],[1],[Define if you're using Linux.])
 	ac_system_host=Linux
 	;;
-*-*-*solaris*)
-	AC_DEFINE([SOLARIS],[1],[Define if you're using Solaris.])
-	ac_system_host=Solaris
-	;;
-*-*-*openbsd*)    dnl i386-unknown-openbsd3.0
-	AC_DEFINE([OPENBSD],[1],[Define if you're using OpenBSD.])
-	ac_system_host=OpenBSD
-	;;
-*-*-*netbsd*)
-	AC_DEFINE([NETBSD],[1],[Define if you're using NetBSD.])
-	ac_system_host=NetBSD
-	;;
-*-*-*freebsd*)
-	AC_DEFINE([FREEBSD],[1],[Define if you're using FreeBSD.])
-	ac_system_host=FreeBSD
-	;;
-*-*-*darwin*)
-	AC_DEFINE([DARWIN],[1],[Define if you're using Darwin/Mac OS X.])
-	ac_system_host=Darwin
+*)
+	dnl All non-Linux systems removed - Linux x86_64 only
+	AC_MSG_ERROR([This fork only supports Linux x86_64. Original OS: $ac_system_host])
 	;;
 esac
-AC_DEFINE_UNQUOTED([SYSTEM_HOST], [$ac_system_host], [Set this to your system host (Linux, Solaris, OpenBSD, NetBSD, FreeBSD or Darwin)])
+AC_DEFINE_UNQUOTED([SYSTEM_HOST], [Linux], [Linux x86_64 only])
 
-dnl treat Darwin special in Makefiles
-AM_CONDITIONAL(DARWIN, test x$ac_system_host = xDarwin)
+dnl All non-Linux conditionals removed
 
 AC_MSG_CHECKING([whether to enable debugging])
 AC_ARG_ENABLE(debug,
