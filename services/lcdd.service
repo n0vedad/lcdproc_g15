@@ -1,0 +1,9 @@
+[Unit]
+Description=LCD display driver
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/LCDd -c /etc/LCDd.conf
+
+[Install]
+WantedBy=multi-user.target
