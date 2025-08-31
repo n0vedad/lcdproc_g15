@@ -20,6 +20,32 @@ instructions (including how to connect an LCD to your system) and Prerequesites.
 
 This fork has been stripped down to include only the G15 driver and essential components.
 
+## G-Key Macro System Features
+
+This fork includes an advanced G-Key macro recording and playback system with the following capabilities:
+
+### Real-Time Input Recording
+- **Direct /dev/input/event monitoring** with root privileges for comprehensive input capture
+- **Multi-threaded recording system** using pthread for non-blocking operation
+- **Keyboard and mouse event parsing** with Linux input subsystem integration
+- **Intelligent device detection** - automatically identifies and opens keyboard/mouse devices
+- **Wayland compatibility** through ydotool integration
+
+### Advanced Macro Features
+- **Real-time keyboard input capture** - records actual keystrokes as you type
+- **Mouse event recording** - captures clicks and relative mouse movements  
+- **Timing-aware recording** - preserves natural typing rhythm and pauses
+- **Smart text consolidation** - groups consecutive characters into efficient type commands
+- **Multi-mode support** - separate macro sets for M1/M2/M3 modes
+- **Persistent storage** - macros saved in JSON format at `~/.config/lcdproc/g15_macros.json`
+
+### Technical Implementation
+- **Thread-safe operation** with proper cleanup on exit
+- **select()-based event monitoring** for efficient multi-device handling
+- **Key code translation** from Linux input codes to ydotool format
+- **Memory-safe string handling** with bounds checking
+- **Configurable event limits** to prevent runaway recordings
+
 # Legal Stuff
 
 LCDproc is Copyright (C) 1998-2016 William Ferrell, Selene Scriven and many

@@ -6,6 +6,7 @@ After=network-online.target
 [Service]
 Type=forking
 ExecStart=/usr/bin/lcdproc -c /etc/lcdproc.conf
+Environment=HOME=/home/lucas
 
 [Install]
 WantedBy=multi-user.target

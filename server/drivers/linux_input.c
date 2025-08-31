@@ -175,18 +175,21 @@ linuxInput_init (Driver *drvthis)
 
 	/* Open the device, eiher by path or by name */
 	if (s[0] == '/') {
+		report(RPT_DEBUG, "%s: Opening device by path: %s", drvthis->name, s);
 		if ((p->fd = open(s, O_RDONLY | O_NONBLOCK)) == -1) {
 			report(RPT_ERR, "%s: open(%s) failed (%s)",
 					drvthis->name, s, strerror(errno));
 			return -1;
 		}
 	} else {
+		report(RPT_DEBUG, "%s: Searching device by name: %s", drvthis->name, s);
 		if ((p->fd = linuxInput_search_by_name(s)) == -1) {
 			report(RPT_ERR, "%s: could not find '%s' input-device",
 					drvthis->name, s);
 			return -1;
 		}
 		p->name = s;
+		report(RPT_DEBUG, "%s: Found device fd=%d", drvthis->name, p->fd);
 	}
 
 	for (i = 0; (s = drvthis->config_get_string(drvthis->name, "key", i, NULL)) != NULL; i++) {
@@ -290,8 +293,22 @@ linuxInput_get_key_code (PrivateData *p)
 	if (result != sizeof(event))
 		return -1;
 
+	/* Debug: Show all events */
+	report(RPT_DEBUG, "linux_input: Read event type=%d code=0x%x value=%d", 
+		   event.type, event.code, event.value);
+
 	/* Ignore release events and not-key events */
-	return (event.type == EV_KEY && event.value) ? event.code : 0;
+	if (event.type != EV_KEY) {
+		report(RPT_DEBUG, "linux_input: Ignoring non-key event type=%d", event.type);
+		return 0;
+	}
+	if (!event.value) {
+		report(RPT_DEBUG, "linux_input: Ignoring key release event");
+		return 0;
+	}
+
+	report(RPT_DEBUG, "linux_input: Processing key press code=0x%x", event.code);
+	return event.code;
 }
 
 /**
@@ -312,8 +329,12 @@ linuxInput_key_code_to_key_name (PrivateData *p, uint16_t code)
 	if (LL_GetFirst(p->buttonmap)) {
 		/* Use user config for button mapping */
 		k = LL_Find(p->buttonmap, compare_with_keycode, &code);
-		if (k)
+		if (k) {
+			report(RPT_DEBUG, "linux_input: Mapped code 0x%x to key '%s'", code, k->button);
 			return k->button;
+		} else {
+			report(RPT_DEBUG, "linux_input: No mapping found for code 0x%x", code);
+		}
 	} else {
 		/* No user config, fallback to defaults. */
 		switch (code) {

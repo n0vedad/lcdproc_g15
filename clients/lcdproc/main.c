@@ -376,6 +376,20 @@ main(int argc, char **argv)
 	/* Init the status gatherers... */
 	mode_init();
 
+	/* Initialize G-Key macro system */
+	if (gkey_macro_init() != 0) {
+		report(RPT_WARNING, "Failed to initialize G-Key macro system");
+	}
+	
+	/* Reserve G-Keys for macro system */
+	const char* gkeys[] = {"G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9", 
+	                       "G10", "G11", "G12", "G13", "G14", "G15", "G16", "G17", "G18",
+	                       "M1", "M2", "M3", "MR", NULL};
+	for (int i = 0; gkeys[i] != NULL; i++) {
+		sock_printf(sock, "client_add_key %s\n", gkeys[i]);
+		report(RPT_INFO, "Reserved G-Key: %s", gkeys[i]);
+	}
+
 	/* And spew stuff! */
 	main_loop();
 	exit_program(EXIT_SUCCESS);
@@ -525,6 +539,10 @@ exit_program(int val)
 	eyebox_clear();
 #endif
 	Quit = 1;
+	
+	/* Cleanup G-Key macro system */
+	gkey_macro_cleanup();
+	
 	sock_close(sock);
 	mode_close();
 	if ((foreground != TRUE) && (pidfile != NULL) && (pidfile_written == TRUE))
@@ -640,7 +658,11 @@ main_loop(void)
 								}
 							}
 							else if (0 == strcmp(argv[0], "key")) {
-								debug(RPT_DEBUG, "Key %s", argv[1]);
+								report(RPT_INFO, "KEY EVENT RECEIVED: %s", argv[1]);
+								/* Handle G-Key macro events */
+								if (argc >= 2) {
+									gkey_macro_handle_key(argv[1]);
+								}
 							}
 #ifdef LCDPROC_MENUS
 							else if (0 == strcmp(argv[0], "menuevent")) {

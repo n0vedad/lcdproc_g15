@@ -39,6 +39,11 @@ G15 Device:
 sudo pacman -S libg15 libg15render libusb libftdi-compat
 ```
 
+G-Key Macro System:
+```
+sudo pacman -S ydotool
+```
+
 ## Installation
 
 ### Install from PKGBUILD (Recommended)
@@ -180,6 +185,40 @@ the configfile.
 
 # RUNNING LCDPROC
 
+## Prerequisites for G-Key Macro System
+
+### Setup ydotool daemon (Wayland compatibility)
+
+The installation process automatically installs, enables and starts ydotoold.service as a system service. No manual configuration required.
+
+```
+# Verify it's running (should be automatic)
+systemctl status ydotoold.service
+```
+
+**Note:** The ydotoold.service is automatically installed as a system service to `/usr/lib/systemd/system/` and started during installation. G-Key macros work immediately after installation.
+
+### Root Privileges for Input Recording
+
+The G-Key macro system requires root privileges to access `/dev/input/event*` devices for real-time input recording. You have two options:
+
+#### Option 1: Run with sudo (Recommended for testing)
+```
+sudo lcdproc -f -c /etc/lcdproc.conf
+```
+
+#### Option 2: Add user to input group (Permanent solution)
+```
+# Add your user to the input group
+sudo usermod -a -G input $USER
+
+# Log out and back in, then verify group membership
+groups | grep input
+
+# Now you can run without sudo
+lcdproc -f -c /etc/lcdproc.conf
+```
+
 ## Systemd Service Management
 
 After installation, manage the services with systemd:
@@ -192,6 +231,10 @@ sudo systemctl enable lcdd.service
 # Start system monitor client (required)
 sudo systemctl start lcdproc.service
 sudo systemctl enable lcdproc.service
+
+# Start ydotool daemon (required for G-Key macros)
+sudo systemctl start ydotoold.service
+sudo systemctl enable ydotoold.service
 ```
 
 ## Running Manually
@@ -221,3 +264,41 @@ but run in the foreground.
 
 By default, the client tries to connect to a server located on localhost
 and listening to port 13666. To change this, use the -s and -p options.
+
+## G-Key Macro System Usage
+
+Once both LCDd server and lcdproc client are running with proper permissions:
+
+### Recording a Macro
+1. **Enter Recording Mode**: Press the `MR` key on your G15 keyboard
+2. **Select Target G-Key**: Press any G-key (G1-G18) to start recording for that key  
+3. **Record Actions**: Type text, use mouse, or press keys - all input will be captured in real-time
+4. **Stop Recording**: Press `MR` again to stop and save the macro
+
+### Playing a Macro
+- Simply press any G-key that has a recorded macro
+- The system will replay your recorded actions with original timing
+
+### Mode Switching
+- Press `M1`, `M2`, or `M3` to switch between macro modes
+- Each mode can store different macros for all 18 G-keys (54 total macros)
+
+### Macro Storage
+- Macros are automatically saved to `~/.config/lcdproc/g15_macros.json`
+- The system preserves timing between actions based on your recording speed
+- Fast typing is consolidated into efficient `type:` commands
+- Pauses and special keys are preserved as separate actions
+
+### Example Workflow
+```
+# Start the system
+sudo lcdproc -f -c /etc/lcdproc.conf
+
+# In the terminal, you'll see:
+# "KEY EVENT RECEIVED: MR" when you press MR
+# "G-Key Macro: Recording started for G1 in mode M1" 
+# "G-Key Macro: Recorded key press: h" for each key
+# "G-Key Macro: Recording stopped" when done
+```
+
+The macro system captures real keyboard and mouse input events directly from the Linux input subsystem, providing precise timing and comprehensive input recording for professional macro automation.

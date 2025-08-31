@@ -76,4 +76,7 @@ const char *get_sysname(void);
 const char *get_sysrelease(void);
 bool check_protocol_version(int major, int minor);
 
+/* G-Key macro support */
+#include "gkey_macro.h"
+
 #endif

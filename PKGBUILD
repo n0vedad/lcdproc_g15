@@ -1,13 +1,13 @@
 # Maintainer: n0vedad <https://github.com/n0vedad/>
 
 pkgname=lcdproc-g15
-pkgver=0.0.1
+pkgver=0.0.2
 pkgrel=1
 pkgdesc="LCDproc optimized for G15 keyboards - display driver for LCD devices"
 arch=('x86_64')
 url="https://lcdproc.org/"
 license=('GPL')
-depends=('libg15' 'libg15render' 'libusb' 'libftdi-compat')
+depends=('libg15' 'libg15render' 'libusb' 'libftdi-compat' 'ydotool')
 makedepends=('gcc' 'make' 'autoconf' 'automake')
 install=lcdproc-g15.install
 backup=(
