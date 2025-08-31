@@ -256,6 +256,9 @@ tags
 *.diff
 *.tar.gz
 ar-lib
+*.zst
+
+pkg
 
 # Claude
 .claude
