@@ -28,12 +28,8 @@
 
 /** private data for the \c g15 driver */
 typedef struct g15_private_data {
-	/* file descriptor for g15daemon socket */
-	int g15screen_fd;
-	/* lib_hidraw_handle for when we are not using g15daemon */
+	/* lib_hidraw_handle for direct USB communication */
 	struct lib_hidraw_handle *hidraw_handle;
-	/* g15daemon version for compatibility checks */
-	const char *g15d_ver;
 	/* canvas for LCD contents */
 	g15canvas canvas;
 	g15canvas backingstore;
@@ -41,6 +37,12 @@ typedef struct g15_private_data {
 	g15font *font;
 	/* status indicators */
 	int backlight_state;
+	/* device capabilities */
+	int has_rgb_backlight;
+	/* current RGB values */
+	unsigned char rgb_red;
+	unsigned char rgb_green;
+	unsigned char rgb_blue;
 } PrivateData;
 
 #define G15_OFFSET				32
@@ -72,6 +74,11 @@ typedef struct g15_private_data {
 #define G15_ICON_REC			7
 #define G15_BIGNUM_LEN			1032
 
+/* G510 RGB backlight control */
+#define G510_FEATURE_RGB_ZONE0		0x05
+#define G510_FEATURE_RGB_ZONE1		0x06
+#define G510_RGB_REPORT_SIZE		4
+
 extern short g15_bignum_data[11][G15_BIGNUM_LEN];
 
 MODULE_EXPORT int  g15_init (Driver *drvthis);
@@ -89,6 +96,7 @@ MODULE_EXPORT void g15_hbar(Driver *drvthis, int x, int y, int len, int promille
 MODULE_EXPORT void g15_vbar(Driver *drvthis, int x, int y, int len, int promille, int options);
 MODULE_EXPORT const char * g15_get_key (Driver *drvthis);
 MODULE_EXPORT void g15_backlight(Driver *drvthis, int on);
+MODULE_EXPORT int g15_set_rgb_backlight(Driver *drvthis, int red, int green, int blue);
 MODULE_EXPORT void g15_num(Driver *drvthis, int x, int num);
 
 #endif /*G15_H_*/

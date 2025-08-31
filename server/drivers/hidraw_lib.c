@@ -148,6 +148,33 @@ void lib_hidraw_send_output_report(struct lib_hidraw_handle *handle,
 	}
 }
 
+int lib_hidraw_send_feature_report(struct lib_hidraw_handle *handle,
+				   unsigned char *data, int count)
+{
+	int result = -1;
+
+	if (handle->fd != -1) {
+		result = ioctl(handle->fd, HIDIOCSFEATURE(count), data);
+		/* Device unplugged / lost connection ? */
+		if (result == -1 && errno == ENODEV) {
+			report(RPT_WARNING, "Lost hidraw device connection");
+			close(handle->fd);
+			handle->fd = -1;
+		}
+	}
+
+	/* Try to re-acquire device on connection loss */
+	if (handle->fd == -1) {
+		handle->fd = lib_hidraw_find_device(handle->ids);
+		if (handle->fd != -1) {
+			report(RPT_WARNING, "Successfully re-opened hidraw device");
+			result = ioctl(handle->fd, HIDIOCSFEATURE(count), data);
+		}
+	}
+
+	return result;
+}
+
 void lib_hidraw_close(struct lib_hidraw_handle *handle)
 {
 	if (handle->fd != -1)

@@ -29,6 +29,8 @@ struct lib_hidraw_id {
 struct lib_hidraw_handle *lib_hidraw_open(const struct lib_hidraw_id *ids);
 void lib_hidraw_send_output_report(struct lib_hidraw_handle *handle,
 				   unsigned char *data, int count);
+int lib_hidraw_send_feature_report(struct lib_hidraw_handle *handle,
+				   unsigned char *data, int count);
 void lib_hidraw_close(struct lib_hidraw_handle *handle);
 
 #endif
