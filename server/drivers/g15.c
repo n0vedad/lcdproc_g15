@@ -111,27 +111,42 @@ MODULE_EXPORT int g15_init (Driver *drvthis)
 	/* TODO: Implement proper device detection based on USB product ID */
 	p->has_rgb_backlight = 1; /* Assume RGB support for now */
 	
-	/* Read RGB configuration from config file */
-	int config_red = drvthis->config_get_int(drvthis->name, "BacklightRed", 0, 255);
-	int config_green = drvthis->config_get_int(drvthis->name, "BacklightGreen", 0, 255);
-	int config_blue = drvthis->config_get_int(drvthis->name, "BacklightBlue", 0, 255);
+	/* Check master backlight disable setting */
+	int backlight_disabled = drvthis->config_get_bool(drvthis->name, "BacklightDisabled", 0, 0);
 	
-	/* Validate and set RGB values */
-	if (config_red >= 0 && config_red <= 255 &&
-	    config_green >= 0 && config_green <= 255 &&
-	    config_blue >= 0 && config_blue <= 255) {
-		p->rgb_red = (unsigned char)config_red;
-		p->rgb_green = (unsigned char)config_green;
-		p->rgb_blue = (unsigned char)config_blue;
-		report(RPT_INFO, "%s: RGB backlight configured to (%d,%d,%d)",
-		       drvthis->name, config_red, config_green, config_blue);
-	} else {
-		/* Use default white if invalid values */
-		p->rgb_red = 255;
-		p->rgb_green = 255;
-		p->rgb_blue = 255;
-		report(RPT_WARNING, "%s: Invalid RGB config values, using default white",
+	if (backlight_disabled) {
+		/* Master disable - ignore all RGB channel settings */
+		p->rgb_red = 0;
+		p->rgb_green = 0;
+		p->rgb_blue = 0;
+		p->backlight_state = BACKLIGHT_OFF;
+		report(RPT_INFO, "%s: RGB backlight completely disabled via BacklightDisabled=true",
 		       drvthis->name);
+	} else {
+		/* Read RGB configuration from config file (standard 0-255 range) */
+		int config_red = drvthis->config_get_int(drvthis->name, "BacklightRed", 0, 255);
+		int config_green = drvthis->config_get_int(drvthis->name, "BacklightGreen", 0, 255);
+		int config_blue = drvthis->config_get_int(drvthis->name, "BacklightBlue", 0, 255);
+		
+		/* Validate and set RGB values */
+		if (config_red >= 0 && config_red <= 255 &&
+		    config_green >= 0 && config_green <= 255 &&
+		    config_blue >= 0 && config_blue <= 255) {
+			
+			p->rgb_red = (unsigned char)config_red;
+			p->rgb_green = (unsigned char)config_green;
+			p->rgb_blue = (unsigned char)config_blue;
+			
+			report(RPT_INFO, "%s: RGB backlight configured to (%d,%d,%d)",
+			       drvthis->name, config_red, config_green, config_blue);
+		} else {
+			/* Use default white if invalid values */
+			p->rgb_red = 255;
+			p->rgb_green = 255;
+			p->rgb_blue = 255;
+			report(RPT_WARNING, "%s: Invalid RGB config values, using default white",
+			       drvthis->name);
+		}
 	}
 
 	p->font = g15r_requestG15DefaultFont(G15_TEXT_LARGE);
@@ -446,6 +461,10 @@ MODULE_EXPORT const char * g15_get_key (Driver *drvthis)
 MODULE_EXPORT void g15_backlight(Driver *drvthis, int on)
 {
 	PrivateData *p = drvthis->private_data;
+	
+	/* DEBUG: Log every call to this function */
+	report(RPT_DEBUG, "%s: g15_backlight() called with on=%d (current state=%d)",
+	       drvthis->name, on, p->backlight_state);
 	
 	if (p->backlight_state == on)
 		return;
