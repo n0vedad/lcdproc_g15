@@ -11,66 +11,62 @@
  *               2006-2008, Peter Marschall
  */
 
+#include <errno.h>
+#include <signal.h>
 #include <stdio.h>
-#include <unistd.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <errno.h>
 #include <sys/utsname.h>
-#include <signal.h>
-#include <time.h>
 #include <sys/wait.h>
-#include <stdlib.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "getopt.h"
 
-#include "shared/str.h"
-#include "shared/report.h"
 #include "shared/configfile.h"
+#include "shared/report.h"
 #include "shared/sockets.h"
+#include "shared/str.h"
 
 #include "menu.h"
 
-
 #if !defined(SYSCONFDIR)
-# define SYSCONFDIR	"/etc"
+#define SYSCONFDIR "/etc"
 #endif
 #if !defined(PIDFILEDIR)
-# define PIDFILEDIR	"/var/run"
+#define PIDFILEDIR "/var/run"
 #endif
 
-#define DEFAULT_CONFIGFILE	SYSCONFDIR "/lcdexec.conf"
-#define DEFAULT_PIDFILE		PIDFILEDIR "/lcdexec.pid"
-
+#define DEFAULT_CONFIGFILE SYSCONFDIR "/lcdexec.conf"
+#define DEFAULT_PIDFILE PIDFILEDIR "/lcdexec.pid"
 
 /** information about a process started by lcdexec */
 typedef struct ProcInfo {
-	struct ProcInfo *next;	/**< pointer to the next ProcInfo entry */
-	const MenuEntry *cmd;	/**< pointer to the corresponding menu entry */
-	pid_t pid;		/**< PID the process was started with */
-	time_t starttime;	/**< start time of the process */
-	time_t endtime;		/**< finishing time of the process */
-	int status;		/**< exit status of the process */
-	int feedback;		/**< what info to show to the user */
-	int shown;		/**< tell if the info has been shown to the user */
+	struct ProcInfo *next; /**< pointer to the next ProcInfo entry */
+	const MenuEntry *cmd;  /**< pointer to the corresponding menu entry */
+	pid_t pid;	       /**< PID the process was started with */
+	time_t starttime;      /**< start time of the process */
+	time_t endtime;	       /**< finishing time of the process */
+	int status;	       /**< exit status of the process */
+	int feedback;	       /**< what info to show to the user */
+	int shown;	       /**< tell if the info has been shown to the user */
 } ProcInfo;
 
-
-char * help_text =
-"lcdexec - LCDproc client to execute commands from the LCDd menu\n"
-"\n"
-"Copyright (c) 2002, Joris Robijn, 2006-2008 Peter Marschall.\n"
-"This program is released under the terms of the GNU General Public License.\n"
-"\n"
-"Usage: lcdexec [<options>]\n"
-"  where <options> are:\n"
-"    -c <file>           Specify configuration file ["DEFAULT_CONFIGFILE"]\n"
-"    -a <address>        DNS name or IP address of the LCDd server [localhost]\n"
-"    -p <port>           port of the LCDd server [13666]\n"
-"    -f                  Run in foreground\n"
-"    -r <level>          Set reporting level (0-5) [2: errors and warnings]\n"
-"    -s <0|1>            Report to syslog (1) or stderr (0, default)\n"
-"    -h                  Show this help\n";
+char *help_text = "lcdexec - LCDproc client to execute commands from the LCDd menu\n"
+		  "\n"
+		  "Copyright (c) 2002, Joris Robijn, 2006-2008 Peter Marschall.\n"
+		  "This program is released under the terms of the GNU General Public License.\n"
+		  "\n"
+		  "Usage: lcdexec [<options>]\n"
+		  "  where <options> are:\n"
+		  "    -c <file>           Specify configuration file [" DEFAULT_CONFIGFILE "]\n"
+		  "    -a <address>        DNS name or IP address of the LCDd server [localhost]\n"
+		  "    -p <port>           port of the LCDd server [13666]\n"
+		  "    -f                  Run in foreground\n"
+		  "    -r <level>          Set reporting level (0-5) [2: errors and warnings]\n"
+		  "    -s <0|1>            Report to syslog (1) or stderr (0, default)\n"
+		  "    -h                  Show this help\n";
 
 char *progname = "lcdexec";
 
@@ -89,32 +85,40 @@ char *displayname = NULL;
 char *default_shell = NULL;
 
 /* Other global variables */
-MenuEntry *main_menu = NULL;	/**< pointer to the main menu */
-ProcInfo *proc_queue = NULL;	/**< pointer to the list of executed processes */
+MenuEntry *main_menu = NULL; /**< pointer to the main menu */
+ProcInfo *proc_queue = NULL; /**< pointer to the list of executed processes */
 
-int lcd_wid = 0;		/**< LCD display width reported by the server */
-int lcd_hgt = 0;		/**< LCD display height reported by the server */
+int lcd_wid = 0; /**< LCD display width reported by the server */
+int lcd_hgt = 0; /**< LCD display height reported by the server */
 
-int sock = -1;			/**< socket to connect to server */
+int sock = -1; /**< socket to connect to server */
 
-int Quit = 0;			/**< indicate end of main loop */
-
+int Quit = 0; /**< indicate end of main loop */
 
 /* Function prototypes */
 static void exit_program(int val);
 static void sigchld_handler(int signal);
 static int process_command_line(int argc, char **argv);
-static int process_configfile(char * configfile);
+static int process_configfile(char *configfile);
 static int connect_and_setup(void);
 static int process_response(char *str);
 static int exec_command(MenuEntry *cmd);
 static int show_procinfo_msg(ProcInfo *p);
 static int main_loop(void);
 
-
-#define CHAIN(e,f) { if (e>=0) { e=(f); }}
-#define CHAIN_END(e) { if (e<0) { report(RPT_CRIT,"Critical error, abort"); exit(e); }}
-
+#define CHAIN(e, f)                                                                                \
+	{                                                                                          \
+		if (e >= 0) {                                                                      \
+			e = (f);                                                                   \
+		}                                                                                  \
+	}
+#define CHAIN_END(e)                                                                               \
+	{                                                                                          \
+		if (e < 0) {                                                                       \
+			report(RPT_CRIT, "Critical error, abort");                                 \
+			exit(e);                                                                   \
+		}                                                                                  \
+	}
 
 int main(int argc, char **argv)
 {
@@ -136,8 +140,8 @@ int main(int argc, char **argv)
 	CHAIN(error, connect_and_setup());
 	CHAIN_END(error);
 
-	if(foreground != TRUE) {
-		if (daemon(1,1) != 0) {
+	if (foreground != TRUE) {
+		if (daemon(1, 1) != 0) {
 			report(RPT_ERR, "Error: daemonize failed");
 		}
 
@@ -145,13 +149,15 @@ int main(int argc, char **argv)
 			FILE *pidf = fopen(pidfile, "w");
 
 			if (pidf) {
-				fprintf(pidf, "%d\n", (int) getpid());
+				fprintf(pidf, "%d\n", (int)getpid());
 				fclose(pidf);
 				pidfile_written = TRUE;
 			} else {
-				fprintf(stderr, "Error creating pidfile %s: %s\n",
-					pidfile, strerror(errno));
-				return(EXIT_FAILURE);
+				fprintf(stderr,
+					"Error creating pidfile %s: %s\n",
+					pidfile,
+					strerror(errno));
+				return (EXIT_FAILURE);
 			}
 		}
 	}
@@ -162,11 +168,11 @@ int main(int argc, char **argv)
 	sa.sa_flags = SA_RESTART;
 #endif
 	sa.sa_handler = exit_program;
-	sigaction(SIGINT, &sa, NULL);	// Ctrl-C
-	sigaction(SIGTERM, &sa, NULL);	// "regular" kill
-	sigaction(SIGHUP, &sa, NULL);	// kill -HUP
-	sigaction(SIGPIPE, &sa, NULL);	// write to closed socket
-	sigaction(SIGKILL, &sa, NULL);	// kill -9 [cannot be trapped; but ...]
+	sigaction(SIGINT, &sa, NULL);  // Ctrl-C
+	sigaction(SIGTERM, &sa, NULL); // "regular" kill
+	sigaction(SIGHUP, &sa, NULL);  // kill -HUP
+	sigaction(SIGPIPE, &sa, NULL); // write to closed socket
+	sigaction(SIGKILL, &sa, NULL); // kill -9 [cannot be trapped; but ...]
 
 	/* setup signal handler for children to avoid zombies */
 	sigemptyset(&sa.sa_mask);
@@ -182,17 +188,15 @@ int main(int argc, char **argv)
 	return EXIT_SUCCESS;
 }
 
-
 static void exit_program(int val)
 {
-	//printf("exit program\n");
+	// printf("exit program\n");
 	Quit = 1;
 	sock_close(sock);
 	if ((foreground != TRUE) && (pidfile != NULL) && (pidfile_written == TRUE))
 		unlink(pidfile);
 	exit(val);
 }
-
 
 /* the grim reaper ;-) */
 static void sigchld_handler(int signal)
@@ -214,7 +218,6 @@ static void sigchld_handler(int signal)
 	}
 }
 
-
 static int process_command_line(int argc, char **argv)
 {
 	int c;
@@ -227,27 +230,27 @@ static int process_command_line(int argc, char **argv)
 		char *end;
 		int temp_int;
 
-		switch(c) {
-		  case 'c':
+		switch (c) {
+		case 'c':
 			configfile = strdup(optarg);
 			break;
-		  case 'a':
+		case 'a':
 			address = strdup(optarg);
 			break;
-		  case 'p':
+		case 'p':
 			temp_int = strtol(optarg, &end, 0);
-			if ((*optarg != '\0') && (*end == '\0') &&
-			    (temp_int > 0) && (temp_int <= 0xFFFF)) {
+			if ((*optarg != '\0') && (*end == '\0') && (temp_int > 0) &&
+			    (temp_int <= 0xFFFF)) {
 				port = temp_int;
 			} else {
 				report(RPT_ERR, "Illegal port value %s", optarg);
 				error = -1;
 			}
 			break;
-		  case 'f':
+		case 'f':
 			foreground = TRUE;
 			break;
-		  case 'r':
+		case 'r':
 			temp_int = strtol(optarg, &end, 0);
 			if ((*optarg != '\0') && (*end == '\0') && (temp_int >= 0)) {
 				report_level = temp_int;
@@ -256,7 +259,7 @@ static int process_command_line(int argc, char **argv)
 				error = -1;
 			}
 			break;
-		  case 's':
+		case 's':
 			temp_int = strtol(optarg, &end, 0);
 			if ((*optarg != '\0') && (*end == '\0') && (temp_int >= 0)) {
 				report_dest = (temp_int ? RPT_DEST_SYSLOG : RPT_DEST_STDERR);
@@ -265,24 +268,23 @@ static int process_command_line(int argc, char **argv)
 				error = -1;
 			}
 			break;
-		  case 'h':
+		case 'h':
 			fprintf(stderr, "%s", help_text);
 			exit(EXIT_SUCCESS);
 			/* NOTREACHED */
-		  case ':':
+		case ':':
 			report(RPT_ERR, "Missing option argument for %c", optopt);
 			error = -1;
 			break;
-		  case '?':
-		  default:
+		case '?':
+		default:
 			report(RPT_ERR, "Unknown option: %c", optopt);
 			error = -1;
 			break;
-        	}
-        }
+		}
+	}
 	return error;
 }
-
 
 static int process_configfile(char *configfile)
 {
@@ -305,9 +307,8 @@ static int process_configfile(char *configfile)
 		report_level = config_get_int(progname, "ReportLevel", 0, RPT_WARNING);
 	}
 	if (report_dest == UNSET_INT) {
-		report_dest = (config_get_bool(progname, "ReportToSyslog", 0, 0))
-				? RPT_DEST_SYSLOG
-				: RPT_DEST_STDERR;
+		report_dest = (config_get_bool(progname, "ReportToSyslog", 0, 0)) ? RPT_DEST_SYSLOG
+										  : RPT_DEST_STDERR;
 	}
 	if (foreground != TRUE) {
 		foreground = config_get_bool(progname, "Foreground", 0, FALSE);
@@ -324,7 +325,8 @@ static int process_configfile(char *configfile)
 		default_shell = strdup(tmp);
 	else {
 		/* 1st fallback: SHELL environment variable */
-		report(RPT_WARNING, "Shell not set in configuration, falling back to variable SHELL");
+		report(RPT_WARNING,
+		       "Shell not set in configuration, falling back to variable SHELL");
 		default_shell = getenv("SHELL");
 
 		/* 2nd fallback: /bin/sh */
@@ -348,7 +350,6 @@ static int process_configfile(char *configfile)
 	return 0;
 }
 
-
 static int connect_and_setup(void)
 {
 	report(RPT_INFO, "Connecting to %s:%d", address, port);
@@ -362,12 +363,12 @@ static int connect_and_setup(void)
 	sock_send_string(sock, "hello\n");
 	if (displayname != NULL) {
 		sock_printf(sock, "client_set -name {%s}\n", displayname);
-	}
-	else {
+	} else {
 		struct utsname unamebuf;
 
 		if (uname(&unamebuf) == 0)
-			sock_printf(sock, "client_set -name {%s %s}\n", progname, unamebuf.nodename);
+			sock_printf(
+			    sock, "client_set -name {%s %s}\n", progname, unamebuf.nodename);
 		else
 			sock_printf(sock, "client_set -name {%s}\n", progname);
 	}
@@ -380,7 +381,6 @@ static int connect_and_setup(void)
 	return 0;
 }
 
-
 static int process_response(char *str)
 {
 	char *argv[20];
@@ -389,7 +389,7 @@ static int process_response(char *str)
 	debug(RPT_DEBUG, "Server said: \"%s\"", str);
 
 	/* Check what the server just said to us... */
-	argc = get_args(argv, str, sizeof(argv)/sizeof(argv[0]));
+	argc = get_args(argv, str, sizeof(argv) / sizeof(argv[0]));
 	if (argc < 1)
 		return 0;
 
@@ -399,8 +399,7 @@ static int process_response(char *str)
 		if (argc < 2)
 			goto err_invalid;
 
-		if ((strcmp(argv[1], "select") == 0) ||
-		    (strcmp(argv[1], "leave") == 0)) {
+		if ((strcmp(argv[1], "select") == 0) || (strcmp(argv[1], "leave") == 0)) {
 			MenuEntry *entry;
 
 			if (argc < 3)
@@ -409,7 +408,8 @@ static int process_response(char *str)
 			/* Find the entry by id */
 			entry = menu_find_by_id(main_menu, atoi(argv[2]));
 			if (entry == NULL) {
-				report(RPT_WARNING, "Could not find the item id given by the server");
+				report(RPT_WARNING,
+				       "Could not find the item id given by the server");
 				return -1;
 			}
 
@@ -427,10 +427,8 @@ static int process_response(char *str)
 				if (entry->type == MT_EXEC)
 					exec_command(entry);
 			}
-		}
-		else if ((strcmp(argv[1], "plus") == 0) ||
-			 (strcmp(argv[1], "minus") == 0) ||
-			 (strcmp(argv[1], "update") == 0)) {
+		} else if ((strcmp(argv[1], "plus") == 0) || (strcmp(argv[1], "minus") == 0) ||
+			   (strcmp(argv[1], "update") == 0)) {
 			MenuEntry *entry;
 
 			if (argc < 4)
@@ -439,49 +437,48 @@ static int process_response(char *str)
 			/* Find the entry by id */
 			entry = menu_find_by_id(main_menu, atoi(argv[2]));
 			if (entry == NULL) {
-				report(RPT_WARNING, "Could not find the item id given by the server");
+				report(RPT_WARNING,
+				       "Could not find the item id given by the server");
 				return -1;
 			}
 
 			switch (entry->type) {
-				case MT_ARG_SLIDER:
-					entry->data.slider.value = atoi(argv[3]);
-					break;
-				case MT_ARG_RING:
-					entry->data.ring.value = atoi(argv[3]);
-					break;
-				case MT_ARG_NUMERIC:
-					entry->data.numeric.value = atoi(argv[3]);
-					break;
-				case MT_ARG_ALPHA:
-					entry->data.alpha.value = realloc(entry->data.alpha.value,
-									  strlen(argv[3]));
-					strcpy(entry->data.alpha.value, argv[3]);
-					break;
-				case MT_ARG_IP:
-					entry->data.ip.value = realloc(entry->data.ip.value,
-									strlen(argv[3]));
-					strcpy(entry->data.ip.value, argv[3]);
-					break;
-				case MT_ARG_CHECKBOX:
-					if ((entry->data.checkbox.allow_gray) &&
-					    (strcasecmp(argv[3], "gray") == 0))
-						entry->data.checkbox.value = 2;
-					else if (strcasecmp(argv[3], "on") == 0)
-						entry->data.checkbox.value = 1;
-					else
-						entry->data.checkbox.value = 0;
-					break;
-				default:
-					report(RPT_WARNING, "Illegal menu entry type for event");
-					return -1;
+			case MT_ARG_SLIDER:
+				entry->data.slider.value = atoi(argv[3]);
+				break;
+			case MT_ARG_RING:
+				entry->data.ring.value = atoi(argv[3]);
+				break;
+			case MT_ARG_NUMERIC:
+				entry->data.numeric.value = atoi(argv[3]);
+				break;
+			case MT_ARG_ALPHA:
+				entry->data.alpha.value =
+				    realloc(entry->data.alpha.value, strlen(argv[3]));
+				strcpy(entry->data.alpha.value, argv[3]);
+				break;
+			case MT_ARG_IP:
+				entry->data.ip.value =
+				    realloc(entry->data.ip.value, strlen(argv[3]));
+				strcpy(entry->data.ip.value, argv[3]);
+				break;
+			case MT_ARG_CHECKBOX:
+				if ((entry->data.checkbox.allow_gray) &&
+				    (strcasecmp(argv[3], "gray") == 0))
+					entry->data.checkbox.value = 2;
+				else if (strcasecmp(argv[3], "on") == 0)
+					entry->data.checkbox.value = 1;
+				else
+					entry->data.checkbox.value = 0;
+				break;
+			default:
+				report(RPT_WARNING, "Illegal menu entry type for event");
+				return -1;
 			}
-		}
-		else {
+		} else {
 			; /* Ignore other menuevents */
 		}
-	}
-	else if (strcmp(argv[0], "connect") == 0) {
+	} else if (strcmp(argv[0], "connect") == 0) {
 		int a;
 
 		/* determine display height and width */
@@ -491,17 +488,14 @@ static int process_response(char *str)
 			else if (strcmp(argv[a], "hgt") == 0)
 				lcd_hgt = atoi(argv[++a]);
 		}
-	}
-	else if (strcmp(argv[0], "bye") == 0) {
+	} else if (strcmp(argv[0], "bye") == 0) {
 		// TODO: make it better
 		report(RPT_INFO, "Server said: \"%s\"", str);
 		exit_program(EXIT_SUCCESS);
-	}
-	else if (strcmp(argv[0], "huh?") == 0) {
+	} else if (strcmp(argv[0], "huh?") == 0) {
 		/* Report errors */
 		report(RPT_WARNING, "Server said: \"%s\"", str);
-	}
-	else {
+	} else {
 		; /* Ignore all other responses */
 	}
 	return 0;
@@ -511,15 +505,14 @@ err_invalid:
 	return -1;
 }
 
-
 static int exec_command(MenuEntry *cmd)
 {
-	if ((cmd != NULL)  && (menu_command(cmd) != NULL)) {
+	if ((cmd != NULL) && (menu_command(cmd) != NULL)) {
 		const char *command = menu_command(cmd);
 		const char *argv[4];
 		pid_t pid;
 		ProcInfo *p;
-		char *envp[cmd->numChildren+1];
+		char *envp[cmd->numChildren + 1];
 		MenuEntry *arg;
 		int i;
 
@@ -534,39 +527,55 @@ static int exec_command(MenuEntry *cmd)
 			char buf[1025];
 
 			switch (arg->type) {
-				case MT_ARG_SLIDER:
-					snprintf(buf, sizeof(buf)-1, "%s=%d",
-						 arg->name, arg->data.slider.value);
-					break;
-				case MT_ARG_RING:
-					snprintf(buf, sizeof(buf)-1, "%s=%s", arg->name,
-						 arg->data.ring.strings[arg->data.ring.value]);
-					break;
-				case MT_ARG_NUMERIC:
-					snprintf(buf, sizeof(buf)-1, "%s=%d",
-						 arg->name, arg->data.numeric.value);
-					break;
-				case MT_ARG_ALPHA:
-					snprintf(buf, sizeof(buf)-1, "%s=%s",
-						 arg->name, arg->data.alpha.value);
-					break;
-				case MT_ARG_IP:
-					snprintf(buf, sizeof(buf)-1, "%s=%s",
-						 arg->name, arg->data.ip.value);
-					break;
-				case MT_ARG_CHECKBOX:
-					if (arg->data.checkbox.map[arg->data.checkbox.value] != NULL)
-					    strncpy(buf, arg->data.checkbox.map[arg->data.checkbox.value],
-					    	    sizeof(buf)-1);
-					else
-						snprintf(buf, sizeof(buf)-1, "%s=%d",
-							 arg->name, arg->data.checkbox.value);
-					break;
-				default:
-					/* error ? */
-					break;
+			case MT_ARG_SLIDER:
+				snprintf(buf,
+					 sizeof(buf) - 1,
+					 "%s=%d",
+					 arg->name,
+					 arg->data.slider.value);
+				break;
+			case MT_ARG_RING:
+				snprintf(buf,
+					 sizeof(buf) - 1,
+					 "%s=%s",
+					 arg->name,
+					 arg->data.ring.strings[arg->data.ring.value]);
+				break;
+			case MT_ARG_NUMERIC:
+				snprintf(buf,
+					 sizeof(buf) - 1,
+					 "%s=%d",
+					 arg->name,
+					 arg->data.numeric.value);
+				break;
+			case MT_ARG_ALPHA:
+				snprintf(buf,
+					 sizeof(buf) - 1,
+					 "%s=%s",
+					 arg->name,
+					 arg->data.alpha.value);
+				break;
+			case MT_ARG_IP:
+				snprintf(
+				    buf, sizeof(buf) - 1, "%s=%s", arg->name, arg->data.ip.value);
+				break;
+			case MT_ARG_CHECKBOX:
+				if (arg->data.checkbox.map[arg->data.checkbox.value] != NULL)
+					strncpy(buf,
+						arg->data.checkbox.map[arg->data.checkbox.value],
+						sizeof(buf) - 1);
+				else
+					snprintf(buf,
+						 sizeof(buf) - 1,
+						 "%s=%d",
+						 arg->name,
+						 arg->data.checkbox.value);
+				break;
+			default:
+				/* error ? */
+				break;
 			}
-			buf[sizeof(buf)-1] ='\0';
+			buf[sizeof(buf) - 1] = '\0';
 			envp[i] = strdup(buf);
 
 			debug(RPT_DEBUG, "Environment: %s", envp[i]);
@@ -576,12 +585,12 @@ static int exec_command(MenuEntry *cmd)
 		debug(RPT_DEBUG, "Executing '%s' via Shell %s", command, default_shell);
 
 		switch (pid = fork()) {
-		  case 0:
+		case 0:
 			/* We're the child: execute the command */
-			execve(argv[0], (char **) argv, envp);
+			execve(argv[0], (char **)argv, envp);
 			exit(EXIT_SUCCESS);
 			break;
-		  default:
+		default:
 			/* We're the parent: setup the ProcInfo structure */
 			p = calloc(1, sizeof(ProcInfo));
 			if (p != NULL) {
@@ -593,8 +602,8 @@ static int exec_command(MenuEntry *cmd)
 				p->next = proc_queue;
 				proc_queue = p;
 			}
-        		break;
-		  case -1:
+			break;
+		case -1:
 			report(RPT_ERR, "Could not fork");
 			return -1;
 		}
@@ -608,7 +617,6 @@ static int exec_command(MenuEntry *cmd)
 	return -1;
 }
 
-
 static int show_procinfo_msg(ProcInfo *p)
 {
 	if ((p != NULL) && (lcd_wid > 0) && (lcd_hgt > 0)) {
@@ -618,59 +626,78 @@ static int show_procinfo_msg(ProcInfo *p)
 				return 1;
 
 			sock_printf(sock, "screen_add [%u]\n", p->pid);
-			sock_printf(sock, "screen_set [%u] -name {lcdexec [%u]}"
-					  " -priority alert -timeout %d"
-					  " -heartbeat off\n",
-					p->pid, p->pid, 6*8);
+			sock_printf(sock,
+				    "screen_set [%u] -name {lcdexec [%u]}"
+				    " -priority alert -timeout %d"
+				    " -heartbeat off\n",
+				    p->pid,
+				    p->pid,
+				    6 * 8);
 
 			if (lcd_hgt > 2) {
 				sock_printf(sock, "widget_add [%u] t title\n", p->pid);
-				sock_printf(sock, "widget_set [%u] t {%s}\n", p->pid, p->cmd->displayname);
+				sock_printf(
+				    sock, "widget_set [%u] t {%s}\n", p->pid, p->cmd->displayname);
 				sock_printf(sock, "widget_add [%u] s1 string\n", p->pid);
 				sock_printf(sock, "widget_add [%u] s2 string\n", p->pid);
 				sock_printf(sock, "widget_add [%u] s3 string\n", p->pid);
 
-				sock_printf(sock, "widget_set [%u] s1 1 2 {[%u] finished%s}\n",
-						p->pid, p->pid, (WIFSIGNALED(p->status) ? "," : ""));
+				sock_printf(sock,
+					    "widget_set [%u] s1 1 2 {[%u] finished%s}\n",
+					    p->pid,
+					    p->pid,
+					    (WIFSIGNALED(p->status) ? "," : ""));
 
 				if (WIFEXITED(p->status)) {
 					if (WEXITSTATUS(p->status) == EXIT_SUCCESS) {
-						sock_printf(sock, "widget_set [%u] s2 1 3 {successfully.}\n",
-								p->pid);
+						sock_printf(
+						    sock,
+						    "widget_set [%u] s2 1 3 {successfully.}\n",
+						    p->pid);
+					} else {
+						sock_printf(
+						    sock,
+						    "widget_set [%u] s2 1 3 {with code 0x%02X.}\n",
+						    p->pid,
+						    WEXITSTATUS(p->status));
 					}
-					else {
-						sock_printf(sock, "widget_set [%u] s2 1 3 {with code 0x%02X.}\n",
-								p->pid, WEXITSTATUS(p->status));
-					}
-				}
-				else if (WIFSIGNALED(p->status)) {
-					sock_printf(sock, "widget_set [%u] s2 1 3 {killed by SIG %d.}\n",
-						p->pid, WTERMSIG(p->status));
+				} else if (WIFSIGNALED(p->status)) {
+					sock_printf(sock,
+						    "widget_set [%u] s2 1 3 {killed by SIG %d.}\n",
+						    p->pid,
+						    WTERMSIG(p->status));
 				}
 
 				if (lcd_hgt > 3)
-					sock_printf(sock, "widget_set [%u] s3 1 4 {Exec time: %lds}\n",
-							p->pid, p->endtime - p->starttime);
-			}
-			else {
+					sock_printf(sock,
+						    "widget_set [%u] s3 1 4 {Exec time: %lds}\n",
+						    p->pid,
+						    p->endtime - p->starttime);
+			} else {
 				sock_printf(sock, "widget_add [%u] s1 string\n", p->pid);
 				sock_printf(sock, "widget_add [%u] s2 string\n", p->pid);
-				sock_printf(sock, "widget_set [%u] s1 1 1 {%s}\n",
-						p->pid, p->cmd->displayname);
+				sock_printf(sock,
+					    "widget_set [%u] s1 1 1 {%s}\n",
+					    p->pid,
+					    p->cmd->displayname);
 				if (WIFEXITED(p->status)) {
 					if (WEXITSTATUS(p->status) == EXIT_SUCCESS) {
-						sock_printf(sock, "widget_set [%u] s2 1 2 {succeeded}\n",
-								p->pid, p->status);
+						sock_printf(sock,
+							    "widget_set [%u] s2 1 2 {succeeded}\n",
+							    p->pid,
+							    p->status);
+					} else {
+						sock_printf(
+						    sock,
+						    "widget_set [%u] s2 1 2 {finished (0x%02X)}\n",
+						    p->pid,
+						    p->status);
 					}
-					else {
-						sock_printf(sock, "widget_set [%u] s2 1 2 {finished (0x%02X)}\n",
-								p->pid, p->status);
-					}
-				}
-				else if (WIFSIGNALED(p->status)) {
-					sock_printf(sock, "widget_set [%u] s2 1 2 {killed by SIG %d}\n",
-							p->pid, WTERMSIG(p->status));
-
+				} else if (WIFSIGNALED(p->status)) {
+					sock_printf(sock,
+						    "widget_set [%u] s2 1 2 {killed by SIG %d}\n",
+						    p->pid,
+						    WTERMSIG(p->status));
 				}
 			}
 			return 1;
@@ -678,7 +705,6 @@ static int show_procinfo_msg(ProcInfo *p)
 	}
 	return 0;
 }
-
 
 static int main_loop(void)
 {
@@ -688,14 +714,15 @@ static int main_loop(void)
 	int status_delay = 0;
 
 	/* Continuously check if we get a menu event... */
-	while (!Quit && ((num_bytes = sock_recv_string(sock, buf, sizeof(buf)-1)) >= 0)) {
+	while (!Quit && ((num_bytes = sock_recv_string(sock, buf, sizeof(buf) - 1)) >= 0)) {
 		if (num_bytes == 0) {
 			ProcInfo *p;
 
 			/* wait for 1/10th of a second */
 			usleep(100000);
 
-			/* send an empty line every 3 seconds to make sure the server still exists */
+			/* send an empty line every 3 seconds to make sure the server still exists
+			 */
 			if (keepalive_delay++ >= 30) {
 				keepalive_delay = 0;
 				if (sock_send_string(sock, "\n") < 0) {
@@ -728,8 +755,7 @@ static int main_loop(void)
 					p->shown |= show_procinfo_msg(p);
 				}
 			}
-		}
-		else {
+		} else {
 			process_response(buf);
 		}
 	}

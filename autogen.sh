@@ -11,7 +11,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# set default values for variables
+# Set default values for variables
 : ${AUTOCONF:=autoconf}
 : ${AUTOHEADER:=autoheader}
 : ${AUTOMAKE:=automake}
@@ -20,52 +20,64 @@ NC='\033[0m' # No Color
 DIE=0
 
 ($AUTOCONF --version) < /dev/null > /dev/null 2>&1 || {
-  echo
-  echo -e "${RED}**Error**: You must have \`autoconf' installed.${NC}"
-  echo "Download the appropriate package for your distribution,"
-  echo "or get the source tarball at ftp://ftp.gnu.org/pub/gnu/"
-  DIE=1
+    echo
+    echo -e "${RED}**Error**: You must have \`autoconf' installed.${NC}"
+    echo "Download the appropriate package for your distribution,"
+    echo "or get the source tarball at ftp://ftp.gnu.org/pub/gnu/"
+    DIE=1
 }
 
 ($AUTOMAKE --version) < /dev/null > /dev/null 2>&1 || {
-  echo
-  echo -e "${RED}**Error**: You must have \`automake' installed.${NC}"
-  echo "Get ftp://ftp.gnu.org/pub/gnu/automake-1.3.tar.gz"
-  echo "(or a newer version if it is available)"
-  DIE=1
-  NO_AUTOMAKE=yes
+    echo
+    echo -e "${RED}**Error**: You must have \`automake' installed.${NC}"
+    echo "Get ftp://ftp.gnu.org/pub/gnu/automake-1.3.tar.gz"
+    echo "(or a newer version if it is available)"
+    DIE=1
+    NO_AUTOMAKE=yes
 }
 
-# if no automake, don't bother testing for aclocal
+# If no automake, don't bother testing for aclocal
 test -n "$NO_AUTOMAKE" || ($ACLOCAL --version) < /dev/null > /dev/null 2>&1 || {
-  echo
-  echo -e "${RED}**Error**: Missing \`aclocal'.  The version of \`automake'${NC}"
-  echo "installed doesn't appear recent enough."
-  echo "Get ftp://ftp.gnu.org/pub/gnu/automake-1.3.tar.gz"
-  echo "(or a newer version if it is available)"
-  DIE=1
+    echo
+    echo -e "${RED}**Error**: Missing \`aclocal'.  The version of \`automake'${NC}"
+    echo "installed doesn't appear recent enough."
+    echo "Get ftp://ftp.gnu.org/pub/gnu/automake-1.3.tar.gz"
+    echo "(or a newer version if it is available)"
+    DIE=1
 }
 
 if test "$DIE" -eq 1; then
-  echo -e "${RED}✗ Missing required autotools. Please install them first.${NC}"
-  exit 1
+    echo -e "${RED}✗ Missing required autotools. Please install them first.${NC}"
+    exit 1
 fi
 
 echo -e "${BLUE}=== Autotools Setup ===${NC}"
 
 echo -e "${YELLOW}Running aclocal ...${NC}"
-$ACLOCAL && echo -e "${GREEN}✓ aclocal completed${NC}" || { echo -e "${RED}✗ aclocal failed${NC}"; exit 1; }
+$ACLOCAL && echo -e "${GREEN}✓ aclocal completed${NC}" || {
+    echo -e "${RED}✗ aclocal failed${NC}"
+    exit 1
+}
 
-if grep "^A[CM]_CONFIG_HEADER" configure.ac >/dev/null; then
-  echo -e "${YELLOW}Running autoheader...${NC}"
-  $AUTOHEADER && echo -e "${GREEN}✓ autoheader completed${NC}" || { echo -e "${RED}✗ autoheader failed${NC}"; exit 1; }
+if grep "^A[CM]_CONFIG_HEADER" configure.ac > /dev/null; then
+    echo -e "${YELLOW}Running autoheader...${NC}"
+    $AUTOHEADER && echo -e "${GREEN}✓ autoheader completed${NC}" || {
+        echo -e "${RED}✗ autoheader failed${NC}"
+        exit 1
+    }
 fi
 
 echo -e "${YELLOW}Running automake ...${NC}"
-$AUTOMAKE --add-missing  --copy && echo -e "${GREEN}✓ automake completed${NC}" || { echo -e "${RED}✗ automake failed${NC}"; exit 1; }
+$AUTOMAKE --add-missing --copy && echo -e "${GREEN}✓ automake completed${NC}" || {
+    echo -e "${RED}✗ automake failed${NC}"
+    exit 1
+}
 
 echo -e "${YELLOW}Running autoconf ...${NC}"
-$AUTOCONF && echo -e "${GREEN}✓ autoconf completed${NC}" || { echo -e "${RED}✗ autoconf failed${NC}"; exit 1; }
+$AUTOCONF && echo -e "${GREEN}✓ autoconf completed${NC}" || {
+    echo -e "${RED}✗ autoconf failed${NC}"
+    exit 1
+}
 
 echo -e "${GREEN}✓ Autotools setup complete!${NC}"
 echo ""
@@ -76,24 +88,24 @@ setup_formatting() {
     echo "This project uses automatic code formatting for consistency."
     echo "Dependencies: clang-format (C code), prettier (other files)"
     echo ""
-    
+
     # Check if already set up
-    if [ -f ".git/hooks/pre-commit" ] && command -v clang-format >/dev/null 2>&1 && command -v npx >/dev/null 2>&1; then
+    if [ -f ".git/hooks/pre-commit" ] && command -v clang-format > /dev/null 2>&1 && command -v npx > /dev/null 2>&1; then
         echo -e "${GREEN}✓ Code formatting already configured${NC}"
         return 0
     fi
-    
+
     # Check if running in non-interactive mode (like makepkg)
     if [ ! -t 0 ] || [ -n "$PKGBUILD_MODE" ]; then
         echo -e "${YELLOW}⚠ Non-interactive mode detected - skipping formatting setup${NC}"
         echo "Code formatting can be enabled manually with: ./setup-hooks.sh install"
         return 0
     fi
-    
+
     printf "Enable automatic code formatting? [Y/n]: "
     read -r response
     case "$response" in
-        [nN]|[nN][oO])
+        [nN] | [nN][oO])
             echo -e "${YELLOW}⚠ Skipping code formatting setup${NC}"
             echo "You can enable it later by running: ./setup-hooks.sh install"
             return 0
@@ -102,18 +114,18 @@ setup_formatting() {
             echo -e "${YELLOW}Setting up code formatting...${NC}"
             ;;
     esac
-    
+
     # Check and install dependencies
     missing_deps=""
-    
-    if ! command -v clang-format >/dev/null 2>&1; then
+
+    if ! command -v clang-format > /dev/null 2>&1; then
         missing_deps="$missing_deps clang-format"
     fi
-    
-    if ! command -v npx >/dev/null 2>&1; then
+
+    if ! command -v npx > /dev/null 2>&1; then
         missing_deps="$missing_deps npm"
     fi
-    
+
     if [ -n "$missing_deps" ]; then
         echo -e "${RED}✗ Missing dependencies:$missing_deps${NC}"
         echo "Please install them first:"
@@ -123,11 +135,11 @@ setup_formatting() {
         if echo "$missing_deps" | grep -q "npm"; then
             echo "  sudo pacman -S npm"
         fi
-        
+
         printf "Continue without formatting setup? [y/N]: "
         read -r continue_response
         case "$continue_response" in
-            [yY]|[yY][eE][sS])
+            [yY] | [yY][eE][sS])
                 echo -e "${YELLOW}⚠ Continuing without formatting setup${NC}"
                 return 0
                 ;;
@@ -137,9 +149,9 @@ setup_formatting() {
                 ;;
         esac
     fi
-    
+
     # Install npm dependencies
-    if command -v npm >/dev/null 2>&1; then
+    if command -v npm > /dev/null 2>&1; then
         if [ ! -f "package-lock.json" ] || [ ! -d "node_modules" ]; then
             echo -e "${YELLOW}Installing prettier dependencies...${NC}"
             npm install || {
@@ -148,7 +160,7 @@ setup_formatting() {
             }
         fi
     fi
-    
+
     # Install git hooks
     if [ -f "./setup-hooks.sh" ]; then
         ./setup-hooks.sh install
@@ -156,7 +168,7 @@ setup_formatting() {
         echo -e "${RED}✗ setup-hooks.sh not found${NC}"
         return 1
     fi
-    
+
     echo -e "${GREEN}✓ Code formatting setup complete!${NC}"
     echo "Files will be automatically formatted before commits."
     echo "Manual formatting: make format"

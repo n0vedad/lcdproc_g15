@@ -14,7 +14,7 @@
 #define MAIN_H
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 
 /*
@@ -44,11 +44,11 @@ extern long timer;
  */
 
 extern unsigned int bind_port;
-extern char bind_addr[];	/* Do not preinit these strings as they will occupy */
-extern char configfile[];	/* a lot of space in the executable. */
-extern char user[];		/* The values will be overwritten anyway... */
+extern char bind_addr[];  /* Do not preinit these strings as they will occupy */
+extern char configfile[]; /* a lot of space in the executable. */
+extern char user[];	  /* The values will be overwritten anyway... */
 
-extern int frame_interval;	/* Not a command line option, but could be */
+extern int frame_interval; /* Not a command line option, but could be */
 
 /* The drivers and their driver parameters */
 extern char *drivernames[];
@@ -57,7 +57,7 @@ extern int num_drivers;
 /* End of configuration variables */
 
 /* Defines for having 'unset' values*/
-#define UNSET_INT	-1
-#define UNSET_STR	"\01"
+#define UNSET_INT -1
+#define UNSET_STR "\01"
 
 #endif

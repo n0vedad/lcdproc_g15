@@ -9,8 +9,8 @@
  * Refer to the COPYING file distributed with this package.
  */
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "report.h"
@@ -24,8 +24,7 @@
  * \retval <0       Error.
  * \retval >=0      The number of arguments parsed.
  */
-int
-get_args (char **argv, char *str, int max_args)
+int get_args(char **argv, char *str, int max_args)
 {
 	char *delimiters = " \n";
 	char *item;
@@ -41,7 +40,7 @@ get_args (char **argv, char *str, int max_args)
 	debug(RPT_DEBUG, "get_args(%i): string=%s", max_args, str);
 
 	/* Parse the command line... */
-	for (item = strtok (str, delimiters); item; item = strtok (NULL, delimiters)) {
+	for (item = strtok(str, delimiters); item; item = strtok(NULL, delimiters)) {
 		debug(RPT_DEBUG, "get_args: item=%s", item);
 		if (i < max_args) {
 			argv[i] = item;

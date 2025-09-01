@@ -14,8 +14,8 @@
  *               2008, Peter Marschall
  */
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "shared/report.h"
@@ -23,38 +23,39 @@
 #include "drivers.h"
 
 #include "clients.h"
-#include "widget.h"
-#include "screenlist.h"
-#include "menuscreens.h"
 #include "main.h"
+#include "menuscreens.h"
 #include "render.h"
+#include "screenlist.h"
+#include "widget.h"
 
-int  default_duration = 0;
-int  default_timeout  = -1;
+int default_duration = 0;
+int default_timeout = -1;
 
 char *pri_names[] = {
-	"hidden",
-	"background",
-	"info",
-	"foreground",
-	"alert",
-	"input",
-	NULL,
+    "hidden",
+    "background",
+    "info",
+    "foreground",
+    "alert",
+    "input",
+    NULL,
 };
-
 
 /** Create a screen.
  * \param id      Screen id; it's name.
  * \param client  Client, the screen belongs to.
  * \return        Pointer to freshly created screen.
  */
-Screen *
-screen_create(char *id, Client *client)
+Screen *screen_create(char *id, Client *client)
 {
 	Screen *s;
 
-	debug(RPT_DEBUG, "%s(id=\"%.40s\", client=[%d])",
-		 __FUNCTION__, id, (client?client->sock:-1));
+	debug(RPT_DEBUG,
+	      "%s(id=\"%.40s\", client=[%d])",
+	      __FUNCTION__,
+	      id,
+	      (client ? client->sock : -1));
 
 	if (!id) {
 		report(RPT_ERR, "%s: Need id string", __FUNCTION__);
@@ -81,9 +82,9 @@ screen_create(char *id, Client *client)
 	s->width = display_props->width;
 	s->height = display_props->height;
 	s->client = client;
-	s->timeout = default_timeout; 	/*ignored unless greater than 0.*/
-	s->backlight = BACKLIGHT_OPEN;		/*Lets the screen do it's own*/
-						/*or do what the client says.*/
+	s->timeout = default_timeout;  /*ignored unless greater than 0.*/
+	s->backlight = BACKLIGHT_OPEN; /*Lets the screen do it's own*/
+				       /*or do what the client says.*/
 	s->cursor = CURSOR_OFF;
 	s->cursor_x = 1;
 	s->cursor_y = 1;
@@ -101,12 +102,10 @@ screen_create(char *id, Client *client)
 	return s;
 }
 
-
 /** Destroy a screen.
  * \param s    Screen to destroy.
  */
-void
-screen_destroy(Screen *s)
+void screen_destroy(Screen *s)
 {
 	Widget *w;
 
@@ -134,23 +133,20 @@ screen_destroy(Screen *s)
 	free(s);
 }
 
-
 /** Add a widget to a screen.
  * \param s  Screen to add the widget \c w to.
  * \param w  Widget to be added to \c s.
  * \retval <0  Error.
  * \retval  0  Success.
  */
-int
-screen_add_widget(Screen *s, Widget *w)
+int screen_add_widget(Screen *s, Widget *w)
 {
 	debug(RPT_DEBUG, "%s(s=[%.40s], widget=[%.40s])", __FUNCTION__, s->id, w->id);
 
-	LL_Push(s->widgetlist, (void *) w);
+	LL_Push(s->widgetlist, (void *)w);
 
 	return 0;
 }
-
 
 /** Remove a widget from a screen.
  * \param s  Screen to remove the widget \c w from.
@@ -158,24 +154,21 @@ screen_add_widget(Screen *s, Widget *w)
  * \retval <0  Error.
  * \retval  0  Success.
  */
-int
-screen_remove_widget(Screen *s, Widget *w)
+int screen_remove_widget(Screen *s, Widget *w)
 {
 	debug(RPT_DEBUG, "%s(s=[%.40s], widget=[%.40s])", __FUNCTION__, s->id, w->id);
 
-	LL_Remove(s->widgetlist, (void *) w, NEXT);
+	LL_Remove(s->widgetlist, (void *)w, NEXT);
 
 	return 0;
 }
-
 
 /** Find a widget on a screen by its id.
  * \param s   Screen where to look for the widget.
  * \param id  Identifier of the widget.
  * \return    Pointerr to the widget; \c NULL if widget was not found or error.
  */
-Widget *
-screen_find_widget(Screen *s, char *id)
+Widget *screen_find_widget(Screen *s, char *id)
 {
 	Widget *w;
 
@@ -207,8 +200,7 @@ screen_find_widget(Screen *s, char *id)
  * \param key Name of the key
  * \return    Pointer to the entry in the key list; \c NULL if key is not used.
  */
-char *
-screen_find_key(Screen *s, const char *key)
+char *screen_find_key(Screen *s, const char *key)
 {
 	char *start = s->keys, *end;
 	int len = strlen(key);
@@ -225,7 +217,7 @@ screen_find_key(Screen *s, const char *key)
 				start += len;
 		}
 
-		while (*start)  /* Get to start of next string */
+		while (*start) /* Get to start of next string */
 			++start;
 		++start;
 	}
@@ -233,14 +225,12 @@ screen_find_key(Screen *s, const char *key)
 	return NULL;
 }
 
-
 /** Convert a priority name to the priority id.
  * \param priname  Name of the screen priority.
  * \return  Priority id associated with \c priname, -1 if no matching priority
  *          id could be found.
  */
-Priority
-screen_pri_name_to_pri(char *priname)
+Priority screen_pri_name_to_pri(char *priname)
 {
 	Priority pri = -1;
 	int i;
@@ -254,13 +244,8 @@ screen_pri_name_to_pri(char *priname)
 	return pri;
 }
 
-
 /** Convert a priority id to the associated name.
  * \param pri  Priority id.
  * \return     Priority name associated with \c pri.
  */
-char *
-screen_pri_to_pri_name(Priority pri)
-{
-	return pri_names[pri];
-}
+char *screen_pri_to_pri_name(Priority pri) { return pri_names[pri]; }

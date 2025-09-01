@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2017 Hans de Goede <hdegoede@redhat.com>
  * Copyright (C) 2025 n0vedad <https://github.com/n0vedad/>
- * 
+ *
  * 2025-08-21 RGB backlights support
  */
 
@@ -15,7 +15,7 @@
 #include <linux/hidraw.h>
 #include <linux/input.h>
 
-#define LIB_HIDRAW_DESC_HDR_SZ		16
+#define LIB_HIDRAW_DESC_HDR_SZ 16
 
 struct lib_hidraw_handle;
 
@@ -31,9 +31,11 @@ struct lib_hidraw_id {
 
 struct lib_hidraw_handle *lib_hidraw_open(const struct lib_hidraw_id *ids);
 void lib_hidraw_send_output_report(struct lib_hidraw_handle *handle,
-				   unsigned char *data, int count);
+				   unsigned char *data,
+				   int count);
 int lib_hidraw_send_feature_report(struct lib_hidraw_handle *handle,
-				   unsigned char *data, int count);
+				   unsigned char *data,
+				   int count);
 void lib_hidraw_close(struct lib_hidraw_handle *handle);
 
 #endif

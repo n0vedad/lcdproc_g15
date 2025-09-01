@@ -1,35 +1,35 @@
 /** \file server/drivers/linux_input.c
  * LCDd \c linux event device driver for inputting data from the input
  * subsystem of the linux kernel..
- * 
+ *
  * Copyright (C) 2025 n0vedad <https://github.com/n0vedad/>
  * 2025-08-31 G-Key macro system
  */
 
 #include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
+#include <linux/input.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <sys/ioctl.h>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
-#include <linux/input.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 
 #include "lcd.h"
 #include "linux_input.h"
-#include "shared/report.h"
 #include "shared/LL.h"
+#include "shared/report.h"
 
-#define LINUXINPUT_DEFAULT_DEVICE	"/dev/input/event0"
+#define LINUXINPUT_DEFAULT_DEVICE "/dev/input/event0"
 
 /** describe the button of a keycode */
 struct keycode {
@@ -43,8 +43,7 @@ struct keycode {
  * \retval NULL Error.
  * \retval else Pointer to newly allocated struct keycode.
  */
-static struct keycode *
-keycode_create(const char *configvalue)
+static struct keycode *keycode_create(const char *configvalue)
 {
 	long code;
 	char *button;
@@ -54,7 +53,7 @@ keycode_create(const char *configvalue)
 	if (code < 0 || code > UINT16_MAX)
 		return NULL;
 
-	button = strchr(configvalue,',');
+	button = strchr(configvalue, ',');
 	if (!button)
 		return NULL;
 	button = strdup(&button[1]);
@@ -77,7 +76,6 @@ typedef struct linuxInput_private_data {
 	const char *name;
 	LinkedList *buttonmap;
 } PrivateData;
-
 
 // Vars for the server core
 MODULE_EXPORT char *api_version = API_VERSION;
@@ -123,8 +121,7 @@ static int linuxInput_search_by_name(const char *name)
 		return -1;
 
 	while ((dirent = readdir(dir)) != NULL) {
-		if (dirent->d_type != DT_CHR ||
-		    strncmp(dirent->d_name, "event", 5))
+		if (dirent->d_type != DT_CHR || strncmp(dirent->d_name, "event", 5))
 			continue;
 
 		strcpy(devname, "/dev/input/");
@@ -146,16 +143,15 @@ static int linuxInput_search_by_name(const char *name)
  * \retval 0   Success.
  * \retval <0  Error.
  */
-MODULE_EXPORT int
-linuxInput_init (Driver *drvthis)
+MODULE_EXPORT int linuxInput_init(Driver *drvthis)
 {
 	PrivateData *p;
 	const char *s;
 	struct keycode *key;
 	int i;
 
-        /* Allocate and store private data */
-	p = (PrivateData *) calloc(1, sizeof(PrivateData));
+	/* Allocate and store private data */
+	p = (PrivateData *)calloc(1, sizeof(PrivateData));
 	if (p == NULL)
 		return -1;
 	if (drvthis->store_private_ptr(drvthis, p))
@@ -171,24 +167,21 @@ linuxInput_init (Driver *drvthis)
 	/* Read config file */
 
 	/* What device should be used */
-	s = drvthis->config_get_string(drvthis->name, "Device", 0,
-						   LINUXINPUT_DEFAULT_DEVICE);
+	s = drvthis->config_get_string(drvthis->name, "Device", 0, LINUXINPUT_DEFAULT_DEVICE);
 	report(RPT_INFO, "%s: using Device %s", drvthis->name, s);
-
 
 	/* Open the device, eiher by path or by name */
 	if (s[0] == '/') {
 		report(RPT_DEBUG, "%s: Opening device by path: %s", drvthis->name, s);
 		if ((p->fd = open(s, O_RDONLY | O_NONBLOCK)) == -1) {
-			report(RPT_ERR, "%s: open(%s) failed (%s)",
-					drvthis->name, s, strerror(errno));
+			report(
+			    RPT_ERR, "%s: open(%s) failed (%s)", drvthis->name, s, strerror(errno));
 			return -1;
 		}
 	} else {
 		report(RPT_DEBUG, "%s: Searching device by name: %s", drvthis->name, s);
 		if ((p->fd = linuxInput_search_by_name(s)) == -1) {
-			report(RPT_ERR, "%s: could not find '%s' input-device",
-					drvthis->name, s);
+			report(RPT_ERR, "%s: could not find '%s' input-device", drvthis->name, s);
 			return -1;
 		}
 		p->name = s;
@@ -197,8 +190,7 @@ linuxInput_init (Driver *drvthis)
 
 	for (i = 0; (s = drvthis->config_get_string(drvthis->name, "key", i, NULL)) != NULL; i++) {
 		if ((key = keycode_create(s)) == NULL) {
-			report(RPT_ERR, "%s: parsing configvalue '%s' failed",
-					drvthis->name, s);
+			report(RPT_ERR, "%s: parsing configvalue '%s' failed", drvthis->name, s);
 			continue;
 		}
 		LL_AddNode(p->buttonmap, key);
@@ -209,13 +201,11 @@ linuxInput_init (Driver *drvthis)
 	return 0;
 }
 
-
 /**
  * Close the driver (do necessary clean-up).
  * \param drvthis  Pointer to driver structure.
  */
-MODULE_EXPORT void
-linuxInput_close (Driver *drvthis)
+MODULE_EXPORT void linuxInput_close(Driver *drvthis)
 {
 	PrivateData *p = drvthis->private_data;
 	struct keycode *k;
@@ -237,7 +227,6 @@ linuxInput_close (Driver *drvthis)
 	drvthis->store_private_ptr(drvthis, NULL);
 }
 
-
 /**
  * Helper function to check LL items against a given key code.
  * \param data   Pointer to data of list item
@@ -245,8 +234,7 @@ linuxInput_close (Driver *drvthis)
  * \retval 0     We found the right item.
  * \retval else  We need to continue searching.
  */
-static int
-compare_with_keycode (void *data, void *codep)
+static int compare_with_keycode(void *data, void *codep)
 {
 	uint16_t code = *(uint16_t *)codep;
 	struct keycode *k = data;
@@ -261,8 +249,7 @@ compare_with_keycode (void *data, void *codep)
  * \retval 0     Non key-press event read
  * \retval -1    No events are queued
  */
-static int
-linuxInput_get_key_code (PrivateData *p)
+static int linuxInput_get_key_code(PrivateData *p)
 {
 	struct input_event event;
 	int result = -1;
@@ -297,8 +284,11 @@ linuxInput_get_key_code (PrivateData *p)
 		return -1;
 
 	/* Debug: Show all events */
-	report(RPT_DEBUG, "linux_input: Read event type=%d code=0x%x value=%d", 
-		   event.type, event.code, event.value);
+	report(RPT_DEBUG,
+	       "linux_input: Read event type=%d code=0x%x value=%d",
+	       event.type,
+	       event.code,
+	       event.value);
 
 	/* Ignore release events and not-key events */
 	if (event.type != EV_KEY) {
@@ -321,8 +311,7 @@ linuxInput_get_key_code (PrivateData *p)
  * \retval       String representation of the key;
  *               \c NULL for nothing available / error.
  */
-static const char *
-linuxInput_key_code_to_key_name (PrivateData *p, uint16_t code)
+static const char *linuxInput_key_code_to_key_name(PrivateData *p, uint16_t code)
 {
 	struct keycode *k;
 
@@ -333,7 +322,10 @@ linuxInput_key_code_to_key_name (PrivateData *p, uint16_t code)
 		/* Use user config for button mapping */
 		k = LL_Find(p->buttonmap, compare_with_keycode, &code);
 		if (k) {
-			report(RPT_DEBUG, "linux_input: Mapped code 0x%x to key '%s'", code, k->button);
+			report(RPT_DEBUG,
+			       "linux_input: Mapped code 0x%x to key '%s'",
+			       code,
+			       k->button);
 			return k->button;
 		} else {
 			report(RPT_DEBUG, "linux_input: No mapping found for code 0x%x", code);
@@ -372,8 +364,7 @@ linuxInput_key_code_to_key_name (PrivateData *p, uint16_t code)
  * \retval         String representation of the key;
  *                 \c NULL for nothing available / error.
  */
-MODULE_EXPORT const char *
-linuxInput_get_key (Driver *drvthis)
+MODULE_EXPORT const char *linuxInput_get_key(Driver *drvthis)
 {
 	PrivateData *p = drvthis->private_data;
 	const char *retval = NULL;
@@ -385,8 +376,7 @@ linuxInput_get_key (Driver *drvthis)
 	 */
 	do {
 		code = linuxInput_get_key_code(p);
-	} while(code >= 0 &&
-		(retval = linuxInput_key_code_to_key_name(p, code)) == NULL);
+	} while (code >= 0 && (retval = linuxInput_key_code_to_key_name(p, code)) == NULL);
 
 	return retval;
 }

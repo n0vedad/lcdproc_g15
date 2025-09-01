@@ -14,10 +14,10 @@
 #define INPUT_H
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 #ifdef HAVE_STDBOOL_H
-# include <stdbool.h>
+#include <stdbool.h>
 #endif
 #include "shared/defines.h"
 
@@ -27,30 +27,29 @@ void handle_input(void);
 typedef struct KeyReservation {
 	char *key;
 	bool exclusive;
-	Client *client;		/* NULL for internal clients */
+	Client *client; /* NULL for internal clients */
 } KeyReservation;
 
-
 int input_init(void);
-	/* Init the input handling system */
+/* Init the input handling system */
 
 void input_shutdown(void);
-	/* Shut it down */
+/* Shut it down */
 
 int input_reserve_key(const char *key, bool exclusive, Client *client);
-	/* Reserves a key for a client */
-	/* Return -1 if reservation of key is not possible */
+/* Reserves a key for a client */
+/* Return -1 if reservation of key is not possible */
 
 void input_release_key(const char *key, Client *client);
-	/* Releases a key reservation */
+/* Releases a key reservation */
 
 void input_release_client_keys(Client *client);
-	/* Releases all key reservations for a given client */
+/* Releases all key reservations for a given client */
 
 KeyReservation *input_find_key(const char *key, Client *client);
-	/* Finds if a key reservation causes a 'hit'.
-	 * If the key was reserved exclusively, the client will be ignored.
-	 * If the key was reserved shared, the client must match.
-	 */
+/* Finds if a key reservation causes a 'hit'.
+ * If the key was reserved exclusively, the client will be ignored.
+ * If the key was reserved shared, the client must match.
+ */
 
 #endif

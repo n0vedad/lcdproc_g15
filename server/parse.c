@@ -15,37 +15,33 @@
  *               2008, Peter Marschall
  */
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-#include "shared/LL.h"
-#include "shared/sockets.h"
-#include "shared/report.h"
 #include "clients.h"
 #include "commands/command_list.h"
 #include "parse.h"
+#include "shared/LL.h"
+#include "shared/report.h"
+#include "shared/sockets.h"
 #include "sock.h"
 
 #define MAX_ARGUMENTS 40
 
+static inline int is_whitespace(char x) { return ((x == ' ') || (x == '\t') || (x == '\r')); }
 
-static inline int is_whitespace(char x)	{
-	return ((x == ' ') || (x == '\t') || (x == '\r'));
-}
+static inline int is_final(char x) { return ((x == '\n') || (x == '\0')); }
 
-static inline int is_final(char x) {
-	return ((x == '\n') || (x == '\0'));
-}
-
-static inline int is_opening_quote(char x, char q) {
+static inline int is_opening_quote(char x, char q)
+{
 	return ((q == '\0') && ((x == '\"') || (x == '{')));
 }
 
-static inline int is_closing_quote(char x, char q) {
+static inline int is_closing_quote(char x, char q)
+{
 	return (((q == '{') && (x == '}')) || ((q == '\"') && (x == '\"')));
 }
-
 
 static void parse_message(const char *str, Client *c)
 {
@@ -53,9 +49,9 @@ static void parse_message(const char *str, Client *c)
 	State state = ST_INITIAL;
 
 	int error = 0;
-	char quote = '\0';	/* The quote used to open a quote string */
+	char quote = '\0'; /* The quote used to open a quote string */
 	int pos = 0;
-	char arg_space[strlen(str)+1];
+	char arg_space[strlen(str) + 1];
 	int argc = 0;
 	char *argv[MAX_ARGUMENTS];
 	int argpos = 0;
@@ -72,8 +68,8 @@ static void parse_message(const char *str, Client *c)
 		char ch = str[pos++];
 
 		switch (state) {
-		  case ST_INITIAL:
-		  case ST_WHITESPACE:
+		case ST_INITIAL:
+		case ST_WHITESPACE:
 			if (is_whitespace(ch))
 				break;
 			if (is_final(ch)) {
@@ -82,90 +78,80 @@ static void parse_message(const char *str, Client *c)
 			}
 			/* otherwise fall through */
 			state = ST_ARGUMENT;
-		  case ST_ARGUMENT:
+		case ST_ARGUMENT:
 			if (is_final(ch)) {
 				if (quote)
 					error = 2;
-				if (argc >= MAX_ARGUMENTS-1) {
+				if (argc >= MAX_ARGUMENTS - 1) {
 					error = 1;
-				}
-				else {
+				} else {
 					argv[argc][argpos] = '\0';
-					argv[argc+1] = argv[argc] + argpos + 1;
+					argv[argc + 1] = argv[argc] + argpos + 1;
 					argc++;
 					argpos = 0;
 				}
 				state = ST_FINAL;
-			}
-			else if (ch == '\\') {
-			 	if (str[pos]) {
-			 		/* We solve quoted chars here right away */
+			} else if (ch == '\\') {
+				if (str[pos]) {
+					/* We solve quoted chars here right away */
 					const char escape_chars[] = "nrt";
 					const char escape_trans[] = "\n\r\t";
-			 		char *p = strchr(escape_chars, str[pos]);
+					char *p = strchr(escape_chars, str[pos]);
 
 					/* Is it wise to have the characters \n, \r & \t expanded ?
 					 * Can the displays deal with them ?
 					 */
 					if (p != NULL) {
 						/* Insert a replacement for the code */
-						argv[argc][argpos++] = escape_trans[p - escape_chars];
-					}
-					else {
-						 /* Copy char literally */
+						argv[argc][argpos++] =
+						    escape_trans[p - escape_chars];
+					} else {
+						/* Copy char literally */
 						argv[argc][argpos++] = str[pos];
 					}
 					pos++;
-			 	}
-			 	else {
-			 		error = 2;
+				} else {
+					error = 2;
 					/* alternative: argv[argc][argpos++] = ch; */
-					if (argc >= MAX_ARGUMENTS-1) {
+					if (argc >= MAX_ARGUMENTS - 1) {
 						error = 1;
-					}
-					else {
+					} else {
 						argv[argc][argpos] = '\0';
-						argv[argc+1] = argv[argc] + argpos + 1;
+						argv[argc + 1] = argv[argc] + argpos + 1;
 						argc++;
 						argpos = 0;
 					}
-			 		state = ST_FINAL;
-			 	}
-			}
-			else if (is_opening_quote(ch, quote)) {
+					state = ST_FINAL;
+				}
+			} else if (is_opening_quote(ch, quote)) {
 				quote = ch;
-			}
-			else if (is_closing_quote(ch, quote)) {
+			} else if (is_closing_quote(ch, quote)) {
 				quote = '\0';
-				if (argc >= MAX_ARGUMENTS-1) {
+				if (argc >= MAX_ARGUMENTS - 1) {
 					error = 1;
-				}
-				else {
+				} else {
 					argv[argc][argpos] = '\0';
-					argv[argc+1] = argv[argc] + argpos + 1;
+					argv[argc + 1] = argv[argc] + argpos + 1;
 					argc++;
 					argpos = 0;
 				}
 				state = ST_WHITESPACE;
-			}
-			else if (is_whitespace(ch) && (quote == '\0')) {
-				if (argc >= MAX_ARGUMENTS-1) {
+			} else if (is_whitespace(ch) && (quote == '\0')) {
+				if (argc >= MAX_ARGUMENTS - 1) {
 					error = 1;
-				}
-				else {
+				} else {
 					argv[argc][argpos] = '\0';
-					argv[argc+1] = argv[argc] + argpos + 1;
+					argv[argc + 1] = argv[argc] + argpos + 1;
 					argc++;
 					argpos = 0;
 				}
 				state = ST_WHITESPACE;
-			}
-			else {
+			} else {
 				argv[argc][argpos++] = ch;
 			}
 			break;
-		  case ST_FINAL:
-		  	/* This will never be reached */
+		case ST_FINAL:
+			/* This will never be reached */
 			break;
 		}
 	}
@@ -186,18 +172,20 @@ static void parse_message(const char *str, Client *c)
 		error = function(c, argc, argv);
 		if (error) {
 			sock_printf_error(c->sock, "Function returned error \"%.40s\"\n", argv[0]);
-			report(RPT_WARNING, "Command function returned an error after command from client on socket %d: %.40s", c->sock, str);
+			report(RPT_WARNING,
+			       "Command function returned an error after command from client on "
+			       "socket %d: %.40s",
+			       c->sock,
+			       str);
 		}
-	}
-	else {
+	} else {
 		sock_printf_error(c->sock, "Invalid command \"%.40s\"\n", argv[0]);
-		report(RPT_WARNING, "Invalid command from client on socket %d: %.40s", c->sock, str);
+		report(
+		    RPT_WARNING, "Invalid command from client on socket %d: %.40s", c->sock, str);
 	}
 }
 
-
-void
-parse_all_client_messages(void)
+void parse_all_client_messages(void)
 {
 	Client *c;
 
@@ -218,5 +206,3 @@ parse_all_client_messages(void)
 		}
 	}
 }
-
-

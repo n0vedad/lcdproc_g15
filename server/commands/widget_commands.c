@@ -17,22 +17,21 @@
  *               2002, Joris Robijn
  */
 
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <ctype.h>
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "shared/report.h"
 #include "shared/sockets.h"
 
 #include "client.h"
+#include "drivers.h"
 #include "screen.h"
 #include "widget.h"
-#include "drivers.h"
 #include "widget_commands.h"
-
 
 /**
  * Adds a widget to a screen, but doesn't give it a value
@@ -41,21 +40,21 @@
  * Usage: widget_add <screenid> <widgetid> <widgettype> [-in <id>]
  *\endverbatim
  */
-int
-widget_add_func(Client *c, int argc, char **argv)
+int widget_add_func(Client *c, int argc, char **argv)
 {
 	int err;
 	char *sid;
 	char *wid;
 	WidgetType wtype;
-	Screen * s;
-	Widget * w;
+	Screen *s;
+	Widget *w;
 
 	if (c->state != ACTIVE)
 		return 1;
 
 	if ((argc < 4) || (argc > 6)) {
-		sock_send_error(c->sock, "Usage: widget_add <screenid> <widgetid> <widgettype> [-in <id>]\n");
+		sock_send_error(
+		    c->sock, "Usage: widget_add <screenid> <widgetid> <widgettype> [-in <id>]\n");
 		return 0;
 	}
 
@@ -129,8 +128,7 @@ widget_add_func(Client *c, int argc, char **argv)
  * Usage: widget_del <screenid> <widgetid>
  *\endverbatim
  */
-int
-widget_del_func(Client *c, int argc, char **argv)
+int widget_del_func(Client *c, int argc, char **argv)
 {
 	int err = 0;
 
@@ -173,9 +171,7 @@ widget_del_func(Client *c, int argc, char **argv)
 	return 0;
 }
 
-static int not_direction(char c) {
-	return c != 'h' && c != 'v';
-}
+static int not_direction(char c) { return c != 'h' && c != 'v'; }
 
 /**
  * Configures information about a widget, such as its size, shape,
@@ -185,8 +181,7 @@ static int not_direction(char c) {
  * widget_set <screenid> <widgetid> <widget-SPECIFIC-data>
  *\endverbatim
  */
-int
-widget_set_func(Client *c, int argc, char **argv)
+int widget_set_func(Client *c, int argc, char **argv)
 {
 	int i;
 	char *wid;
@@ -205,7 +200,8 @@ widget_set_func(Client *c, int argc, char **argv)
 	 */
 
 	if (argc < 4) {
-		sock_send_error(c->sock, "Usage: widget_set <screenid> <widgetid> <widget-SPECIFIC-data>\n");
+		sock_send_error(c->sock,
+				"Usage: widget_set <screenid> <widgetid> <widget-SPECIFIC-data>\n");
 		return 0;
 	}
 
@@ -232,14 +228,14 @@ widget_set_func(Client *c, int argc, char **argv)
 	}
 	i = 3;
 	switch (w->type) {
-	case WID_STRING:		/* String takes "x y text" */
+	case WID_STRING: /* String takes "x y text" */
 		if (argc != i + 3) {
 			sock_send_error(c->sock, "Wrong number of arguments\n");
 			return 0;
 		}
 
-		if ((!isdigit((unsigned int) argv[i][0])) ||
-		    (!isdigit((unsigned int) argv[i + 1][0]))) {
+		if ((!isdigit((unsigned int)argv[i][0])) ||
+		    (!isdigit((unsigned int)argv[i + 1][0]))) {
 			sock_send_error(c->sock, "Invalid coordinates\n");
 			return 0;
 		}
@@ -251,14 +247,14 @@ widget_set_func(Client *c, int argc, char **argv)
 		debug(RPT_DEBUG, "Widget %s set to %s", wid, w->text);
 
 		break;
-	case WID_HBAR:			/* Hbar takes "x y length" */
+	case WID_HBAR: /* Hbar takes "x y length" */
 		if (argc != i + 3) {
 			sock_send_error(c->sock, "Wrong number of arguments\n");
 			return 0;
 		}
 
-		if ((!isdigit((unsigned int) argv[i][0])) ||
-		    (!isdigit((unsigned int) argv[i + 1][0]))) {
+		if ((!isdigit((unsigned int)argv[i][0])) ||
+		    (!isdigit((unsigned int)argv[i + 1][0]))) {
 			sock_send_error(c->sock, "Invalid coordinates\n");
 			return 0;
 		}
@@ -270,13 +266,13 @@ widget_set_func(Client *c, int argc, char **argv)
 		debug(RPT_DEBUG, "Widget %s set to %i", wid, w->length);
 
 		break;
-	case WID_VBAR:			/* Vbar takes "x y length" */
+	case WID_VBAR: /* Vbar takes "x y length" */
 		if (argc != i + 3) {
 			sock_send_error(c->sock, "Wrong number of arguments\n");
 			return 0;
 		}
-		if ((!isdigit((unsigned int) argv[i][0])) ||
-		    (!isdigit((unsigned int) argv[i + 1][0]))) {
+		if ((!isdigit((unsigned int)argv[i][0])) ||
+		    (!isdigit((unsigned int)argv[i + 1][0]))) {
 			sock_send_error(c->sock, "Invalid coordinates\n");
 			return 0;
 		}
@@ -288,13 +284,13 @@ widget_set_func(Client *c, int argc, char **argv)
 		debug(RPT_DEBUG, "Widget %s set to %i", wid, w->length);
 
 		break;
-	case WID_PBAR:			/* Pbar takes "x y width promille [begin-label end-label]" */
+	case WID_PBAR: /* Pbar takes "x y width promille [begin-label end-label]" */
 		if (argc < i + 4 || argc > i + 6) {
 			sock_send_error(c->sock, "Wrong number of arguments\n");
 			return 0;
 		}
-		if ((!isdigit((unsigned int) argv[i][0])) ||
-		    (!isdigit((unsigned int) argv[i + 1][0]))) {
+		if ((!isdigit((unsigned int)argv[i][0])) ||
+		    (!isdigit((unsigned int)argv[i + 1][0]))) {
 			sock_send_error(c->sock, "Invalid coordinates\n");
 			return 0;
 		}
@@ -313,14 +309,14 @@ widget_set_func(Client *c, int argc, char **argv)
 		debug(RPT_DEBUG, "Widget %s set to %i", wid, w->promille);
 
 		break;
-	case WID_ICON:			/* Icon takes "x y icon" */
+	case WID_ICON: /* Icon takes "x y icon" */
 		if (argc != i + 3) {
 			sock_send_error(c->sock, "Wrong number of arguments\n");
 			return 0;
 		}
 
-		if ((!isdigit((unsigned int) argv[i][0])) ||
-		    (!isdigit((unsigned int) argv[i + 1][0]))) {
+		if ((!isdigit((unsigned int)argv[i][0])) ||
+		    (!isdigit((unsigned int)argv[i + 1][0]))) {
 			sock_send_error(c->sock, "Invalid coordinates\n");
 			return 0;
 		}
@@ -337,7 +333,7 @@ widget_set_func(Client *c, int argc, char **argv)
 		w->length = icon;
 
 		break;
-	case WID_TITLE:			/* title takes "text" */
+	case WID_TITLE: /* title takes "text" */
 		if (argc != i + 1) {
 			sock_send_error(c->sock, "Wrong number of arguments\n");
 			return 0;
@@ -350,16 +346,16 @@ widget_set_func(Client *c, int argc, char **argv)
 		debug(RPT_DEBUG, "Widget %s set to %s", wid, w->text);
 
 		break;
-	case WID_SCROLLER:		/* Scroller takes "left top right bottom direction speed text" */
+	case WID_SCROLLER: /* Scroller takes "left top right bottom direction speed text" */
 		if (argc != i + 7) {
 			sock_send_error(c->sock, "Wrong number of arguments\n");
 			return 0;
 		}
 
-		if ((!isdigit((unsigned int) argv[i][0])) ||
-		    (!isdigit((unsigned int) argv[i + 1][0])) ||
-		    (!isdigit((unsigned int) argv[i + 2][0])) ||
-		    (!isdigit((unsigned int) argv[i + 3][0]))) {
+		if ((!isdigit((unsigned int)argv[i][0])) ||
+		    (!isdigit((unsigned int)argv[i + 1][0])) ||
+		    (!isdigit((unsigned int)argv[i + 2][0])) ||
+		    (!isdigit((unsigned int)argv[i + 3][0]))) {
 			sock_send_error(c->sock, "Invalid coordinates\n");
 			return 0;
 		}
@@ -381,18 +377,18 @@ widget_set_func(Client *c, int argc, char **argv)
 		debug(RPT_DEBUG, "Widget %s set to %s", wid, w->text);
 
 		break;
-	case WID_FRAME:			/* Frame takes "left top right bottom wid hgt direction speed" */
+	case WID_FRAME: /* Frame takes "left top right bottom wid hgt direction speed" */
 		if (argc != i + 8) {
 			sock_send_error(c->sock, "Wrong number of arguments\n");
 			return 0;
 		}
 
-		if ((!isdigit((unsigned int) argv[i][0])) ||
-		    (!isdigit((unsigned int) argv[i + 1][0])) ||
-		    (!isdigit((unsigned int) argv[i + 2][0])) ||
-		    (!isdigit((unsigned int) argv[i + 3][0])) ||
-		    (!isdigit((unsigned int) argv[i + 4][0])) ||
-		    (!isdigit((unsigned int) argv[i + 5][0]))) {
+		if ((!isdigit((unsigned int)argv[i][0])) ||
+		    (!isdigit((unsigned int)argv[i + 1][0])) ||
+		    (!isdigit((unsigned int)argv[i + 2][0])) ||
+		    (!isdigit((unsigned int)argv[i + 3][0])) ||
+		    (!isdigit((unsigned int)argv[i + 4][0])) ||
+		    (!isdigit((unsigned int)argv[i + 5][0]))) {
 			sock_send_error(c->sock, "Invalid coordinates\n");
 			return 0;
 		}
@@ -410,20 +406,28 @@ widget_set_func(Client *c, int argc, char **argv)
 		w->height = atoi(argv[i + 5]);
 		w->length = argv[i + 6][0];
 		w->speed = atoi(argv[i + 7]);
-		debug(RPT_DEBUG, "Widget %s set to (%i,%i)-(%i,%i) %ix%i", wid, w->left, w->top, w->right, w->bottom, w->width, w->height);
+		debug(RPT_DEBUG,
+		      "Widget %s set to (%i,%i)-(%i,%i) %ix%i",
+		      wid,
+		      w->left,
+		      w->top,
+		      w->right,
+		      w->bottom,
+		      w->width,
+		      w->height);
 
 		break;
-	case WID_NUM:			/* Num takes "x num" */
+	case WID_NUM: /* Num takes "x num" */
 		if (argc != i + 2) {
 			sock_send_error(c->sock, "Wrong number of arguments\n");
 			return 0;
 		}
 
-		if (!isdigit((unsigned int) argv[i][0])) {
+		if (!isdigit((unsigned int)argv[i][0])) {
 			sock_send_error(c->sock, "Invalid coordinates\n");
 			return 0;
 		}
-		if (!isdigit((unsigned int) argv[i + 1][0])) {
+		if (!isdigit((unsigned int)argv[i + 1][0])) {
 			sock_send_error(c->sock, "Invalid number\n");
 			return 0;
 		}
@@ -443,4 +447,3 @@ widget_set_func(Client *c, int argc, char **argv)
 	sock_send_string(c->sock, "success\n");
 	return 0;
 }
-

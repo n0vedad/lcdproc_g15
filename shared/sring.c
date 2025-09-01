@@ -16,8 +16,8 @@
 #include <stdlib.h>
 #include <string.h>
 #ifdef DEBUG
-# include <stdio.h>
-# include <ctype.h>
+#include <ctype.h>
+#include <stdio.h>
 #endif
 
 #include "sring.h"
@@ -30,8 +30,7 @@
  * \param iSize  Initial size of the ring buffer
  * \return       Pointer to the created ring buffer
  */
-sring_buffer*
-sring_create(int iSize)
+sring_buffer *sring_create(int iSize)
 {
 	sring_buffer *buf;
 
@@ -52,8 +51,7 @@ sring_create(int iSize)
  * Free memory used by ring buffer.
  * \param buf  Ring buffer to work on
  */
-void
-sring_destroy(sring_buffer *buf)
+void sring_destroy(sring_buffer *buf)
 {
 	if (buf == NULL)
 		return;
@@ -69,8 +67,7 @@ sring_destroy(sring_buffer *buf)
  *
  * \param buf  Ring buffer to work on
  */
-void
-sring_clear(sring_buffer *buf)
+void sring_clear(sring_buffer *buf)
 {
 	if (buf == NULL)
 		return;
@@ -85,8 +82,7 @@ sring_clear(sring_buffer *buf)
  * \param buf  Ring buffer to work on
  * \return     Byte count
  */
-int
-sring_getMaxWrite(sring_buffer *buf)
+int sring_getMaxWrite(sring_buffer *buf)
 {
 	int nBytes;
 
@@ -107,8 +103,7 @@ sring_getMaxWrite(sring_buffer *buf)
  * \param buf  Ring buffer to work on
  * \return     Byte count
  */
-int
-sring_getMaxRead(sring_buffer *buf)
+int sring_getMaxRead(sring_buffer *buf)
 {
 	int nBytes;
 
@@ -132,8 +127,7 @@ sring_getMaxRead(sring_buffer *buf)
  * \param src_len  Number of bytes to write at most
  * \return     -1 if not all bytes can be written, 0 otherwise
  */
-int
-sring_write(sring_buffer *buf, char *src, int src_len)
+int sring_write(sring_buffer *buf, char *src, int src_len)
 {
 	if (buf == NULL || src == NULL || src_len <= 0)
 		return -1;
@@ -145,8 +139,7 @@ sring_write(sring_buffer *buf, char *src, int src_len)
 	if (buf->w + src_len < buf->size) {
 		memcpy(buf->data + buf->w, src, src_len);
 		buf->w += src_len;
-	}
-	else {
+	} else {
 		int firstBlockLen = buf->size - buf->w;
 		int secondBlockLen = src_len - firstBlockLen;
 
@@ -169,8 +162,7 @@ sring_write(sring_buffer *buf, char *src, int src_len)
  * \param dst_len  Number of bytes to read at most
  * \return     The number of bytes actually read
  */
-int
-sring_read(sring_buffer *buf, char *dst, int dst_len)
+int sring_read(sring_buffer *buf, char *dst, int dst_len)
 {
 	if (buf == NULL || dst == NULL || dst_len <= 0)
 		return -1;
@@ -182,8 +174,7 @@ sring_read(sring_buffer *buf, char *dst, int dst_len)
 	if (buf->r + dst_len < buf->size) {
 		memcpy(dst, buf->data + buf->r, dst_len);
 		buf->r += dst_len;
-	}
-	else {
+	} else {
 		int firstBlockLen = buf->size - buf->r;
 		int secondBlockLen = dst_len - firstBlockLen;
 
@@ -208,8 +199,7 @@ sring_read(sring_buffer *buf, char *dst, int dst_len)
  * \param buf  Ring buffer to work on
  * \return     Pointer to allocated string, NULL if no string is available
  */
-char *
-sring_read_string(sring_buffer *buf)
+char *sring_read_string(sring_buffer *buf)
 {
 	int n;
 	char *border;
@@ -240,7 +230,7 @@ sring_read_string(sring_buffer *buf)
 		return NULL;
 
 	sring_read(buf, dst, dst_len);
-	dst[dst_len-1] = '\0';
+	dst[dst_len - 1] = '\0';
 
 	return dst;
 }
@@ -251,8 +241,7 @@ sring_read_string(sring_buffer *buf)
  *
  * \param buf  Ring buffer to work on
  */
-void
-sring_dump(sring_buffer *buf)
+void sring_dump(sring_buffer *buf)
 {
 #ifdef DEBUG
 	int a;

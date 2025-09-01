@@ -19,4 +19,3 @@ int menu_goto_func(Client *c, int argc, char **argv);
 int menu_set_main_func(Client *c, int argc, char **argv);
 
 #endif
-

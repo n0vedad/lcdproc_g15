@@ -17,28 +17,26 @@
  *               2002, Joris Robijn
  */
 
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <ctype.h>
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "shared/report.h"
 #include "shared/sockets.h"
 
-#include "drivers.h"
 #include "client.h"
-#include "render.h"
-#include "input.h"
 #include "client_commands.h"
-
+#include "drivers.h"
+#include "input.h"
+#include "render.h"
 
 /**
  * Debugging only..  prints out a list of arguments it receives
  */
-int
-test_func_func(Client *c, int argc, char **argv)
+int test_func_func(Client *c, int argc, char **argv)
 {
 	int i;
 
@@ -60,8 +58,7 @@ test_func_func(Client *c, int argc, char **argv)
  *
  * \todo  Give \em real info about the server/lcd
  */
-int
-hello_func(Client *c, int argc, char **argv)
+int hello_func(Client *c, int argc, char **argv)
 {
 	if (argc > 1) {
 		sock_send_error(c->sock, "extra parameters ignored\n");
@@ -69,10 +66,14 @@ hello_func(Client *c, int argc, char **argv)
 
 	debug(RPT_INFO, "Hello!");
 
-	sock_printf(c->sock, "connect LCDproc %s protocol %s lcd wid %i hgt %i cellwid %i cellhgt %i\n",
-		VERSION, PROTOCOL_VERSION,
-		display_props->width, display_props->height,
-		display_props->cellwidth, display_props->cellheight);
+	sock_printf(c->sock,
+		    "connect LCDproc %s protocol %s lcd wid %i hgt %i cellwid %i cellhgt %i\n",
+		    VERSION,
+		    PROTOCOL_VERSION,
+		    display_props->width,
+		    display_props->height,
+		    display_props->cellwidth,
+		    display_props->cellheight);
 
 	/* make note that client has sent hello */
 	c->state = ACTIVE;
@@ -89,14 +90,13 @@ hello_func(Client *c, int argc, char **argv)
  * Usage: bye
  *\endverbatim
  */
-int
-bye_func(Client *c, int argc, char **argv)
+int bye_func(Client *c, int argc, char **argv)
 {
 	if (c != NULL) {
 		debug(RPT_INFO, "Bye, %s!", (c->name != NULL) ? c->name : "unknown client");
 
 		c->state = GONE;
-		//sock_send_error(c->sock, "\"bye\" is currently ignored\n");
+		// sock_send_error(c->sock, "\"bye\" is currently ignored\n");
 	}
 	return 0;
 }
@@ -108,8 +108,7 @@ bye_func(Client *c, int argc, char **argv)
  * Usage: client_set -name <id>
  *\endverbatim
  */
-int
-client_set_func(Client *c, int argc, char **argv)
+int client_set_func(Client *c, int argc, char **argv)
 {
 	int i;
 
@@ -145,13 +144,11 @@ client_set_func(Client *c, int argc, char **argv)
 
 			if ((c->name = strdup(argv[i])) == NULL) {
 				sock_send_error(c->sock, "error allocating memory!\n");
-			}
-			else {
+			} else {
 				sock_send_string(c->sock, "success\n");
 				i++; /* bypass argument (name string)*/
 			}
-		}
-		else {
+		} else {
 			sock_printf_error(c->sock, "invalid parameter (%s)\n", p);
 		}
 	} while (++i < argc);
@@ -167,8 +164,7 @@ client_set_func(Client *c, int argc, char **argv)
  * Usage: client_add_key [-exclusively|-shared] {<key>}+
  *\endverbatim
  */
-int
-client_add_key_func(Client *c, int argc, char **argv)
+int client_add_key_func(Client *c, int argc, char **argv)
 {
 	int exclusively = 0;
 	int argnr;
@@ -183,18 +179,16 @@ client_add_key_func(Client *c, int argc, char **argv)
 
 	argnr = 1;
 	if (argv[argnr][0] == '-') {
-		if (strcmp( argv[argnr], "-shared") == 0) {
+		if (strcmp(argv[argnr], "-shared") == 0) {
 			exclusively = 0;
-		}
-		else if(strcmp(argv[argnr], "-exclusively") == 0) {
+		} else if (strcmp(argv[argnr], "-exclusively") == 0) {
 			exclusively = 1;
-		}
-		else {
+		} else {
 			sock_printf_error(c->sock, "Invalid option: %s\n", argv[argnr]);
 		}
 		argnr++;
 	}
-	for ( ; argnr < argc; argnr++)
+	for (; argnr < argc; argnr++)
 		if (input_reserve_key(argv[argnr], exclusively, c) < 0)
 			sock_printf_error(c->sock, "Could not reserve key \"%s\"\n", argv[argnr]);
 		else
@@ -211,8 +205,7 @@ client_add_key_func(Client *c, int argc, char **argv)
  * Usage: client_del_key {<key>}+
  *\endverbatim
  */
-int
-client_del_key_func(Client *c, int argc, char **argv)
+int client_del_key_func(Client *c, int argc, char **argv)
 {
 	int argnr;
 
@@ -239,8 +232,7 @@ client_del_key_func(Client *c, int argc, char **argv)
  * Usage: backlight {on|off|toggle|blink|flash}
  *\endverbatim
  */
-int
-backlight_func(Client *c, int argc, char **argv)
+int backlight_func(Client *c, int argc, char **argv)
 {
 	if (c->state != ACTIVE)
 		return 1;
@@ -252,32 +244,26 @@ backlight_func(Client *c, int argc, char **argv)
 
 	debug(RPT_DEBUG, "backlight(%s)", argv[1]);
 
+	// backlight = (backlight && 1);  /* only preserves ON/OFF bit*/
 
-	//backlight = (backlight && 1);  /* only preserves ON/OFF bit*/
-
-	if (strcmp ("on", argv[1]) == 0) {
+	if (strcmp("on", argv[1]) == 0) {
 		c->backlight = BACKLIGHT_ON;
-	}
-	else if (strcmp ("off", argv[1]) == 0) {
+	} else if (strcmp("off", argv[1]) == 0) {
 		c->backlight = BACKLIGHT_OFF;
-	}
-	else if (strcmp ("toggle", argv[1]) == 0) {
+	} else if (strcmp("toggle", argv[1]) == 0) {
 		if (c->backlight == BACKLIGHT_ON)
 			c->backlight = BACKLIGHT_OFF;
 		else if (c->backlight == BACKLIGHT_OFF)
 			c->backlight = BACKLIGHT_ON;
-	}
-	else if (strcmp ("blink", argv[1]) == 0) {
+	} else if (strcmp("blink", argv[1]) == 0) {
 		c->backlight |= BACKLIGHT_BLINK;
-	}
-	else if (strcmp ("flash", argv[1]) == 0) {
+	} else if (strcmp("flash", argv[1]) == 0) {
 		c->backlight |= BACKLIGHT_FLASH;
 	}
 
 	sock_send_string(c->sock, "success\n");
 
 	return 0;
-
 }
 
 /**
@@ -287,8 +273,7 @@ backlight_func(Client *c, int argc, char **argv)
  * Usage: info
  *\endverbatim
  */
-int
-info_func(Client *c, int argc, char **argv)
+int info_func(Client *c, int argc, char **argv)
 {
 	if (c->state != ACTIVE)
 		return 1;
@@ -301,4 +286,3 @@ info_func(Client *c, int argc, char **argv)
 
 	return 0;
 }
-

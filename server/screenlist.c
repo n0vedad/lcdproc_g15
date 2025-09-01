@@ -12,12 +12,12 @@
  *		 2003, Joris Robijn
  */
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "shared/LL.h"
-#include "shared/sockets.h"
 #include "shared/report.h"
+#include "shared/sockets.h"
 
 #include "client.h"
 #include "screen.h"
@@ -28,14 +28,12 @@
 /* Local functions */
 int compare_priority(void *one, void *two);
 
-int autorotate = UNSET_INT;	/* If on, INFO and FOREGROUND screens will rotate */
+int autorotate = UNSET_INT; /* If on, INFO and FOREGROUND screens will rotate */
 LinkedList *screenlist = NULL;
 Screen *current_screen = NULL;
 long int current_screen_start_time = 0;
 
-
-int
-screenlist_init(void)
+int screenlist_init(void)
 {
 	report(RPT_DEBUG, "%s()", __FUNCTION__);
 
@@ -47,9 +45,7 @@ screenlist_init(void)
 	return 0;
 }
 
-
-int
-screenlist_shutdown(void)
+int screenlist_shutdown(void)
 {
 	report(RPT_DEBUG, "%s()", __FUNCTION__);
 
@@ -62,18 +58,14 @@ screenlist_shutdown(void)
 	return 0;
 }
 
-
-int
-screenlist_add(Screen *s)
+int screenlist_add(Screen *s)
 {
 	if (!screenlist)
 		return -1;
 	return LL_Push(screenlist, s);
 }
 
-
-int
-screenlist_remove(Screen *s)
+int screenlist_remove(Screen *s)
 {
 	debug(RPT_DEBUG, "%s(s=[%.40s])", __FUNCTION__, s->id);
 
@@ -94,9 +86,7 @@ screenlist_remove(Screen *s)
 	return (LL_Remove(screenlist, s, NEXT) == NULL) ? -1 : 0;
 }
 
-
-void
-screenlist_process(void)
+void screenlist_process(void)
 {
 	Screen *s;
 	Screen *f;
@@ -124,15 +114,15 @@ screenlist_process(void)
 		}
 		screenlist_switch(s);
 		return;
-	}
-	else {
+	} else {
 		/* There already was an active screen.
 		 * Check to see if it has an expiry time. If so, decrease it
 		 * and then check to see if it has expired. Remove the screen
 		 * if expired. */
 		if (s->timeout != -1) {
 			--(s->timeout);
-			report(RPT_DEBUG, "Active screen [%.40s] has timeout->%d", s->id, s->timeout);
+			report(
+			    RPT_DEBUG, "Active screen [%.40s] has timeout->%d", s->id, s->timeout);
 			if (s->timeout <= 0) {
 				/* Expired, we can destroy it */
 				report(RPT_DEBUG, "Removing expired screen [%.40s]", s->id);
@@ -156,21 +146,20 @@ screenlist_process(void)
 	/* Current screen has been visible long enough and is it of 'normal'
 	 * priority ?
 	 */
-	if (autorotate && (timer - current_screen_start_time >= s->duration)
-	&& s->priority > PRI_BACKGROUND && s->priority <= PRI_FOREGROUND) {
+	if (autorotate && (timer - current_screen_start_time >= s->duration) &&
+	    s->priority > PRI_BACKGROUND && s->priority <= PRI_FOREGROUND) {
 		/* Ah, rotate! */
 		screenlist_goto_next();
 	}
 }
 
-
-void
-screenlist_switch(Screen *s)
+void screenlist_switch(Screen *s)
 {
 	Client *c;
 	char str[256];
 
-	if (!s) return;
+	if (!s)
+		return;
 
 	report(RPT_DEBUG, "%s(s=[%.40s])", __FUNCTION__, s->id);
 
@@ -202,16 +191,9 @@ screenlist_switch(Screen *s)
 	current_screen_start_time = timer;
 }
 
+Screen *screenlist_current(void) { return current_screen; }
 
-Screen *
-screenlist_current(void)
-{
-	return current_screen;
-}
-
-
-int
-screenlist_goto_next(void)
+int screenlist_goto_next(void)
 {
 	Screen *s;
 
@@ -234,9 +216,7 @@ screenlist_goto_next(void)
 	return 0;
 }
 
-
-int
-screenlist_goto_prev(void)
+int screenlist_goto_prev(void)
 {
 	Screen *s;
 
@@ -246,7 +226,8 @@ screenlist_goto_prev(void)
 		return -1;
 
 	/* Find current screen in screenlist */
-	for (s = LL_GetFirst(screenlist); s && s != current_screen; s = LL_GetNext(screenlist));
+	for (s = LL_GetFirst(screenlist); s && s != current_screen; s = LL_GetNext(screenlist))
+		;
 
 	/* One step back */
 	s = LL_GetPrev(screenlist);
@@ -267,8 +248,7 @@ screenlist_goto_prev(void)
 }
 
 /* Internal function for sorting. */
-int
-compare_priority(void *one, void *two)
+int compare_priority(void *one, void *two)
 {
 	Screen *a, *b;
 
@@ -279,8 +259,8 @@ compare_priority(void *one, void *two)
 	if (!two)
 		return 0;
 
-	a = (Screen *) one;
-	b = (Screen *) two;
+	a = (Screen *)one;
+	b = (Screen *)two;
 
 	/*debug(RPT_DEBUG, "compare_priority: done?");*/
 

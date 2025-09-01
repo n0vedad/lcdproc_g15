@@ -9,25 +9,24 @@
  * Refer to the COPYING file distributed with this package.
  */
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #ifdef IRIX
 #include <strings.h>
 #endif
-#include <unistd.h>
-#include <fcntl.h>
 #include <dirent.h>
+#include <fcntl.h>
+#include <unistd.h>
 
-#include "shared/sockets.h"
 #include "shared/LL.h"
+#include "shared/sockets.h"
 
-#include "main.h"
-#include "mode.h"
 #include "machine.h"
+#include "main.h"
 #include "mem.h"
+#include "mode.h"
 #include "util.h"
-
 
 /**
  * Mem Screen displays info about memory and swap usage...
@@ -48,10 +47,10 @@
  * \param flags_ptr  Mode flags
  * \return  Always 0
  */
-int
-mem_screen(int rep, int display, int *flags_ptr)
+int mem_screen(int rep, int display, int *flags_ptr)
 {
-	const char *title_sep = "####################################################################################################";
+	const char *title_sep = "##################################################################"
+				"##################################";
 	static int which_title = 0;
 	static int gauge_wid = 0;
 	static int gauge_offs = 0;
@@ -76,21 +75,27 @@ mem_screen(int rep, int display, int *flags_ptr)
 			label_offs = (lcd_wid - label_wid) / 2 + 1;
 
 			sock_send_string(sock, "widget_add M title title\n");
-			sock_printf(sock, "widget_set M title { MEM %.*s SWAP}\n", title_sep_wid, title_sep);
+			sock_printf(sock,
+				    "widget_set M title { MEM %.*s SWAP}\n",
+				    title_sep_wid,
+				    title_sep);
 			sock_send_string(sock, "widget_add M totl string\n");
 			sock_send_string(sock, "widget_add M free string\n");
-			sock_printf(sock, "widget_set M totl %i 2 %.*s\n", label_offs, label_wid, "Totl");
-			sock_printf(sock, "widget_set M free %i 3 %.*s\n", label_offs, label_wid, "Free");
+			sock_printf(
+			    sock, "widget_set M totl %i 2 %.*s\n", label_offs, label_wid, "Totl");
+			sock_printf(
+			    sock, "widget_set M free %i 3 %.*s\n", label_offs, label_wid, "Free");
 			sock_send_string(sock, "widget_add M memused string\n");
 			sock_send_string(sock, "widget_add M swapused string\n");
-		}
-		else {
+		} else {
 			if (lcd_wid >= 20) {
-				/* We have room for spaces to separate the bars and the mem / % strings */
+				/* We have room for spaces to separate the bars and the mem / %
+				 * strings */
 				gauge_wid = lcd_wid - 16;
 				gauge_offs = 10;
 			} else if (lcd_wid >= 17) {
-				/* We can fit the bars of we leave out the spaces separating them from the strings */
+				/* We can fit the bars of we leave out the spaces separating them
+				 * from the strings */
 				gauge_wid = lcd_wid - 14;
 				gauge_offs = 9;
 			} else {
@@ -118,9 +123,11 @@ mem_screen(int rep, int display, int *flags_ptr)
 		if (which_title & 4) {
 			if (get_hostname()[0] != '\0')
 				sock_printf(sock, "widget_set M title {%s}\n", get_hostname());
-		}
-		else {
-			sock_printf(sock, "widget_set M title { MEM %.*s SWAP}\n", title_sep_wid, title_sep);
+		} else {
+			sock_printf(sock,
+				    "widget_set M title { MEM %.*s SWAP}\n",
+				    title_sep_wid,
+				    title_sep);
 		}
 		which_title = (which_title + 1) & 7;
 	}
@@ -131,7 +138,7 @@ mem_screen(int rep, int display, int *flags_ptr)
 	machine_get_meminfo(mem);
 
 	if (lcd_hgt >= 4) {
-		char tmp[12];	/* should be sufficient */
+		char tmp[12]; /* should be sufficient */
 
 		/* Total memory */
 		sprintf_memory(tmp, mem[0].total * 1024.0, 1);
@@ -152,22 +159,30 @@ mem_screen(int rep, int display, int *flags_ptr)
 		if (gauge_wid > 0) {
 			/* Free memory graph */
 			if (mem[0].total > 0) {
-				double value = 1.0 - (double) (mem[0].free + mem[0].buffers + mem[0].cache)
-					       / (double) mem[0].total;
+				double value =
+				    1.0 - (double)(mem[0].free + mem[0].buffers + mem[0].cache) /
+					      (double)mem[0].total;
 
-				pbar_widget_set("M", "memgauge", 1, 4, gauge_wid, value * 1000, "E", "F");
+				pbar_widget_set(
+				    "M", "memgauge", 1, 4, gauge_wid, value * 1000, "E", "F");
 			}
 
 			/* Free swap graph */
 			if (mem[1].total > 0) {
-				double value = 1.0 - ((double) mem[1].free / (double) mem[1].total);
+				double value = 1.0 - ((double)mem[1].free / (double)mem[1].total);
 
-				pbar_widget_set("M", "swapgauge", 1 + lcd_wid - gauge_wid, 4, gauge_wid, value * 1000, "E", "F");
+				pbar_widget_set("M",
+						"swapgauge",
+						1 + lcd_wid - gauge_wid,
+						4,
+						gauge_wid,
+						value * 1000,
+						"E",
+						"F");
 			}
 		}
-	}
-	else {
-		char tmp[12];	/* should be sufficient */
+	} else {
+		char tmp[12]; /* should be sufficient */
 
 		/* Total memory */
 		sprintf_memory(tmp, mem[0].total * 1024.0, 1);
@@ -180,11 +195,18 @@ mem_screen(int rep, int display, int *flags_ptr)
 		/* Free memory graph */
 		strcpy(tmp, "N/A");
 		if (mem[0].total > 0) {
-			double value = 1.0 - (double) (mem[0].free + mem[0].buffers + mem[0].cache)
-					 / (double) mem[0].total;
+			double value = 1.0 - (double)(mem[0].free + mem[0].buffers + mem[0].cache) /
+						 (double)mem[0].total;
 
 			if (gauge_wid > 0)
-				pbar_widget_set("M", "memgauge", gauge_offs, 1, gauge_wid, value * 1000, NULL, NULL);
+				pbar_widget_set("M",
+						"memgauge",
+						gauge_offs,
+						1,
+						gauge_wid,
+						value * 1000,
+						NULL,
+						NULL);
 
 			sprintf_percent(tmp, value * 100);
 		}
@@ -193,10 +215,17 @@ mem_screen(int rep, int display, int *flags_ptr)
 		/* Free swap graph */
 		strcpy(tmp, "N/A");
 		if (mem[1].total > 0) {
-			double value = 1.0 - ((double) mem[1].free / (double) mem[1].total);
+			double value = 1.0 - ((double)mem[1].free / (double)mem[1].total);
 
 			if (gauge_wid > 0)
-				pbar_widget_set("M", "swapgauge", gauge_offs, 2, gauge_wid, value * 1000, NULL, NULL);
+				pbar_widget_set("M",
+						"swapgauge",
+						gauge_offs,
+						2,
+						gauge_wid,
+						value * 1000,
+						NULL,
+						NULL);
 
 			sprintf_percent(tmp, value * 100);
 		}
@@ -206,25 +235,22 @@ mem_screen(int rep, int display, int *flags_ptr)
 	return 0;
 }
 
-
 /**
  * Compares memory usage two procinfo structures and returns 1 (true) if the
  * second one's is larger than the first one's, 0 (false) otherwise.
  */
-static int
-sort_procs(void *a, void *b)
+static int sort_procs(void *a, void *b)
 {
 	procinfo_type *one, *two;
 
 	if ((a == NULL) || (b == NULL))
 		return 0;
 
-	one = (procinfo_type *) a;
-	two = (procinfo_type *) b;
+	one = (procinfo_type *)a;
+	two = (procinfo_type *)b;
 
 	return (two->totl > one->totl);
 }
-
 
 /**
  * Mem Top Screen displays info about top memory hogs...
@@ -245,8 +271,7 @@ sort_procs(void *a, void *b)
  * \param flags_ptr  Mode flags
  * \return  Always 0
  */
-int
-mem_top_screen(int rep, int display, int *flags_ptr)
+int mem_top_screen(int rep, int display, int *flags_ptr)
 {
 	LinkedList *procs;
 	int lines;
@@ -280,8 +305,12 @@ mem_top_screen(int rep, int display, int *flags_ptr)
 		sock_send_string(sock, "widget_add S f frame\n");
 
 		/* scroll rate: 1 line every X ticks (= 1/8 sec) */
-		sock_printf(sock, "widget_set S f 1 2 %i %i %i %i v %i\n",
-			    lcd_wid, lcd_hgt, lcd_wid, lines,
+		sock_printf(sock,
+			    "widget_set S f 1 2 %i %i %i %i v %i\n",
+			    lcd_wid,
+			    lcd_hgt,
+			    lcd_wid,
+			    lines,
 			    ((lcd_hgt >= 4) ? 8 : 12));
 
 		/* frame contents */
@@ -317,16 +346,26 @@ mem_top_screen(int rep, int display, int *flags_ptr)
 		if (p != NULL) {
 			char mem[10];
 
-			sprintf_memory(mem, (double) p->totl * 1024.0, 1);
+			sprintf_memory(mem, (double)p->totl * 1024.0, 1);
 
 			if (p->number > 1)
-				sock_printf(sock, "widget_set S %i 1 %i {%i %5s %s(%i)}\n",
-					    i, i, i, mem, p->name, p->number);
+				sock_printf(sock,
+					    "widget_set S %i 1 %i {%i %5s %s(%i)}\n",
+					    i,
+					    i,
+					    i,
+					    mem,
+					    p->name,
+					    p->number);
 			else
-				sock_printf(sock, "widget_set S %i 1 %i {%i %5s %s}\n",
-					    i, i, i, mem, p->name);
-		}
-		else {
+				sock_printf(sock,
+					    "widget_set S %i 1 %i {%i %5s %s}\n",
+					    i,
+					    i,
+					    i,
+					    mem,
+					    p->name);
+		} else {
 			sock_printf(sock, "widget_set S %i 1 %i { }\n", i, i);
 		}
 
@@ -336,7 +375,7 @@ mem_top_screen(int rep, int display, int *flags_ptr)
 	/* Delete the process list */
 	LL_Rewind(procs);
 	do {
-		procinfo_type *p = (procinfo_type *) LL_Get(procs);
+		procinfo_type *p = (procinfo_type *)LL_Get(procs);
 		if (p != NULL) {
 			free(p);
 		}

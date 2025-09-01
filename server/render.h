@@ -12,25 +12,25 @@
 #ifndef RENDER_H
 #define RENDER_H
 
-#define HEARTBEAT_OFF		0
-#define HEARTBEAT_ON		1
-#define HEARTBEAT_OPEN		2
+#define HEARTBEAT_OFF 0
+#define HEARTBEAT_ON 1
+#define HEARTBEAT_OPEN 2
 
-#define BACKLIGHT_OFF		0
-#define BACKLIGHT_ON		1
-#define BACKLIGHT_OPEN		2
+#define BACKLIGHT_OFF 0
+#define BACKLIGHT_ON 1
+#define BACKLIGHT_OPEN 2
 
-#define BACKLIGHT_BLINK		0x100
-#define BACKLIGHT_FLASH		0x200
+#define BACKLIGHT_BLINK 0x100
+#define BACKLIGHT_FLASH 0x200
 
-#define CURSOR_OFF		0
-#define CURSOR_DEFAULT_ON	1
-#define CURSOR_BLOCK		4
-#define CURSOR_UNDER		5
+#define CURSOR_OFF 0
+#define CURSOR_DEFAULT_ON 1
+#define CURSOR_BLOCK 4
+#define CURSOR_UNDER 5
 
-#define TITLESPEED_NO		0	/* needs to be (TITLESPEED_MIN - 1) */
-#define TITLESPEED_MIN		1
-#define TITLESPEED_MAX		10
+#define TITLESPEED_NO 0 /* needs to be (TITLESPEED_MIN - 1) */
+#define TITLESPEED_MIN 1
+#define TITLESPEED_MAX 10
 
 extern int heartbeat;
 extern int backlight;

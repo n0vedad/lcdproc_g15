@@ -17,12 +17,12 @@
  *               2002, Joris Robijn
  */
 
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <ctype.h>
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "shared/report.h"
 #include "shared/sockets.h"
@@ -41,8 +41,7 @@
  * Usage: output <on|off|int>
  *\endverbatim
  */
-int
-output_func(Client *c, int argc, char **argv)
+int output_func(Client *c, int argc, char **argv)
 {
 	if (c->state != ACTIVE)
 		return 1;
@@ -73,11 +72,9 @@ output_func(Client *c, int argc, char **argv)
 		if (errno) {
 			sock_printf_error(c->sock, "number argument: %s\n", strerror(errno));
 			return 0;
-		}
-		else if ((*argv[1] != '\0') && (*endptr == '\0')) {
+		} else if ((*argv[1] != '\0') && (*endptr == '\0')) {
 			output_state = out;
-		}
-		else {
+		} else {
 			sock_send_error(c->sock, "invalid parameter...\n");
 			return 0;
 		}
@@ -105,8 +102,7 @@ output_func(Client *c, int argc, char **argv)
  * Usage: sleep <seconds>
  *\endverbatim
  */
-int
-sleep_func(Client *c, int argc, char **argv)
+int sleep_func(Client *c, int argc, char **argv)
 {
 	int secs;
 	long out;
@@ -139,14 +135,12 @@ sleep_func(Client *c, int argc, char **argv)
 	if (errno) {
 		sock_printf_error(c->sock, "number argument: %s\n", strerror(errno));
 		return 0;
-	}
-	else if ((*argv[1] != '\0') && (*endptr == '\0')) {
+	} else if ((*argv[1] != '\0') && (*endptr == '\0')) {
 		/* limit seconds to range: MIN_SECS - MAX_SECS */
 		out = (out > MAX_SECS) ? MAX_SECS : out;
 		out = (out < MIN_SECS) ? MIN_SECS : out;
 		secs = out;
-	}
-	else {
+	} else {
 		sock_send_error(c->sock, "invalid parameter...\n");
 		return 0;
 	}
@@ -159,7 +153,8 @@ sleep_func(Client *c, int argc, char **argv)
 	 * will "freeze" for the alloted time...
 	 *
 	 * while ((secs = sleep(secs)) > 0)
-	 */	;
+	 */
+	;
 
 	sock_send_error(c->sock, "ignored (not fully implemented)\n");
 	return 0;
@@ -172,8 +167,7 @@ sleep_func(Client *c, int argc, char **argv)
  *    with LCDproc and not get deadlocked.  Send a noop after each
  *    command and look for the "noop complete" message.
  */
-int
-noop_func(Client *c, int argc, char **argv)
+int noop_func(Client *c, int argc, char **argv)
 {
 	if (c->state != ACTIVE)
 		return 1;

@@ -16,20 +16,19 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
 
-#include "shared/report.h"
-#include "shared/LL.h"
 #include "client.h"
 #include "clients.h"
 #include "render.h"
+#include "shared/LL.h"
+#include "shared/report.h"
 
 LinkedList *clientlist = NULL;
 
 /* Initialize and kill client list...*/
-int
-clients_init(void)
+int clients_init(void)
 {
 	debug(RPT_DEBUG, "%s()", __FUNCTION__);
 
@@ -42,8 +41,7 @@ clients_init(void)
 	return 0;
 }
 
-int
-clients_shutdown(void)
+int clients_shutdown(void)
 {
 	Client *c;
 
@@ -78,8 +76,7 @@ clients_shutdown(void)
 }
 
 /* Add the client to the clients list... */
-Client *
-clients_add_client(Client *c)
+Client *clients_add_client(Client *c)
 {
 	if (LL_Push(clientlist, c) == 0)
 		return c;
@@ -88,39 +85,24 @@ clients_add_client(Client *c)
 }
 
 /* Remove the client from the clients list... */
-Client *
-clients_remove_client(Client *c, Direction whereto)
+Client *clients_remove_client(Client *c, Direction whereto)
 {
 	Client *client = LL_Remove(clientlist, c, whereto);
 
 	return client;
 }
 
-Client *
-clients_getfirst(void)
-{
-	return (Client *) LL_GetFirst(clientlist);
-}
+Client *clients_getfirst(void) { return (Client *)LL_GetFirst(clientlist); }
 
-Client *
-clients_getnext(void)
-{
-	return (Client *) LL_GetNext(clientlist);
-}
+Client *clients_getnext(void) { return (Client *)LL_GetNext(clientlist); }
 
-int
-clients_client_count(void)
-{
-	return LL_Length(clientlist);
-}
-
+int clients_client_count(void) { return LL_Length(clientlist); }
 
 /* A client is identified by the file descriptor
  * associated with it. Find one.
  */
 
-Client *
-clients_find_client_by_sock(int sock)
+Client *clients_find_client_by_sock(int sock)
 {
 	Client *c;
 

@@ -12,21 +12,21 @@
  */
 
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 
 #include "client.h"
-#include "screen.h"
-#include "screenlist.h"
-#include "render.h"
 #include "input.h"
 #include "menuscreens.h"
-#include "shared/report.h"
+#include "render.h"
+#include "screen.h"
+#include "screenlist.h"
 #include "shared/LL.h"
+#include "shared/report.h"
 
 Client *client_create(int sock)
 {
@@ -67,8 +67,7 @@ Client *client_create(int sock)
 	return c;
 }
 
-int
-client_destroy(Client *c)
+int client_destroy(Client *c)
 {
 	Screen *s;
 	Menu *m;
@@ -97,7 +96,7 @@ client_destroy(Client *c)
 	}
 	LL_Destroy(c->screenlist);
 
-	m = (Menu *) c->menu;
+	m = (Menu *)c->menu;
 	/* Destroy the client's menu, if it exists */
 	if (m) {
 		menuscreen_inform_item_destruction(m);
@@ -127,8 +126,7 @@ client_destroy(Client *c)
 }
 
 /*Add and remove messages from the client's queue...*/
-int
-client_add_message(Client *c, char *message)
+int client_add_message(Client *c, char *message)
 {
 	int err = 0;
 
@@ -138,17 +136,15 @@ client_add_message(Client *c, char *message)
 		return -1;
 
 	if (strlen(message) > 0) {
-		debug(RPT_DEBUG, "%s(c=[%d], message=\"%s\")", __FUNCTION__,
-			c->sock, message);
-		err = LL_Enqueue(c->messages, (void *) message);
+		debug(RPT_DEBUG, "%s(c=[%d], message=\"%s\")", __FUNCTION__, c->sock, message);
+		err = LL_Enqueue(c->messages, (void *)message);
 	}
 
 	return err;
 }
 
 /* Woo-hoo!  A simple function.  :)*/
-char *
-client_get_message(Client *c)
+char *client_get_message(Client *c)
 {
 	char *str;
 
@@ -157,14 +153,12 @@ client_get_message(Client *c)
 	if (!c)
 		return NULL;
 
-	str = (char *) LL_Dequeue(c->messages);
+	str = (char *)LL_Dequeue(c->messages);
 
 	return str;
 }
 
-
-Screen *
-client_find_screen(Client *c, char *id)
+Screen *client_find_screen(Client *c, char *id)
 {
 	Screen *s;
 
@@ -187,8 +181,7 @@ client_find_screen(Client *c, char *id)
 	return NULL;
 }
 
-int
-client_add_screen(Client *c, Screen *s)
+int client_add_screen(Client *c, Screen *s)
 {
 	if (!c)
 		return -1;
@@ -197,7 +190,7 @@ client_add_screen(Client *c, Screen *s)
 
 	debug(RPT_DEBUG, "%s(c=[%d], s=[%s])", __FUNCTION__, c->sock, s->id);
 
-	LL_Push(c->screenlist, (void *) s);
+	LL_Push(c->screenlist, (void *)s);
 
 	/* Now, add it to the screenlist...*/
 	screenlist_add(s);
@@ -205,8 +198,7 @@ client_add_screen(Client *c, Screen *s)
 	return 0;
 }
 
-int
-client_remove_screen(Client *c, Screen *s)
+int client_remove_screen(Client *c, Screen *s)
 {
 	if (!c)
 		return -1;
@@ -216,7 +208,7 @@ client_remove_screen(Client *c, Screen *s)
 	debug(RPT_DEBUG, "%s(c=[%d], s=[%s])", __FUNCTION__, c->sock, s->id);
 
 	/* TODO:  Check for errors here?*/
-	LL_Remove(c->screenlist, (void *) s, NEXT);
+	LL_Remove(c->screenlist, (void *)s, NEXT);
 
 	/* Now, remove it from the screenlist...*/
 	screenlist_remove(s);
@@ -224,7 +216,4 @@ client_remove_screen(Client *c, Screen *s)
 	return 0;
 }
 
-int client_screen_count(Client *c)
-{
-	return LL_Length(c->screenlist);
-}
+int client_screen_count(Client *c) { return LL_Length(c->screenlist); }

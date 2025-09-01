@@ -23,10 +23,10 @@
 #ifndef G15_H_
 #define G15_H_
 
-//#include <usb.h>
-#include <libg15render.h>
-#include "lcd.h"
+// #include <usb.h>
 #include "hidraw_lib.h"
+#include "lcd.h"
+#include <libg15render.h>
 
 /** private data for the \c g15 driver */
 typedef struct g15_private_data {
@@ -47,56 +47,56 @@ typedef struct g15_private_data {
 	unsigned char rgb_blue;
 } PrivateData;
 
-#define G15_OFFSET				32
-#define G15_PX_WIDTH			160
-#define G15_PX_HEIGHT			43
-#define G15_CHAR_WIDTH				20
-#define G15_CHAR_HEIGHT				5
-#define G15_CELL_WIDTH			8
-#define G15_CELL_HEIGHT			8
-#define G15_LCD_WRITE_CMD 		0x03
-#define G15_USB_ENDPT 			2
-#define G15_ICON_HEART_FILLED	3
-#define G15_ICON_HEART_OPEN		3
-#define G15_ICON_ARROW_UP		24
-#define G15_ICON_ARROW_DOWN		25
-#define G15_ICON_ARROW_RIGHT	26
-#define G15_ICON_ARROW_LEFT		27
-#define G15_ICON_CHECKBOX_ON	7
-#define G15_ICON_CHECKBOX_OFF	9
-#define G15_ICON_CHECKBOX_GRAY	10
-#define G15_ICON_STOP			254
-#define G15_ICON_PAUSE			186
-#define G15_ICON_PLAY			16
-#define G15_ICON_PLAYR			17
-#define G15_ICON_FF				175
-#define G15_ICON_FR				174
-#define G15_ICON_NEXT			242
-#define G15_ICON_PREV			243
-#define G15_ICON_REC			7
-#define G15_BIGNUM_LEN			1032
+#define G15_OFFSET 32
+#define G15_PX_WIDTH 160
+#define G15_PX_HEIGHT 43
+#define G15_CHAR_WIDTH 20
+#define G15_CHAR_HEIGHT 5
+#define G15_CELL_WIDTH 8
+#define G15_CELL_HEIGHT 8
+#define G15_LCD_WRITE_CMD 0x03
+#define G15_USB_ENDPT 2
+#define G15_ICON_HEART_FILLED 3
+#define G15_ICON_HEART_OPEN 3
+#define G15_ICON_ARROW_UP 24
+#define G15_ICON_ARROW_DOWN 25
+#define G15_ICON_ARROW_RIGHT 26
+#define G15_ICON_ARROW_LEFT 27
+#define G15_ICON_CHECKBOX_ON 7
+#define G15_ICON_CHECKBOX_OFF 9
+#define G15_ICON_CHECKBOX_GRAY 10
+#define G15_ICON_STOP 254
+#define G15_ICON_PAUSE 186
+#define G15_ICON_PLAY 16
+#define G15_ICON_PLAYR 17
+#define G15_ICON_FF 175
+#define G15_ICON_FR 174
+#define G15_ICON_NEXT 242
+#define G15_ICON_PREV 243
+#define G15_ICON_REC 7
+#define G15_BIGNUM_LEN 1032
 
 /* G510 RGB backlight control */
-#define G510_FEATURE_RGB_ZONE0		0x05
-#define G510_FEATURE_RGB_ZONE1		0x06
-#define G510_RGB_REPORT_SIZE		4
+#define G510_FEATURE_RGB_ZONE0 0x05
+#define G510_FEATURE_RGB_ZONE1 0x06
+#define G510_RGB_REPORT_SIZE 4
 
 extern short g15_bignum_data[11][G15_BIGNUM_LEN];
 
-MODULE_EXPORT int  g15_init (Driver *drvthis);
-MODULE_EXPORT void g15_close (Driver *drvthis);
-MODULE_EXPORT int  g15_width (Driver *drvthis);
-MODULE_EXPORT int  g15_height (Driver *drvthis);
-MODULE_EXPORT int  g15_cellwidth (Driver *drvthis);
-MODULE_EXPORT int  g15_cellheight (Driver *drvthis);
-MODULE_EXPORT void g15_clear (Driver *drvthis);
-MODULE_EXPORT void g15_flush (Driver *drvthis);
-MODULE_EXPORT void g15_string (Driver *drvthis, int x, int y, const char string[]);
-MODULE_EXPORT void g15_chr (Driver *drvthis, int x, int y, char c);
-MODULE_EXPORT int g15_icon (Driver *drvthis, int x, int y, int icon);
+MODULE_EXPORT int g15_init(Driver *drvthis);
+MODULE_EXPORT void g15_close(Driver *drvthis);
+MODULE_EXPORT int g15_width(Driver *drvthis);
+MODULE_EXPORT int g15_height(Driver *drvthis);
+MODULE_EXPORT int g15_cellwidth(Driver *drvthis);
+MODULE_EXPORT int g15_cellheight(Driver *drvthis);
+MODULE_EXPORT void g15_clear(Driver *drvthis);
+MODULE_EXPORT void g15_flush(Driver *drvthis);
+MODULE_EXPORT void g15_string(Driver *drvthis, int x, int y, const char string[]);
+MODULE_EXPORT void g15_chr(Driver *drvthis, int x, int y, char c);
+MODULE_EXPORT int g15_icon(Driver *drvthis, int x, int y, int icon);
 MODULE_EXPORT void g15_hbar(Driver *drvthis, int x, int y, int len, int promille, int options);
 MODULE_EXPORT void g15_vbar(Driver *drvthis, int x, int y, int len, int promille, int options);
-MODULE_EXPORT const char * g15_get_key (Driver *drvthis);
+MODULE_EXPORT const char *g15_get_key(Driver *drvthis);
 MODULE_EXPORT void g15_backlight(Driver *drvthis, int on);
 MODULE_EXPORT int g15_set_rgb_backlight(Driver *drvthis, int red, int green, int blue);
 MODULE_EXPORT void g15_num(Driver *drvthis, int x, int num);

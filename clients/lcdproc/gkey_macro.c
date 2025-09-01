@@ -3,20 +3,20 @@
  * Integrates with ydotool for Wayland compatibility
  */
 
+#include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <linux/input.h>
+#include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+#include <sys/select.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <time.h>
-#include <signal.h>
-#include <fcntl.h>
-#include <linux/input.h>
-#include <dirent.h>
-#include <sys/select.h>
-#include <pthread.h>
-#include <errno.h>
+#include <unistd.h>
 
 #include "gkey_macro.h"
 
@@ -73,35 +73,21 @@ static struct {
 			      .record_start_time = 0}};
 
 /* Forward declarations */
-static void
-save_macros(void);
-static void
-load_macros(void);
-static int
-execute_ydotool_command(const char *command);
-static void
-play_macro(const char *g_key);
-static void
-start_recording(const char *g_key);
-static void
-stop_recording(void);
-static void
-convert_ydotool_recording(void);
-static void *
-input_recording_thread(void *arg);
-static int
-open_input_devices(void);
-static void
-close_input_devices(void);
-static const char *
-translate_key_code(int code);
-static int
-is_keyboard_device(const char *device_path);
-static int
-is_mouse_device(const char *device_path);
+static void save_macros(void);
+static void load_macros(void);
+static int execute_ydotool_command(const char *command);
+static void play_macro(const char *g_key);
+static void start_recording(const char *g_key);
+static void stop_recording(void);
+static void convert_ydotool_recording(void);
+static void *input_recording_thread(void *arg);
+static int open_input_devices(void);
+static void close_input_devices(void);
+static const char *translate_key_code(int code);
+static int is_keyboard_device(const char *device_path);
+static int is_mouse_device(const char *device_path);
 
-int
-gkey_macro_init(void)
+int gkey_macro_init(void)
 {
 	/* Initialize macro storage */
 	memset(&macro_state.macros, 0, sizeof(macro_state.macros));
@@ -109,8 +95,10 @@ gkey_macro_init(void)
 	/* Set config file path to ~/.config/lcdproc/g15_macros.json */
 	const char *home = getenv("HOME");
 	if (home) {
-		snprintf(macro_state.config_file, sizeof(macro_state.config_file),
-			 "%s/.config/lcdproc/g15_macros.json", home);
+		snprintf(macro_state.config_file,
+			 sizeof(macro_state.config_file),
+			 "%s/.config/lcdproc/g15_macros.json",
+			 home);
 
 		/* Create directory if it doesn't exist */
 		char dir_path[256];
@@ -127,8 +115,7 @@ gkey_macro_init(void)
 	return 0;
 }
 
-void
-gkey_macro_cleanup(void)
+void gkey_macro_cleanup(void)
 {
 	/* Stop any active recording */
 	if (macro_state.recorder.recording) {
@@ -139,8 +126,7 @@ gkey_macro_cleanup(void)
 	save_macros();
 }
 
-void
-gkey_macro_handle_key(const char *key_name)
+void gkey_macro_handle_key(const char *key_name)
 {
 	if (!key_name)
 		return;
@@ -152,8 +138,9 @@ gkey_macro_handle_key(const char *key_name)
 			stop_recording();
 		} else {
 			macro_state.recording = 1;
-			report(RPT_INFO, "G-Key Macro: Recording mode active - press a G-key to "
-					 "start recording");
+			report(RPT_INFO,
+			       "G-Key Macro: Recording mode active - press a G-key to "
+			       "start recording");
 		}
 	} else if (strncmp(key_name, "M", 1) == 0 && strlen(key_name) == 2) {
 		/* Mode switch: M1, M2, M3 */
@@ -172,27 +159,17 @@ gkey_macro_handle_key(const char *key_name)
 	macro_state.last_key_time = time(NULL);
 }
 
-void
-gkey_macro_process(void)
+void gkey_macro_process(void)
 {
 	/* Process any pending macro operations */
 	/* This could be extended for timing-sensitive operations */
 }
 
-const char *
-gkey_macro_get_mode(void)
-{
-	return macro_state.current_mode;
-}
+const char *gkey_macro_get_mode(void) { return macro_state.current_mode; }
 
-int
-gkey_macro_is_recording(void)
-{
-	return macro_state.recording;
-}
+int gkey_macro_is_recording(void) { return macro_state.recording; }
 
-static int
-get_mode_index(const char *mode)
+static int get_mode_index(const char *mode)
 {
 	if (strcmp(mode, "M1") == 0)
 		return 0;
@@ -203,8 +180,7 @@ get_mode_index(const char *mode)
 	return 0; /* Default to M1 */
 }
 
-static int
-get_gkey_index(const char *gkey)
+static int get_gkey_index(const char *gkey)
 {
 	if (strncmp(gkey, "G", 1) == 0) {
 		int num = atoi(gkey + 1);
@@ -215,8 +191,7 @@ get_gkey_index(const char *gkey)
 	return -1;
 }
 
-static void
-load_macros(void)
+static void load_macros(void)
 {
 	FILE *file = fopen(macro_state.config_file, "r");
 	if (!file) {
@@ -253,7 +228,8 @@ load_macros(void)
 						*end = '\0';
 						strncpy(macro_state.macros[mode_idx][gkey_idx]
 							    .commands[i],
-							ptr, 255);
+							ptr,
+							255);
 						macro_state.macros[mode_idx][gkey_idx]
 						    .commands[i][255] = '\0';
 						ptr = end + 1;
@@ -261,7 +237,8 @@ load_macros(void)
 						/* Last command */
 						strncpy(macro_state.macros[mode_idx][gkey_idx]
 							    .commands[i],
-							ptr, 255);
+							ptr,
+							255);
 						macro_state.macros[mode_idx][gkey_idx]
 						    .commands[i][255] = '\0';
 						/* Remove newline */
@@ -282,13 +259,12 @@ load_macros(void)
 	report(RPT_INFO, "G-Key Macro: Loaded macros from %s", macro_state.config_file);
 }
 
-static void
-save_macros(void)
+static void save_macros(void)
 {
 	FILE *file = fopen(macro_state.config_file, "w");
 	if (!file) {
-		report(RPT_ERR, "G-Key Macro: Failed to save macros to %s",
-		       macro_state.config_file);
+		report(
+		    RPT_ERR, "G-Key Macro: Failed to save macros to %s", macro_state.config_file);
 		return;
 	}
 
@@ -298,7 +274,10 @@ save_macros(void)
 		for (int gkey_idx = 0; gkey_idx < 18; gkey_idx++) {
 			macro_t *macro = &macro_state.macros[mode_idx][gkey_idx];
 			if (macro->command_count > 0) {
-				fprintf(file, "%s G%d %d ", modes[mode_idx], gkey_idx + 1,
+				fprintf(file,
+					"%s G%d %d ",
+					modes[mode_idx],
+					gkey_idx + 1,
 					macro->command_count);
 				for (int i = 0; i < macro->command_count; i++) {
 					fprintf(file, "%s", macro->commands[i]);
@@ -315,11 +294,12 @@ save_macros(void)
 	report(RPT_INFO, "G-Key Macro: Saved macros to %s", macro_state.config_file);
 }
 
-static int
-execute_ydotool_command(const char *command)
+static int execute_ydotool_command(const char *command)
 {
 	char cmd_buffer[512];
-	snprintf(cmd_buffer, sizeof(cmd_buffer), "YDOTOOL_SOCKET=/tmp/.ydotool_socket ydotool %s",
+	snprintf(cmd_buffer,
+		 sizeof(cmd_buffer),
+		 "YDOTOOL_SOCKET=/tmp/.ydotool_socket ydotool %s",
 		 command);
 
 	int result = system(cmd_buffer);
@@ -331,8 +311,7 @@ execute_ydotool_command(const char *command)
 	return 0;
 }
 
-static void
-play_macro(const char *g_key)
+static void play_macro(const char *g_key)
 {
 	int mode_idx = get_mode_index(macro_state.current_mode);
 	int gkey_idx = get_gkey_index(g_key);
@@ -344,13 +323,18 @@ play_macro(const char *g_key)
 
 	macro_t *macro = &macro_state.macros[mode_idx][gkey_idx];
 	if (macro->command_count == 0) {
-		report(RPT_INFO, "G-Key Macro: No macro defined for %s in mode %s", g_key,
+		report(RPT_INFO,
+		       "G-Key Macro: No macro defined for %s in mode %s",
+		       g_key,
 		       macro_state.current_mode);
 		return;
 	}
 
-	report(RPT_INFO, "G-Key Macro: Playing macro for %s in mode %s (%d commands)", g_key,
-	       macro_state.current_mode, macro->command_count);
+	report(RPT_INFO,
+	       "G-Key Macro: Playing macro for %s in mode %s (%d commands)",
+	       g_key,
+	       macro_state.current_mode,
+	       macro->command_count);
 
 	for (int i = 0; i < macro->command_count; i++) {
 		const char *cmd = macro->commands[i];
@@ -388,8 +372,7 @@ play_macro(const char *g_key)
 	}
 }
 
-static void
-start_recording(const char *g_key)
+static void start_recording(const char *g_key)
 {
 	strncpy(macro_state.recording_target, g_key, sizeof(macro_state.recording_target) - 1);
 	macro_state.recording_target[sizeof(macro_state.recording_target) - 1] = '\0';
@@ -406,7 +389,9 @@ start_recording(const char *g_key)
 
 	/* Start real input event recording */
 	if (start_input_recording(g_key) == 0) {
-		report(RPT_INFO, "G-Key Macro: Recording started for %s in mode %s", g_key,
+		report(RPT_INFO,
+		       "G-Key Macro: Recording started for %s in mode %s",
+		       g_key,
 		       macro_state.current_mode);
 		report(RPT_INFO, "G-Key Macro: Press MR again to stop recording");
 	} else {
@@ -415,8 +400,7 @@ start_recording(const char *g_key)
 	}
 }
 
-static void
-stop_recording(void)
+static void stop_recording(void)
 {
 	if (!macro_state.recording) {
 		return;
@@ -434,8 +418,7 @@ stop_recording(void)
 	report(RPT_INFO, "G-Key Macro: Recording stopped");
 }
 
-static int
-is_keyboard_device(const char *device_path)
+static int is_keyboard_device(const char *device_path)
 {
 	int fd = open(device_path, O_RDONLY);
 	if (fd < 0)
@@ -467,8 +450,7 @@ is_keyboard_device(const char *device_path)
 	return (test_bit(KEY_Q, keybit) || test_bit(KEY_A, keybit) || test_bit(KEY_Z, keybit));
 }
 
-static int
-is_mouse_device(const char *device_path)
+static int is_mouse_device(const char *device_path)
 {
 	int fd = open(device_path, O_RDONLY);
 	if (fd < 0)
@@ -501,8 +483,7 @@ is_mouse_device(const char *device_path)
 	       (has_rel && (test_bit(REL_X, relbit) || test_bit(REL_Y, relbit)));
 }
 
-static int
-open_input_devices(void)
+static int open_input_devices(void)
 {
 	DIR *dir = opendir("/dev/input");
 	if (!dir) {
@@ -529,10 +510,14 @@ open_input_devices(void)
 		if (fd >= 0) {
 			macro_state.recorder.event_fds[macro_state.recorder.event_fd_count] = fd;
 			macro_state.recorder.event_fd_count++;
-			report(RPT_DEBUG, "G-Key Macro: Opened input device %s (fd=%d)",
-			       device_path, fd);
+			report(RPT_DEBUG,
+			       "G-Key Macro: Opened input device %s (fd=%d)",
+			       device_path,
+			       fd);
 		} else {
-			report(RPT_WARNING, "G-Key Macro: Failed to open %s: %s", device_path,
+			report(RPT_WARNING,
+			       "G-Key Macro: Failed to open %s: %s",
+			       device_path,
 			       strerror(errno));
 		}
 	}
@@ -545,13 +530,13 @@ open_input_devices(void)
 		return -1;
 	}
 
-	report(RPT_INFO, "G-Key Macro: Opened %d input devices for recording",
+	report(RPT_INFO,
+	       "G-Key Macro: Opened %d input devices for recording",
 	       macro_state.recorder.event_fd_count);
 	return 0;
 }
 
-static void
-close_input_devices(void)
+static void close_input_devices(void)
 {
 	for (int i = 0; i < macro_state.recorder.event_fd_count; i++) {
 		if (macro_state.recorder.event_fds[i] >= 0) {
@@ -562,8 +547,7 @@ close_input_devices(void)
 	macro_state.recorder.event_fd_count = 0;
 }
 
-static const char *
-translate_key_code(int code)
+static const char *translate_key_code(int code)
 {
 	/* Translate Linux input key codes to ydotool key names */
 	switch (code) {
@@ -700,19 +684,20 @@ translate_key_code(int code)
 	}
 }
 
-static void *
-input_recording_thread(void *arg)
+static void *input_recording_thread(void *arg)
 {
 	(void)arg; /* Unused parameter */
 
 	FILE *record_file = fopen(macro_state.recorder.record_file, "w");
 	if (!record_file) {
-		report(RPT_ERR, "G-Key Macro: Cannot create recording file %s",
+		report(RPT_ERR,
+		       "G-Key Macro: Cannot create recording file %s",
 		       macro_state.recorder.record_file);
 		return NULL;
 	}
 
-	report(RPT_INFO, "G-Key Macro: Recording thread started, writing to %s",
+	report(RPT_INFO,
+	       "G-Key Macro: Recording thread started, writing to %s",
 	       macro_state.recorder.record_file);
 
 	struct input_event ev;
@@ -775,7 +760,8 @@ input_recording_thread(void *arg)
 					fprintf(record_file, "key:%s\n", key_name);
 					recorded_events++;
 					last_event_time = current_time;
-					report(RPT_DEBUG, "G-Key Macro: Recorded key press: %s",
+					report(RPT_DEBUG,
+					       "G-Key Macro: Recorded key press: %s",
 					       key_name);
 				}
 			} else if (ev.type == EV_KEY &&
@@ -791,7 +777,9 @@ input_recording_thread(void *arg)
 
 					/* Only record significant movements */
 					if (abs(rel_x) > 5 || abs(rel_y) > 5) {
-						fprintf(record_file, "mousemove_rel:%d %d\n", rel_x,
+						fprintf(record_file,
+							"mousemove_rel:%d %d\n",
+							rel_x,
 							rel_y);
 						recorded_events++;
 						last_event_time = current_time;
@@ -799,7 +787,8 @@ input_recording_thread(void *arg)
 						report(
 						    RPT_DEBUG,
 						    "G-Key Macro: Recorded mouse movement: %d %d",
-						    rel_x, rel_y);
+						    rel_x,
+						    rel_y);
 					}
 				}
 			} else if (ev.type == EV_KEY &&
@@ -828,12 +817,12 @@ input_recording_thread(void *arg)
 	return NULL;
 }
 
-static void
-convert_ydotool_recording(void)
+static void convert_ydotool_recording(void)
 {
 	FILE *file = fopen(macro_state.recorder.record_file, "r");
 	if (!file) {
-		report(RPT_WARNING, "G-Key Macro: Could not read recording file %s",
+		report(RPT_WARNING,
+		       "G-Key Macro: Could not read recording file %s",
 		       macro_state.recorder.record_file);
 		return;
 	}
@@ -875,8 +864,10 @@ convert_ydotool_recording(void)
 			} else {
 				/* Non-text key - flush collected text first */
 				if (collecting_text && strlen(text_buffer) > 0) {
-					snprintf(macro->commands[macro->command_count], 256,
-						 "type:%s", text_buffer);
+					snprintf(macro->commands[macro->command_count],
+						 256,
+						 "type:%s",
+						 text_buffer);
 					macro->command_count++;
 					text_buffer[0] = '\0';
 					collecting_text = 0;
@@ -891,7 +882,9 @@ convert_ydotool_recording(void)
 		} else {
 			/* Non-key command - flush collected text first */
 			if (collecting_text && strlen(text_buffer) > 0) {
-				snprintf(macro->commands[macro->command_count], 256, "type:%s",
+				snprintf(macro->commands[macro->command_count],
+					 256,
+					 "type:%s",
 					 text_buffer);
 				macro->command_count++;
 				text_buffer[0] = '\0';
@@ -915,16 +908,18 @@ convert_ydotool_recording(void)
 	fclose(file);
 
 	if (macro->command_count == 0) {
-		report(RPT_WARNING, "G-Key Macro: No actions recorded for %s",
+		report(RPT_WARNING,
+		       "G-Key Macro: No actions recorded for %s",
 		       macro_state.recording_target);
 	} else {
-		report(RPT_INFO, "G-Key Macro: Converted %d actions for %s", macro->command_count,
+		report(RPT_INFO,
+		       "G-Key Macro: Converted %d actions for %s",
+		       macro->command_count,
 		       macro_state.recording_target);
 	}
 }
 
-int
-start_input_recording(const char *target_gkey)
+int start_input_recording(const char *target_gkey)
 {
 	if (macro_state.recorder.recording) {
 		report(RPT_WARNING, "G-Key Macro: Recording already in progress");
@@ -939,12 +934,18 @@ start_input_recording(const char *target_gkey)
 	/* Set up recording file */
 	const char *home = getenv("HOME");
 	if (home) {
-		snprintf(macro_state.recorder.record_file, sizeof(macro_state.recorder.record_file),
-			 "%s/.config/lcdproc/recording_%s_%s.tmp", home, macro_state.current_mode,
+		snprintf(macro_state.recorder.record_file,
+			 sizeof(macro_state.recorder.record_file),
+			 "%s/.config/lcdproc/recording_%s_%s.tmp",
+			 home,
+			 macro_state.current_mode,
 			 target_gkey);
 	} else {
-		snprintf(macro_state.recorder.record_file, sizeof(macro_state.recorder.record_file),
-			 "/tmp/lcdproc_recording_%s_%s.tmp", macro_state.current_mode, target_gkey);
+		snprintf(macro_state.recorder.record_file,
+			 sizeof(macro_state.recorder.record_file),
+			 "/tmp/lcdproc_recording_%s_%s.tmp",
+			 macro_state.current_mode,
+			 target_gkey);
 	}
 
 	/* Start recording thread */
@@ -952,8 +953,8 @@ start_input_recording(const char *target_gkey)
 	macro_state.recorder.stop_recording = 0;
 	macro_state.recorder.record_start_time = time(NULL);
 
-	if (pthread_create(&macro_state.recorder.record_thread, NULL, input_recording_thread,
-			   NULL) != 0) {
+	if (pthread_create(
+		&macro_state.recorder.record_thread, NULL, input_recording_thread, NULL) != 0) {
 		report(RPT_ERR, "G-Key Macro: Failed to create recording thread");
 		close_input_devices();
 		macro_state.recorder.recording = 0;
@@ -963,8 +964,7 @@ start_input_recording(const char *target_gkey)
 	return 0;
 }
 
-int
-stop_input_recording(void)
+int stop_input_recording(void)
 {
 	if (!macro_state.recorder.recording) {
 		return 0;

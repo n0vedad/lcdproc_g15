@@ -44,7 +44,7 @@ install_hook() {
         echo -e "${RED}Cannot install git hook without template.${NC}"
         exit 1
     fi
-    
+
     echo -e "${GREEN}Pre-commit hook installed successfully!${NC}"
     echo -e "${BLUE}It will automatically check code formatting before commits.${NC}"
 }

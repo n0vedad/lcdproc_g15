@@ -16,15 +16,15 @@
 #define MENU_H
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 #ifdef HAVE_STDBOOL_H
-# include <stdbool.h>
+#include <stdbool.h>
 #endif
 #include "shared/defines.h"
 
-#include "shared/LL.h"
 #include "menuitem.h"
+#include "shared/LL.h"
 
 /** A Menu is a MenuItem too.
  * This definition is only for better understanding of this code.
@@ -32,8 +32,7 @@
 typedef MenuItem Menu;
 
 /** Creates a new menu. */
-Menu *menu_create(char *id, MenuEventFunc(*event_func),
-	char *text, Client *client);
+Menu *menu_create(char *id, MenuEventFunc(*event_func), char *text, Client *client);
 
 /** Deletes menu from memory.
  * Destructors will be called for all subitems.
@@ -55,9 +54,7 @@ void menu_destroy_all_items(Menu *menu);
  */
 static inline MenuItem *menu_getfirst_item(Menu *menu)
 {
-	return (MenuItem*) ((menu != NULL)
-			    ? LL_GetFirst(menu->data.menu.contents)
-			    : NULL);
+	return (MenuItem *)((menu != NULL) ? LL_GetFirst(menu->data.menu.contents) : NULL);
 }
 
 /** Enumeration function.
@@ -67,9 +64,7 @@ static inline MenuItem *menu_getfirst_item(Menu *menu)
  */
 static inline MenuItem *menu_getnext_item(Menu *menu)
 {
-	return (MenuItem*) ((menu != NULL)
-			    ? LL_GetNext(menu->data.menu.contents)
-			    : NULL);
+	return (MenuItem *)((menu != NULL) ? LL_GetNext(menu->data.menu.contents) : NULL);
 }
 
 /** Retrieves the current (non-hidden) item from the list of items in the

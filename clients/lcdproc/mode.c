@@ -10,33 +10,32 @@
  * Refer to the COPYING file distributed with this package.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
 #include <fcntl.h>
-#include <unistd.h>
-#include <sys/utsname.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/utsname.h>
+#include <unistd.h>
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 
-#if defined( IRIX ) || defined( SOLARIS )
-# include <strings.h>
+#if defined(IRIX) || defined(SOLARIS)
+#include <strings.h>
 #endif
 
 #include "shared/sockets.h"
 
+#include "machine.h"
 #include "main.h"
 #include "mode.h"
-#include "machine.h"
 #ifdef LCDPROC_EYEBOXONE
-# include "eyebox.h"
+#include "eyebox.h"
 #endif
 
 /** Initialize mode specific things. */
-int
-mode_init(void)
+int mode_init(void)
 {
 	machine_init();
 
@@ -44,12 +43,7 @@ mode_init(void)
 }
 
 /** Clean up modes on exit */
-void
-mode_close(void)
-{
-	machine_close();
-}
-
+void mode_close(void) { machine_close(); }
 
 /**
  * Calls the mode specific screen init / update function and updates the Eyebox
@@ -60,8 +54,7 @@ mode_close(void)
  * \param display  Flag whether to update screen even if not visible.
  * \return  Backlight state
  */
-int
-update_screen(ScreenMode *m, int display)
+int update_screen(ScreenMode *m, int display)
 {
 	static int status = -1;
 	int old_status = status;
@@ -93,7 +86,6 @@ update_screen(ScreenMode *m, int display)
 	return (status);
 }
 
-
 /**
  * Credit Screen shows who wrote this...
  *
@@ -102,81 +94,35 @@ update_screen(ScreenMode *m, int display)
  * \param flags_ptr  Mode flags
  * \return  Always 0
  */
-int
-credit_screen(int rep, int display, int *flags_ptr)
+int credit_screen(int rep, int display, int *flags_ptr)
 {
 	/*
 	 * List of persons who contributed to LCDproc. Keep in sync with
 	 * CREDITS file (ordered by appearance)
 	 */
 	const char *contributors[] = {
-		"William Ferrell",
-		"Selene Scriven",
-		"Gareth Watts",
-		"Lorand Bruhacs",
-		"Benjamin Tse",
-		"Matthias Prinke",
-		"Richard Rognlie",
-		"Tom Wheeley",
-		"Bjoern Andersson",
-		"Andrew McMeikan",
-		"David Glaude",
-		"Todd Porter",
-		"Bjoern Andersson",
-		"Jason Dale Woodward",
-		"Ethan Dicks",
-		"Michael Reinelt",
-		"Simon Harrison",
-		"Charles Steinkuehler",
-		"Harald Klein",
-		"Philip Pokorny",
-		"Glen Gray",
-		"David Douthitt",
-		"Eddie Sheldrake",
-		"Rene Wagner",
-		"Andre Breiler",
-		"Joris Robijn",
-		"Guillaume Filion",
-		"Chris Debenham",
-		"Mark Haemmerling",
-		"Robin Adams",
-		"Manuel Stahl",
-		"Mike Patnode",
-		"Peter Marschall",
-		"Markus Dolze",
-		"Volker Boerchers",
-		"Lucian Muresan",
-		"Matteo Pillon",
-		"Laurent Arnal",
-		"Simon Funke",
-		"Matthias Goebl",
-		"Stefan Herdler",
-		"Bernhard Walle",
-		"Andrew Foss",
-		"Anthony J. Mirabella",
-		"Cedric Tessier",
-		"John Sanders",
-		"Eric Pooch",
-		"Benjamin Wiedmann",
-		"Frank Jepsen",
-		"Karsten Festag",
-		"Gatewood Green",
-		"Dave Platt",
-		"Nicu Pavel",
-		"Daryl Fonseca-Holt",
-		"Thien Vu",
-		"Thomas Jarosch",
-		"Christian Jodar",
-		"Mariusz Bialonczyk",
-		"Jack Cleaver",
-		"Aron Parsons",
-		"Malte Poeggel",
-		"Dean Harding",
-		"Christian Leuschen",
-		"Jonathan Kyler",
-		"Sam Bingner",
-		NULL
-	};
+	    "William Ferrell",	  "Selene Scriven",	  "Gareth Watts",
+	    "Lorand Bruhacs",	  "Benjamin Tse",	  "Matthias Prinke",
+	    "Richard Rognlie",	  "Tom Wheeley",	  "Bjoern Andersson",
+	    "Andrew McMeikan",	  "David Glaude",	  "Todd Porter",
+	    "Bjoern Andersson",	  "Jason Dale Woodward",  "Ethan Dicks",
+	    "Michael Reinelt",	  "Simon Harrison",	  "Charles Steinkuehler",
+	    "Harald Klein",	  "Philip Pokorny",	  "Glen Gray",
+	    "David Douthitt",	  "Eddie Sheldrake",	  "Rene Wagner",
+	    "Andre Breiler",	  "Joris Robijn",	  "Guillaume Filion",
+	    "Chris Debenham",	  "Mark Haemmerling",	  "Robin Adams",
+	    "Manuel Stahl",	  "Mike Patnode",	  "Peter Marschall",
+	    "Markus Dolze",	  "Volker Boerchers",	  "Lucian Muresan",
+	    "Matteo Pillon",	  "Laurent Arnal",	  "Simon Funke",
+	    "Matthias Goebl",	  "Stefan Herdler",	  "Bernhard Walle",
+	    "Andrew Foss",	  "Anthony J. Mirabella", "Cedric Tessier",
+	    "John Sanders",	  "Eric Pooch",		  "Benjamin Wiedmann",
+	    "Frank Jepsen",	  "Karsten Festag",	  "Gatewood Green",
+	    "Dave Platt",	  "Nicu Pavel",		  "Daryl Fonseca-Holt",
+	    "Thien Vu",		  "Thomas Jarosch",	  "Christian Jodar",
+	    "Mariusz Bialonczyk", "Jack Cleaver",	  "Aron Parsons",
+	    "Malte Poeggel",	  "Dean Harding",	  "Christian Leuschen",
+	    "Jonathan Kyler",	  "Sam Bingner",	  NULL};
 	int contr_num = 0;
 	int i;
 
@@ -185,7 +131,7 @@ credit_screen(int rep, int display, int *flags_ptr)
 
 		/* get number of contributors */
 		for (contr_num = 0; contributors[contr_num] != NULL; contr_num++)
-			;	/* NADA */
+			; /* NADA */
 
 		sock_send_string(sock, "screen_add A\n");
 		sock_send_string(sock, "screen_set A -name {Credits for LCDproc}\n");
@@ -193,14 +139,21 @@ credit_screen(int rep, int display, int *flags_ptr)
 		sock_printf(sock, "widget_set A title {LCDPROC %s}\n", version);
 		if (lcd_hgt >= 4) {
 			sock_send_string(sock, "widget_add A text scroller\n");
-			sock_printf(sock, "widget_set A text 1 2 %d 2 h 8 {%s}\n",
-				    lcd_wid, "LCDproc was brought to you by:");
+			sock_printf(sock,
+				    "widget_set A text 1 2 %d 2 h 8 {%s}\n",
+				    lcd_wid,
+				    "LCDproc was brought to you by:");
 		}
 
 		/* frame from (2nd/3rd line, left) to (last line, right) */
 		sock_send_string(sock, "widget_add A f frame\n");
-		sock_printf(sock, "widget_set A f 1 %i %i %i %i %i v %i\n",
-			    ((lcd_hgt >= 4) ? 3 : 2), lcd_wid, lcd_hgt, lcd_wid, contr_num,
+		sock_printf(sock,
+			    "widget_set A f 1 %i %i %i %i %i v %i\n",
+			    ((lcd_hgt >= 4) ? 3 : 2),
+			    lcd_wid,
+			    lcd_hgt,
+			    lcd_wid,
+			    contr_num,
 			    /* scroll rate: 1 line every X ticks (= 1/8 sec) */
 			    ((lcd_hgt >= 4) ? 8 : 12));
 

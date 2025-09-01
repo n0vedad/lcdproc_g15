@@ -9,24 +9,23 @@
  * Refer to the COPYING file distributed with this package.
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <limits.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/param.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "shared/sockets.h"
 
+#include "cpu.h"
+#include "machine.h"
 #include "main.h"
 #include "mode.h"
-#include "machine.h"
-#include "cpu.h"
 #include "util.h"
-
 
 /**
  * CPU screen shows info about percentage of the CPU being used
@@ -47,12 +46,11 @@
  * \param flags_ptr  Mode flags
  * \return  Always 0
  */
-int
-cpu_screen(int rep, int display, int *flags_ptr)
+int cpu_screen(int rep, int display, int *flags_ptr)
 {
 #undef CPU_BUF_SIZE
 #define CPU_BUF_SIZE 4
-	static double cpu[CPU_BUF_SIZE + 1][5];	/* last buffer is scratch */
+	static double cpu[CPU_BUF_SIZE + 1][5]; /* last buffer is scratch */
 	static int gauge_wid = 0;
 	static int usni_wid = 0;
 	static int us_wid = 0;
@@ -61,7 +59,7 @@ cpu_screen(int rep, int display, int *flags_ptr)
 	int i, j;
 	double value;
 	load_type load;
-	char tmp[25];		/* should be large enough */
+	char tmp[25]; /* should be large enough */
 
 	if ((*flags_ptr & INITIALIZED) == 0) {
 		*flags_ptr |= INITIALIZED;
@@ -70,23 +68,34 @@ cpu_screen(int rep, int display, int *flags_ptr)
 		sock_printf(sock, "screen_set C -name {CPU Use:%s}\n", get_hostname());
 		if (lcd_hgt >= 4) {
 			us_wid = ((lcd_wid + 1) / 2) - 7; /* Usr/Sys label width -7 for " xx.x% " */
-			ni_wid = lcd_wid / 2 - 6;       /* Nice/Idle label width -6 for " xx.x%" */
+			ni_wid = lcd_wid / 2 - 6; /* Nice/Idle label width -6 for " xx.x%" */
 
 			sock_send_string(sock, "widget_add C title title\n");
 			sock_send_string(sock, "widget_set C title {CPU LOAD}\n");
 			sock_send_string(sock, "widget_add C one string\n");
 			sock_send_string(sock, "widget_add C two string\n");
-			sock_printf(sock, "widget_set C one 1 2 {%-*.*s       %-*.*s}\n",
-					us_wid, us_wid, "Usr", ni_wid, ni_wid, "Nice");
-			sock_printf(sock, "widget_set C two 1 3 {%-*.*s       %-*.*s}\n",
-					us_wid, us_wid, "Sys", ni_wid, ni_wid, "Idle");
+			sock_printf(sock,
+				    "widget_set C one 1 2 {%-*.*s       %-*.*s}\n",
+				    us_wid,
+				    us_wid,
+				    "Usr",
+				    ni_wid,
+				    ni_wid,
+				    "Nice");
+			sock_printf(sock,
+				    "widget_set C two 1 3 {%-*.*s       %-*.*s}\n",
+				    us_wid,
+				    us_wid,
+				    "Sys",
+				    ni_wid,
+				    ni_wid,
+				    "Idle");
 			sock_send_string(sock, "widget_add C usr string\n");
 			sock_send_string(sock, "widget_add C nice string\n");
 			sock_send_string(sock, "widget_add C idle string\n");
 			sock_send_string(sock, "widget_add C sys string\n");
 			pbar_widget_add("C", "bar");
-		}
-		else {
+		} else {
 			usni_wid = lcd_wid / 4;	  /* 4 gauges */
 			gauge_wid = lcd_wid - 10; /* room between "CPU " and "99.9%@" */
 
@@ -113,13 +122,14 @@ cpu_screen(int rep, int display, int *flags_ptr)
 
 	/* Read new data */
 	if (load.total > 0L) {
-		cpu[CPU_BUF_SIZE - 1][0] = 100.0 * ((double) load.user / (double) load.total);
-		cpu[CPU_BUF_SIZE - 1][1] = 100.0 * ((double) load.system / (double) load.total);
-		cpu[CPU_BUF_SIZE - 1][2] = 100.0 * ((double) load.nice / (double) load.total);
-		cpu[CPU_BUF_SIZE - 1][3] = 100.0 * ((double) load.idle / (double) load.total);
-		cpu[CPU_BUF_SIZE - 1][4] = 100.0 * (((double) load.user + (double) load.system + (double) load.nice) / (double) load.total);
-	}
-	else {
+		cpu[CPU_BUF_SIZE - 1][0] = 100.0 * ((double)load.user / (double)load.total);
+		cpu[CPU_BUF_SIZE - 1][1] = 100.0 * ((double)load.system / (double)load.total);
+		cpu[CPU_BUF_SIZE - 1][2] = 100.0 * ((double)load.nice / (double)load.total);
+		cpu[CPU_BUF_SIZE - 1][3] = 100.0 * ((double)load.idle / (double)load.total);
+		cpu[CPU_BUF_SIZE - 1][4] =
+		    100.0 * (((double)load.user + (double)load.system + (double)load.nice) /
+			     (double)load.total);
+	} else {
 		cpu[CPU_BUF_SIZE - 1][0] = 0.0;
 		cpu[CPU_BUF_SIZE - 1][1] = 0.0;
 		cpu[CPU_BUF_SIZE - 1][2] = 0.0;
@@ -139,7 +149,7 @@ cpu_screen(int rep, int display, int *flags_ptr)
 	if (!display)
 		return (0);
 
-	if (lcd_hgt >= 4) {	/* 4-line display */
+	if (lcd_hgt >= 4) { /* 4-line display */
 		sprintf_percent(tmp, cpu[CPU_BUF_SIZE][4]);
 		sock_printf(sock, "widget_set C title {CPU %5s:%s}\n", tmp, get_hostname());
 
@@ -156,22 +166,48 @@ cpu_screen(int rep, int display, int *flags_ptr)
 		sock_printf(sock, "widget_set C idle %i 3 {%5s}\n", lcd_wid - 4, tmp);
 
 		pbar_widget_set("C", "bar", 1, 4, lcd_wid, cpu[CPU_BUF_SIZE][4] * 10, "0%", "100%");
-	}
-	else {			/* 2-line display */
+	} else { /* 2-line display */
 		sprintf_percent(tmp, cpu[CPU_BUF_SIZE][4]);
 		sock_printf(sock, "widget_set C cpu%% %d 1 {%5s}\n", lcd_wid - 5, tmp);
 
-		pbar_widget_set("C", "total", 5, 1, gauge_wid, cpu[CPU_BUF_SIZE][4] * 10, NULL, NULL);
-		pbar_widget_set("C", "usr",  1 + 0 * usni_wid, 2, usni_wid, cpu[CPU_BUF_SIZE][0] * 10, "U", NULL);
-		pbar_widget_set("C", "sys",  1 + 1 * usni_wid, 2, usni_wid, cpu[CPU_BUF_SIZE][1] * 10, "S", NULL);
-		pbar_widget_set("C", "nice", 1 + 2 * usni_wid, 2, usni_wid, cpu[CPU_BUF_SIZE][2] * 10, "N", NULL);
-		pbar_widget_set("C", "idle", 1 + 3 * usni_wid, 2, usni_wid, cpu[CPU_BUF_SIZE][3] * 10, "I", NULL);
+		pbar_widget_set(
+		    "C", "total", 5, 1, gauge_wid, cpu[CPU_BUF_SIZE][4] * 10, NULL, NULL);
+		pbar_widget_set("C",
+				"usr",
+				1 + 0 * usni_wid,
+				2,
+				usni_wid,
+				cpu[CPU_BUF_SIZE][0] * 10,
+				"U",
+				NULL);
+		pbar_widget_set("C",
+				"sys",
+				1 + 1 * usni_wid,
+				2,
+				usni_wid,
+				cpu[CPU_BUF_SIZE][1] * 10,
+				"S",
+				NULL);
+		pbar_widget_set("C",
+				"nice",
+				1 + 2 * usni_wid,
+				2,
+				usni_wid,
+				cpu[CPU_BUF_SIZE][2] * 10,
+				"N",
+				NULL);
+		pbar_widget_set("C",
+				"idle",
+				1 + 3 * usni_wid,
+				2,
+				usni_wid,
+				cpu[CPU_BUF_SIZE][3] * 10,
+				"I",
+				NULL);
 	}
 
 	return (0);
-}				/* End cpu_screen() */
-
-
+} /* End cpu_screen() */
 
 /**
  * Cpu Graph Screen shows a quick-moving histogram of CPU use.
@@ -192,8 +228,7 @@ cpu_screen(int rep, int display, int *flags_ptr)
  * \param flags_ptr  Mode flags
  * \return  Always 0
  */
-int
-cpu_graph_screen(int rep, int display, int *flags_ptr)
+int cpu_graph_screen(int rep, int display, int *flags_ptr)
 {
 #undef CPU_BUF_SIZE
 #define CPU_BUF_SIZE 2
@@ -216,8 +251,7 @@ cpu_graph_screen(int rep, int display, int *flags_ptr)
 		if (lcd_hgt >= 4) {
 			sock_send_string(sock, "widget_add G title title\n");
 			sock_printf(sock, "widget_set G title {CPU:%s}\n", get_hostname());
-		}
-		else {
+		} else {
 			sock_send_string(sock, "widget_add G title string\n");
 			sock_printf(sock, "widget_set G title 1 1 {CPU:%s}\n", get_hostname());
 		}
@@ -239,9 +273,10 @@ cpu_graph_screen(int rep, int display, int *flags_ptr)
 
 	/* Read and save new data */
 	machine_get_load(&load);
-	cpu[CPU_BUF_SIZE-1] = (load.total > 0L)
-			      ? ((double) load.user + (double) load.system + (double) load.nice) / (double) load.total
-			      : 0;
+	cpu[CPU_BUF_SIZE - 1] =
+	    (load.total > 0L)
+		? ((double)load.user + (double)load.system + (double)load.nice) / (double)load.total
+		: 0;
 
 	/* Average values for final result */
 	value = 0.0;
@@ -250,15 +285,19 @@ cpu_graph_screen(int rep, int display, int *flags_ptr)
 	value /= CPU_BUF_SIZE;
 
 	/* Scale result to available height (leave 1st line free when height > 2) */
-	n = (int) (value * lcd_cellhgt * gauge_hgt);
+	n = (int)(value * lcd_cellhgt * gauge_hgt);
 
 	/* Shift and update display the graph */
 	for (i = 0; i < lcd_wid - 1; i++) {
 		cpu_past[i] = cpu_past[i + 1];
 
 		if (display) {
-			sock_printf(sock, "widget_set G bar%d %d %d %d\n",
-			              i + 1, i + 1, lcd_hgt, cpu_past[i]);
+			sock_printf(sock,
+				    "widget_set G bar%d %d %d %d\n",
+				    i + 1,
+				    i + 1,
+				    lcd_hgt,
+				    cpu_past[i]);
 		}
 	}
 
@@ -269,4 +308,4 @@ cpu_graph_screen(int rep, int display, int *flags_ptr)
 	}
 
 	return (0);
-}				/* End cpu_graph_screen() */
+} /* End cpu_graph_screen() */

@@ -13,9 +13,9 @@
  *		 2005, Peter Marschall
  */
 
-#include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
 
@@ -34,8 +34,7 @@ static int num_stored_msgs = 0;
 static void store_report_message(int level, const char *message);
 static void flush_messages();
 
-void
-report(const int level, const char *format,... /* args */ )
+void report(const int level, const char *format, ... /* args */)
 {
 	/* Check if we should report it */
 	if (level <= report_level || report_dest == RPT_DEST_STORE) {
@@ -50,14 +49,14 @@ report(const int level, const char *format,... /* args */ )
 		va_start(ap, format);
 
 		switch (report_dest) {
-		    case RPT_DEST_STDERR:
+		case RPT_DEST_STDERR:
 			vfprintf(stderr, format, ap);
 			fprintf(stderr, "\n");
 			break;
-		    case RPT_DEST_SYSLOG:
+		case RPT_DEST_SYSLOG:
 			vsyslog(LOG_USER | (level + 2), format, ap);
 			break;
-		    case RPT_DEST_STORE:
+		case RPT_DEST_STORE:
 			vsnprintf(buf, sizeof(buf), format, ap);
 			buf[sizeof(buf) - 1] = 0;
 			store_report_message(level, buf);
@@ -67,9 +66,7 @@ report(const int level, const char *format,... /* args */ )
 	}
 }
 
-
-int
-set_reporting(char *application_name, int new_level, int new_dest)
+int set_reporting(char *application_name, int new_level, int new_dest)
 {
 	if (new_level < RPT_CRIT || new_level > RPT_DEBUG) {
 		report(RPT_ERR, "report level invalid: %d", new_level);
@@ -78,8 +75,7 @@ set_reporting(char *application_name, int new_level, int new_dest)
 
 	if (report_dest != RPT_DEST_SYSLOG && new_dest == RPT_DEST_SYSLOG) {
 		openlog(application_name, 0, LOG_USER);
-	}
-	else if (report_dest == RPT_DEST_SYSLOG && new_dest != RPT_DEST_SYSLOG) {
+	} else if (report_dest == RPT_DEST_SYSLOG && new_dest != RPT_DEST_SYSLOG) {
 		closelog();
 	}
 
@@ -96,13 +92,11 @@ set_reporting(char *application_name, int new_level, int new_dest)
 	return 0;
 }
 
-
 /**
  * Puts a message into the message store. If the store is full new messages
  * are silently discarded.
  */
-static void
-store_report_message(int level, const char *message)
+static void store_report_message(int level, const char *message)
 {
 	if (num_stored_msgs < MAX_STORED_MSGS) {
 		stored_msgs[num_stored_msgs] = malloc(strlen(message) + 1);
@@ -112,13 +106,11 @@ store_report_message(int level, const char *message)
 	}
 }
 
-
 /**
  * Report all messages contained in the message store to the current report
  * destination and release their memory.
  */
-static void
-flush_messages()
+static void flush_messages()
 {
 	int i;
 	for (i = 0; i < num_stored_msgs; i++) {

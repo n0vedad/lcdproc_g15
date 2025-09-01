@@ -15,22 +15,20 @@
  *
  */
 
-#include <stdlib.h>
-#include <stdio.h>
 #include "LL.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 #ifdef DEBUG
 #undef DEBUG
 #endif
 
-//TODO: Test everything?
-
+// TODO: Test everything?
 
 /** Create new linked list.
  * \return  Pointer to freshly created list object; \c NULL on error.
  */
-LinkedList *
-LL_new(void)
+LinkedList *LL_new(void)
 {
 	LinkedList *list;
 
@@ -49,7 +47,6 @@ LL_new(void)
 	return list;
 }
 
-
 /** Destroy the entire list.
  *
  * \note
@@ -59,8 +56,7 @@ LL_new(void)
  * \retval <0    error
  * \retval  0	 success
  */
-int
-LL_Destroy(LinkedList *list)
+int LL_Destroy(LinkedList *list)
 {
 	LL_node *prev, *next;
 	LL_node *node;
@@ -91,7 +87,6 @@ LL_Destroy(LinkedList *list)
 	return 0;
 }
 
-
 /** Move to another entry in the list.
  * Set list's \c current pointer to the node denoted to by \c whereto.
  * \param list     List object.
@@ -99,34 +94,33 @@ LL_Destroy(LinkedList *list)
  * \return         New value of list's \c current pointer;
  *                 \c NULL on error or when moving beyond ends.
  */
-LL_node *
-LL_GoTo(LinkedList *list, Direction whereto)
+LL_node *LL_GoTo(LinkedList *list, Direction whereto)
 {
 	if (!list)
 		return NULL;
 
 	switch (whereto) {
-		case HEAD:	list->current = (list->head.next != &list->tail)
-						? list->head.next
-						: NULL;
-				break;
-		case PREV:	if (list->current->prev == &list->head)
-					return NULL;
-				list->current = list->current->prev;
-		case CURRENT:	break;
-		case NEXT:	if (list->current->next == &list->tail)
-					return NULL;
-				list->current = list->current->next;
-				break;
-		case TAIL:	list->current = (list->tail.prev != &list->head)
-						? list->tail.prev
-						: NULL;
-				break;
+	case HEAD:
+		list->current = (list->head.next != &list->tail) ? list->head.next : NULL;
+		break;
+	case PREV:
+		if (list->current->prev == &list->head)
+			return NULL;
+		list->current = list->current->prev;
+	case CURRENT:
+		break;
+	case NEXT:
+		if (list->current->next == &list->tail)
+			return NULL;
+		list->current = list->current->next;
+		break;
+	case TAIL:
+		list->current = (list->tail.prev != &list->head) ? list->tail.prev : NULL;
+		break;
 	}
 
 	return list->current;
 }
-
 
 /** Return to the beginning of the list.
  * Set list's \c current pointer to the first node in the list.
@@ -134,19 +128,15 @@ LL_GoTo(LinkedList *list, Direction whereto)
  * \retval <0    error: no list given
  * \retval  0	 success
  */
-int
-LL_Rewind(LinkedList *list)
+int LL_Rewind(LinkedList *list)
 {
 	if (!list)
 		return -1;
 
-	list->current = (list->head.next != &list->tail)
-			? list->head.next
-			: &list->head;
+	list->current = (list->head.next != &list->tail) ? list->head.next : &list->head;
 
 	return 0;
 }
-
 
 /** Jump to the end of the list.
  * Set list's \c current pointer to the last node in the list.
@@ -154,19 +144,15 @@ LL_Rewind(LinkedList *list)
  * \retval <0    error: no list given
  * \retval  0	 success
  */
-int
-LL_End(LinkedList *list)
+int LL_End(LinkedList *list)
 {
 	if (!list)
 		return -1;
 
-	list->current = (list->tail.prev != &list->head)
-			? list->tail.prev
-			: &list->tail;
+	list->current = (list->tail.prev != &list->head) ? list->tail.prev : &list->tail;
 
 	return 0;
 }
-
 
 /** Go to the next node of the list.
  * Advance list's \c current pointer to the next node in the list.
@@ -174,8 +160,7 @@ LL_End(LinkedList *list)
  * \retval <0    error: no list given or no next node
  * \retval  0	 success
  */
-int
-LL_Next(LinkedList *list)
+int LL_Next(LinkedList *list)
 {
 	if (!list)
 		return -1;
@@ -189,15 +174,13 @@ LL_Next(LinkedList *list)
 	return 0;
 }
 
-
 /** Go to the previous node of the list.
  * Set list's \c current pointer to the previous node in the list.
  * \param list   List object.
  * \retval <0    error: no list given or no previous node
  * \retval  0	 success
  */
-int
-LL_Prev(LinkedList *list)
+int LL_Prev(LinkedList *list)
 {
 	if (!list)
 		return -1;
@@ -211,15 +194,13 @@ LL_Prev(LinkedList *list)
 	return 0;
 }
 
-
 /** Access current node's data.
  * Return pointer to list's \c current node's data.
  * \param list   List object.
  * \return       Pointer to \c current node's payload data;
  *               \c NULL may be empty payload or an error.
  */
-void *
-LL_Get(LinkedList *list)
+void *LL_Get(LinkedList *list)
 {
 	if (!list)
 		return NULL;
@@ -229,15 +210,13 @@ LL_Get(LinkedList *list)
 	return list->current->data;
 }
 
-
 /** Set/change current node's data.
  * \param list   List object.
  * \param data   Pointer to data to be set.
  * \retval <0    error: no list given, or no current node
  * \retval  0	 success
  */
-int
-LL_Put(LinkedList *list, void *data)
+int LL_Put(LinkedList *list, void *data)
 {
 	if (!list)
 		return -1;
@@ -249,20 +228,17 @@ LL_Put(LinkedList *list, void *data)
 	return 0;
 }
 
-
 /** Get current node in list.
  * \param list   List object.
  * \return       Pointer to current node.
  */
-LL_node *
-LL_GetNode(LinkedList *list)
+LL_node *LL_GetNode(LinkedList *list)
 {
 	if (!list)
 		return NULL;
 
 	return list->current;
 }
-
 
 /** Set list's \c current pointer to a specific node.
  *
@@ -274,8 +250,7 @@ LL_GetNode(LinkedList *list)
  * \retval <0    error
  * \retval  0    success
  */
-int
-LL_PutNode(LinkedList *list, LL_node *node)
+int LL_PutNode(LinkedList *list, LL_node *node)
 {
 	if (!list)
 		return -1;
@@ -287,14 +262,12 @@ LL_PutNode(LinkedList *list, LL_node *node)
 	return 0;
 }
 
-
 /** Access list's first node's data.
  * Set list's \c current pointer to the first node and return its data.
  * \param list   List object.
  * \return       Pointer to first node's data; \c NULL on error.
  */
-void *
-LL_GetFirst(LinkedList *list)
+void *LL_GetFirst(LinkedList *list)
 {
 	if (!list)
 		return NULL;
@@ -305,14 +278,12 @@ LL_GetFirst(LinkedList *list)
 	return LL_Get(list);
 }
 
-
 /** Access next node's data.
  * Advance list's \c current pointer to the next node and return its data.
  * \param list   List object.
  * \return       Pointer to next node's data; \c NULL on error.
  */
-void *
-LL_GetNext(LinkedList *list)
+void *LL_GetNext(LinkedList *list)
 {
 	if (!list)
 		return NULL;
@@ -323,14 +294,12 @@ LL_GetNext(LinkedList *list)
 	return LL_Get(list);
 }
 
-
 /** Access previous node's data.
  * Set list's \c current pointer to the previous node, and return its data.
  * \param list   List object.
  * \return       Pointer to previous node's data; \c NULL on error.
  */
-void *
-LL_GetPrev(LinkedList *list)
+void *LL_GetPrev(LinkedList *list)
 {
 	if (!list)
 		return NULL;
@@ -341,14 +310,12 @@ LL_GetPrev(LinkedList *list)
 	return LL_Get(list);
 }
 
-
 /** Access list's last node's data.
  * Set list's \c current pointer to the last node and return its data.
  * \param list   List object.
  * \return       Pointer to last node's data; \c NULL on error.
  */
-void *
-LL_GetLast(LinkedList *list)
+void *LL_GetLast(LinkedList *list)
 {
 	if (!list)
 		return NULL;
@@ -359,7 +326,6 @@ LL_GetLast(LinkedList *list)
 	return LL_Get(list);
 }
 
-
 /** Add/append a new node after current one in the list.
  * Update the list's \c current pointer to point to the freshly created node.
  * \param list   List object.
@@ -367,8 +333,7 @@ LL_GetLast(LinkedList *list)
  * \retval <0    error
  * \retval  0	 success
  */
-int
-LL_AddNode(LinkedList *list, void *add)
+int LL_AddNode(LinkedList *list, void *add)
 {
 	LL_node *node;
 
@@ -400,7 +365,6 @@ LL_AddNode(LinkedList *list, void *add)
 	return 0;
 }
 
-
 /** Add/insert a new node before current one in the list.
  * Update the list's \c current pointer to point to the freshly created node.
  * \param list   List object.
@@ -408,8 +372,7 @@ LL_AddNode(LinkedList *list, void *add)
  * \retval <0    error
  * \retval  0	 success
  */
-int
-LL_InsertNode(LinkedList *list, void *add)
+int LL_InsertNode(LinkedList *list, void *add)
 {
 	LL_node *node;
 
@@ -441,15 +404,13 @@ LL_InsertNode(LinkedList *list, void *add)
 	return 0;
 }
 
-
 /** Remove current node from the list.
  * Set the list's \c current pointer to the one denoted by \c whereto.
  * \param list     List object.
  * \param whereto  Direction where to set the list's \c current pointer
  * \return         Pointer to data of deleted node; \c NULL on error.
  */
-void *
-LL_DeleteNode(LinkedList *list, Direction whereto)
+void *LL_DeleteNode(LinkedList *list, Direction whereto)
 {
 	LL_node *next, *prev;
 	void *data;
@@ -476,25 +437,28 @@ LL_DeleteNode(LinkedList *list, Direction whereto)
 	list->current->prev = NULL;
 	list->current->next = NULL;
 	// This should not free things; the user should do it explicitly.
-	//if(list->current->data) free(list->current->data);
+	// if(list->current->data) free(list->current->data);
 	list->current->data = NULL;
 
 	free(list->current);
 
 	switch (whereto) {
-		case HEAD:	list->current = list->head.next;
-				break;
-		case TAIL:	list->current = list->tail.prev;
-				break;
-		case PREV:	list->current = prev;
-				break;
-		default:
-		case NEXT:	list->current = next;
+	case HEAD:
+		list->current = list->head.next;
+		break;
+	case TAIL:
+		list->current = list->tail.prev;
+		break;
+	case PREV:
+		list->current = prev;
+		break;
+	default:
+	case NEXT:
+		list->current = next;
 	}
 
 	return data;
 }
-
 
 /** Remove a specific node from the list.
  * Find a node by a pointer to its data and remove it.
@@ -504,8 +468,7 @@ LL_DeleteNode(LinkedList *list, Direction whereto)
  * \param whereto  Direction where to set the list's \c current pointer
  * \return       Pointer to data of deleted node; \c NULL on error.
  */
-void *
-LL_Remove(LinkedList *list, void *data, Direction whereto)
+void *LL_Remove(LinkedList *list, void *data, Direction whereto)
 {
 	if (!list)
 		return NULL;
@@ -521,7 +484,6 @@ LL_Remove(LinkedList *list, void *data, Direction whereto)
 	return NULL;
 }
 
-
 /** Add/append a new node after the last one in the list.
  * Jump to the last node in the list, append a new node
  * and make this new one the list's \c current one.
@@ -530,8 +492,7 @@ LL_Remove(LinkedList *list, void *data, Direction whereto)
  * \retval <0    error
  * \retval  0	 success
  */
-int
-LL_Push(LinkedList *list, void *add)
+int LL_Push(LinkedList *list, void *add)
 {
 	if (!list)
 		return -1;
@@ -543,15 +504,13 @@ LL_Push(LinkedList *list, void *add)
 	return LL_AddNode(list, add);
 }
 
-
 /** Remove the last node from the list, and return its data.
  * Jump to the last node in the list, remove it from the list
  * and return its data.
  * \param list   List object.
  * \return       Pointer to data of deleted node; \c NULL on error.
  */
-void *
-LL_Pop(LinkedList *list)
+void *LL_Pop(LinkedList *list)
 {
 	if (!list)
 		return NULL;
@@ -562,26 +521,19 @@ LL_Pop(LinkedList *list)
 	return LL_DeleteNode(list, PREV);
 }
 
-
 /** Access list's last node's data.
  * Set list's \c current pointer to the last node and return its data.
  * \param list   List object.
  * \return       Pointer to last node's data; \c NULL on error.
  */
-void *
-LL_Top(LinkedList *list)
-{
-	return LL_GetLast(list);
-}
-
+void *LL_Top(LinkedList *list) { return LL_GetLast(list); }
 
 /** Remove the first node from the list, and return its data.
  * Jump to the first node in the list, remove it from the list and return its data.
  * \param list   List object.
  * \return       Pointer to data of deleted node; \c NULL on error.
  */
-void *
-LL_Shift(LinkedList *list)
+void *LL_Shift(LinkedList *list)
 {
 	if (!list)
 		return NULL;
@@ -592,18 +544,12 @@ LL_Shift(LinkedList *list)
 	return LL_DeleteNode(list, NEXT);
 }
 
-
 /** Access list's first node's data.
  * Set list's \c current pointer to the first node and return its data.
  * \param list   List object.
  * \return       Pointer to first node's data; \c NULL on error.
  */
-void *
-LL_Look(LinkedList *list)
-{
-	return LL_GetFirst(list);
-}
-
+void *LL_Look(LinkedList *list) { return LL_GetFirst(list); }
 
 /** Add/insert a new node before the first one in the list.
  * Jump to the first node in the list and insert a new node before that one.
@@ -612,8 +558,7 @@ LL_Look(LinkedList *list)
  * \retval <0    error
  * \retval  0	 success
  */
-int
-LL_Unshift(LinkedList *list, void *add)
+int LL_Unshift(LinkedList *list, void *add)
 {
 	if (!list)
 		return -1;
@@ -625,7 +570,6 @@ LL_Unshift(LinkedList *list, void *add)
 	return LL_InsertNode(list, add);
 }
 
-
 /** Add an item to the end of its "priority group"
  * The list is assumed to be sorted already.
  * \param list     List object.
@@ -634,8 +578,7 @@ LL_Unshift(LinkedList *list, void *add)
  * \retval <0      error
  * \retval  0      success
  */
-int
-LL_PriorityEnqueue(LinkedList *list, void *add, int (*compare)(void *, void *))
+int LL_PriorityEnqueue(LinkedList *list, void *add, int (*compare)(void *, void *))
 {
 	if (!list)
 		return -1;
@@ -653,7 +596,7 @@ LL_PriorityEnqueue(LinkedList *list, void *add, int (*compare)(void *, void *))
 		if (data) {
 			int i = compare(add, data);
 
-			if (i >= 0) {	// If we're in the right place, add it and exit
+			if (i >= 0) { // If we're in the right place, add it and exit
 				LL_AddNode(list, add);
 				return 0;
 			}
@@ -666,14 +609,12 @@ LL_PriorityEnqueue(LinkedList *list, void *add, int (*compare)(void *, void *))
 	return 0;
 }
 
-
 /** Switch two nodes positions.
  * \param one   First list object.
  * \param two   Second list object.
  * \return      -1 on error, 0 on success
  */
-int
-LL_SwapNodes(LL_node *one, LL_node *two)
+int LL_SwapNodes(LL_node *one, LL_node *two)
 {
 	LL_node *firstprev, *firstnext;
 	LL_node *secondprev, *secondnext;
@@ -681,46 +622,44 @@ LL_SwapNodes(LL_node *one, LL_node *two)
 	if (!one || !two)
 		return -1;
 	if (one == two)
-		return 0;					  // Do nothing
+		return 0; // Do nothing
 
-	firstprev = one->prev;		  // Look up the nodes neighbors...
+	firstprev = one->prev; // Look up the nodes neighbors...
 	firstnext = one->next;
 	secondprev = two->prev;
 	secondnext = two->next;
 
 	if (firstprev != NULL)
-		firstprev->next = two;	  // Swap the neighboring
+		firstprev->next = two; // Swap the neighboring
 	if (firstnext != NULL)
-		firstnext->prev = two;	  // nodes pointers...
+		firstnext->prev = two; // nodes pointers...
 	if (secondprev != NULL)
 		secondprev->next = one;
 	if (secondprev != NULL)
 		secondnext->prev = one;
 
-	one->next = secondnext;		  // Swap the nodes pointers
+	one->next = secondnext; // Swap the nodes pointers
 	one->prev = secondprev;
 	two->next = firstnext;
 	two->prev = firstprev;
 
 	if (firstnext == two)
-		one->prev = two;			  // Fix things in case
+		one->prev = two; // Fix things in case
 	if (firstprev == two)
-		one->next = two;			  // they were next to
+		one->next = two; // they were next to
 	if (secondprev == one)
-		two->next = one;			  // each other...
+		two->next = one; // each other...
 	if (secondnext == one)
 		two->prev = one;
 
 	return 0;
 }
 
-
 /** Calculate the length of a list.
  * \param list   List object.
  * \return       Number of nodes in the list; \c -1 on error.
  */
-int
-LL_Length(LinkedList *list)
+int LL_Length(LinkedList *list)
 {
 	LL_node *node;
 	int num = 0;
@@ -735,7 +674,6 @@ LL_Length(LinkedList *list)
 
 	return num;
 }
-
 
 /** Find a node by giving a comparison function and a value.
  * Go to to the list node whose data matches the given value
@@ -752,8 +690,7 @@ LL_Length(LinkedList *list)
  * \param value    Pointer to the value used for matching.
  * \return         The found node's data pointer; \c NULL otherwise
  */
-void *
-LL_Find(LinkedList *list, int (*compare)(void *, void *), void *value)
+void *LL_Find(LinkedList *list, int (*compare)(void *, void *), void *value)
 {
 	if (!list)
 		return NULL;
@@ -768,7 +705,6 @@ LL_Find(LinkedList *list, int (*compare)(void *, void *), void *value)
 
 	return NULL;
 }
-
 
 /** Perform an action for the all list elements.
  * Execute a function on the data of each node in the list.
@@ -796,8 +732,7 @@ LL_Find(LinkedList *list, int (*compare)(void *, void *), void *value)
  * \param value    Pointer to data that is used as second argument to
  *                 \c action().
  */
-void
-LL_ForAll(LinkedList *list, void *(*action)(void *, void *), void *value)
+void LL_ForAll(LinkedList *list, void *(*action)(void *, void *), void *value)
 {
 	if (!list)
 		return;
@@ -820,7 +755,6 @@ LL_ForAll(LinkedList *list, void *(*action)(void *, void *), void *value)
 	}
 }
 
-
 /** Go to the n-th node in the list and return its data.
  * Go to to the list node with the given \c index
  * and return the data.
@@ -828,8 +762,7 @@ LL_ForAll(LinkedList *list, void *(*action)(void *, void *), void *value)
  * \param index    Index of the node whose data we want.
  * \return         The found node's data pointer; \c NULL otherwise
  */
-void *
-LL_GetByIndex(LinkedList *list, int index)
+void *LL_GetByIndex(LinkedList *list, int index)
 {
 	LL_node *node;
 	int num = 0;
@@ -848,7 +781,6 @@ LL_GetByIndex(LinkedList *list, int index)
 	return NULL; // got past the end
 }
 
-
 /** Sort list by its contents.
  * The list gets sorted using a comparison function for the data of its nodes.
  * After the sorting, the list's current pointer is set to the first node.
@@ -859,12 +791,11 @@ LL_GetByIndex(LinkedList *list, int index)
  * \retval <0      error
  * \retval  0      success.
  */
-int
-LL_Sort(LinkedList *list, int (*compare)(void *, void *))
+int LL_Sort(LinkedList *list, int (*compare)(void *, void *))
 {
-	int i, j;			  // Junk / loop variables
-	int numnodes;			  // number of nodes in list
-	LL_node *best, *last;		  // best match and last node in the list
+	int i, j;	      // Junk / loop variables
+	int numnodes;	      // number of nodes in list
+	LL_node *best, *last; // best match and last node in the list
 	LL_node *current;
 
 	if (!list)
@@ -874,26 +805,26 @@ LL_Sort(LinkedList *list, int (*compare)(void *, void *))
 
 	numnodes = LL_Length(list); // get the number of nodes...
 	if (0 > LL_End(list))
-		return -1;				  // Find the last node.
+		return -1; // Find the last node.
 	last = LL_GetNode(list);
 
 	if (numnodes < 2)
 		return 0;
 
 	for (i = numnodes - 1; i > 0; i--) {
-		LL_Rewind(list);			  // get the first node again
-		best = last;				  // reset our "best" node
+		LL_Rewind(list); // get the first node again
+		best = last;	 // reset our "best" node
 
 		for (j = 0; j < i; j++) {
 			current = LL_GetNode(list);
 			// If we found a better match...
 			if (compare(current->data, best->data) > 0) {
-				best = current;	  // keep track of the "best" match
+				best = current; // keep track of the "best" match
 			}
-			LL_Next(list);		  // Go to the next node.
+			LL_Next(list); // Go to the next node.
 		}
 
-		LL_SwapNodes(last, best);	// Switch two nodes...
+		LL_SwapNodes(last, best); // Switch two nodes...
 		if (best)
 			last = best->prev;
 		else
@@ -905,19 +836,26 @@ LL_Sort(LinkedList *list, int (*compare)(void *, void *))
 	return 0;
 }
 
-
-void
-LL_dprint(LinkedList *list)
+void LL_dprint(LinkedList *list)
 {
 	LL_node *current;
 
 	current = &list->head;
 
-	printf("Head:  prev:\t0x%p\taddr:\t0x%p\tnext:\t0x%p\n", list->head.prev, &list->head, list->head.next);
+	printf("Head:  prev:\t0x%p\taddr:\t0x%p\tnext:\t0x%p\n",
+	       list->head.prev,
+	       &list->head,
+	       list->head.next);
 
 	for (current = current->next; current != &list->tail; current = current->next) {
-		printf("node:  prev:\t0x%p\taddr:\t0x%p\tnext:\t0x%p\n", current->prev, current, current->next);
+		printf("node:  prev:\t0x%p\taddr:\t0x%p\tnext:\t0x%p\n",
+		       current->prev,
+		       current,
+		       current->next);
 	}
 
-	printf("Tail:  prev:\t0x%p\taddr:\t0x%p\tnext:\t0x%p\n", list->tail.prev, &list->tail, list->tail.next);
+	printf("Tail:  prev:\t0x%p\taddr:\t0x%p\tnext:\t0x%p\n",
+	       list->tail.prev,
+	       &list->tail,
+	       list->tail.next);
 }

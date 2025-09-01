@@ -30,11 +30,10 @@
 
 /** Possible states of a client. */
 typedef enum _clientstate {
-	NEW,			/**< Client did not yet send \c hello. */
-	ACTIVE,			/**< Client sent \c hello, but not yet \c bye. */
-	GONE			/**< Client sent \c bye. */
+	NEW,	/**< Client did not yet send \c hello. */
+	ACTIVE, /**< Client sent \c hello, but not yet \c bye. */
+	GONE	/**< Client sent \c bye. */
 } ClientState;
-
 
 /** The structure representing a client in the server. */
 typedef struct Client {
@@ -44,10 +43,10 @@ typedef struct Client {
 	int backlight;
 	int heartbeat;
 
-	LinkedList *messages;		/**< Messages that the client sent. */
-	LinkedList *screenlist;		/**< List of client's screens. */
+	LinkedList *messages;	/**< Messages that the client sent. */
+	LinkedList *screenlist; /**< List of client's screens. */
 
-	void* menu;			/**< Menu hierarchy, if any */
+	void *menu; /**< Menu hierarchy, if any */
 } Client;
 
 #endif

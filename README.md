@@ -28,7 +28,7 @@ This fork includes an advanced G-Key macro recording and playback system with th
 - **Intelligent device detection** - automatically identifies and opens keyboard/mouse devices
 - **Wayland compatibility** through ydotool integration
 - **Real-time keyboard input capture** - records actual keystrokes as you type
-- **Mouse event recording** - captures clicks and relative mouse movements  
+- **Mouse event recording** - captures clicks and relative mouse movements
 - **Multi-mode support** - separate macro sets for M1/M2/M3 modes
 - **Persistent storage** - macros saved in JSON format at `~/.config/lcdproc/g15_macros.json`
 
@@ -54,9 +54,9 @@ version.
 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-The file COPYING contains the GNU General Public License.  You should have
+The file COPYING contains the GNU General Public License. You should have
 received a copy of the GNU General Public License along with this program; if
 not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth
 Floor, Boston, MA 02110-1301, USA.

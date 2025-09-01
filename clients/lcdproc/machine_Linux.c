@@ -7,64 +7,63 @@
  *
  * This file is released under the GNU General Public License.
  * Refer to the COPYING file distributed with this package.
- * 
+ *
  * Copyright (C) 2025 n0vedad <https://github.com/n0vedad/>
  * 2025-08-31 remove non-linux support
  */
 
-#include <sys/types.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
 #include <ctype.h>
-#include <string.h>
-#include <fcntl.h>
 #include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/param.h>
-#include <sys/utsname.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
-#include <errno.h>
+#include <sys/types.h>
+#include <sys/utsname.h>
+#include <unistd.h>
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 
 #if TIME_WITH_SYS_TIME
-# include <sys/time.h>
-# include <time.h>
+#include <sys/time.h>
+#include <time.h>
 #else
-# if HAVE_SYS_TIME_H
-#  include <sys/time.h>
-# else
-#  include <time.h>
-# endif
+#if HAVE_SYS_TIME_H
+#include <sys/time.h>
+#else
+#include <time.h>
+#endif
 #endif
 
 #ifdef HAVE_GETLOADAVG
-# define USE_GETLOADAVG
+#define USE_GETLOADAVG
 #endif
 
 #ifdef USE_GETLOADAVG
-# ifdef HAVE_SYS_LOADAVG_H
-#  include <sys/loadavg.h>
-# endif
+#ifdef HAVE_SYS_LOADAVG_H
+#include <sys/loadavg.h>
+#endif
 #endif
 
 #ifdef HAVE_PROCFS_H
-# include <procfs.h>
+#include <procfs.h>
 #endif
 
 #ifdef HAVE_SYS_PROCFS_H
-# include <sys/procfs.h>
+#include <sys/procfs.h>
 #endif
 
+#include "machine.h"
 #include "main.h"
 #include "mode.h"
-#include "machine.h"
 #include "shared/LL.h"
 #include "shared/report.h"
-
 
 static int batt_fd;
 static int load_fd;
@@ -72,13 +71,11 @@ static int loadavg_fd;
 static int meminfo_fd;
 static int uptime_fd;
 
-static char procbuf[1024];	/* TODO ugly hack! */
+static char procbuf[1024]; /* TODO ugly hack! */
 
 static FILE *mtab_fd;
 
-
-int
-machine_init(void)
+int machine_init(void)
 {
 	uptime_fd = -1;
 	batt_fd = -1;
@@ -131,8 +128,7 @@ machine_init(void)
 	return (TRUE);
 }
 
-int
-machine_close(void)
+int machine_close(void)
 {
 	if (batt_fd >= 0)
 		close(batt_fd);
@@ -159,8 +155,7 @@ machine_close(void)
 	return (TRUE);
 }
 
-static void
-reread(int f, char *errmsg)
+static void reread(int f, char *errmsg)
 {
 	if (lseek(f, 0L, 0) == 0 && read(f, procbuf, sizeof(procbuf) - 1) > 0)
 		return;
@@ -168,8 +163,7 @@ reread(int f, char *errmsg)
 	exit(1);
 }
 
-static int
-getentry(const char *tag, const char *bufptr, long *value)
+static int getentry(const char *tag, const char *bufptr, long *value)
 {
 	char *tail;
 	int len = strlen(tag);
@@ -184,8 +178,7 @@ getentry(const char *tag, const char *bufptr, long *value)
 			if ((errno == 0) && (tail != bufptr + len)) {
 				*value = val;
 				return TRUE;
-			}
-			else
+			} else
 				return FALSE;
 		}
 		bufptr = strchr(bufptr, '\n');
@@ -193,8 +186,7 @@ getentry(const char *tag, const char *bufptr, long *value)
 	return FALSE;
 }
 
-int
-machine_get_battstat(int *acstat, int *battflag, int *percent)
+int machine_get_battstat(int *acstat, int *battflag, int *percent)
 {
 	char str[64];
 	int battstat;
@@ -232,16 +224,16 @@ machine_get_battstat(int *acstat, int *battflag, int *percent)
 	}
 
 	switch (*acstat) {
-	    case 0:
+	case 0:
 		*acstat = LCDP_AC_OFF;
 		break;
-	    case 1:
+	case 1:
 		*acstat = LCDP_AC_ON;
 		break;
-	    case 2:
+	case 2:
 		*acstat = LCDP_AC_BACKUP;
 		break;
-	    default:
+	default:
 		*acstat = LCDP_AC_UNKNOWN;
 		break;
 	}
@@ -249,8 +241,7 @@ machine_get_battstat(int *acstat, int *battflag, int *percent)
 	return (TRUE);
 }
 
-int
-machine_get_fs(mounts_type fs[], int *cnt)
+int machine_get_fs(mounts_type fs[], int *cnt)
 {
 #ifdef STAT_STATVFS
 	struct statvfs fsinfo;
@@ -275,15 +266,14 @@ machine_get_fs(mounts_type fs[], int *cnt)
 
 		sscanf(line, "%s %s %s", fs[x].dev, fs[x].mpoint, fs[x].type);
 
-		if (strcmp(fs[x].type, "proc")
-		    && strcmp(fs[x].type, "tmpfs")
+		if (strcmp(fs[x].type, "proc") && strcmp(fs[x].type, "tmpfs")
 #ifndef STAT_NFS
 		    && strcmp(fs[x].type, "nfs")
 #endif
 #ifndef STAT_SMBFS
 		    && strcmp(fs[x].type, "smbfs")
 #endif
-			) {
+		) {
 #ifdef STAT_STATVFS
 			err = statvfs(fs[x].mpoint, &fsinfo);
 #elif STAT_STATFS2_BSIZE
@@ -314,8 +304,7 @@ machine_get_fs(mounts_type fs[], int *cnt)
 	return (TRUE);
 }
 
-int
-machine_get_load(load_type * curr_load)
+int machine_get_load(load_type *curr_load)
 {
 	static load_type last_load = {0, 0, 0, 0, 0};
 	load_type load;
@@ -324,9 +313,15 @@ machine_get_load(load_type * curr_load)
 
 	reread(load_fd, "get_load");
 
-	ret = sscanf(procbuf, "cpu %lu %lu %lu %lu %lu %lu %lu",
-		     &load.user, &load.nice, &load.system, &load.idle,
-		     &load_iowait, &load_irq, &load_softirq);
+	ret = sscanf(procbuf,
+		     "cpu %lu %lu %lu %lu %lu %lu %lu",
+		     &load.user,
+		     &load.nice,
+		     &load.system,
+		     &load.idle,
+		     &load_iowait,
+		     &load_irq,
+		     &load_softirq);
 
 	if (ret >= 5)
 		load.idle += load_iowait;
@@ -349,14 +344,13 @@ machine_get_load(load_type * curr_load)
 	return (TRUE);
 }
 
-int
-machine_get_loadavg(double *load)
+int machine_get_loadavg(double *load)
 {
 #ifdef USE_GETLOADAVG
 	double loadavg[LOADAVG_NSTATS];
 
 	if (getloadavg(loadavg, LOADAVG_NSTATS) <= LOADAVG_1MIN) {
-		perror("getloadavg");	/* ToDo: correct error reporting */
+		perror("getloadavg"); /* ToDo: correct error reporting */
 		return (FALSE);
 	}
 	*load = loadavg[LOADAVG_1MIN];
@@ -367,8 +361,7 @@ machine_get_loadavg(double *load)
 	return (TRUE);
 }
 
-int
-machine_get_meminfo(meminfo_type * result)
+int machine_get_meminfo(meminfo_type *result)
 {
 	long tmp;
 
@@ -384,8 +377,7 @@ machine_get_meminfo(meminfo_type * result)
 	return (TRUE);
 }
 
-int
-machine_get_procs(LinkedList * procs)
+int machine_get_procs(LinkedList *procs)
 {
 	/* Much of this code was ripped from "gmemusage" */
 	DIR *proc;
@@ -394,20 +386,11 @@ machine_get_procs(LinkedList * procs)
 
 	char procName[16];
 	int procSize, procRSS, procData, procStk, procExe;
-	const char
-			*NameLine = "Name:",
-			*VmSizeLine = "VmSize:",
-			*VmRSSLine = "VmRSS",
-			*VmDataLine = "VmData",
-			*VmStkLine = "VmStk",
-			*VmExeLine = "VmExe";
-	const int
-			NameLineLen = strlen(NameLine),
-			VmSizeLineLen = strlen(VmSizeLine),
-			VmDataLineLen = strlen(VmDataLine),
-			VmStkLineLen = strlen(VmStkLine),
-			VmExeLineLen = strlen(VmExeLine),
-			VmRSSLineLen = strlen(VmRSSLine);
+	const char *NameLine = "Name:", *VmSizeLine = "VmSize:", *VmRSSLine = "VmRSS",
+		   *VmDataLine = "VmData", *VmStkLine = "VmStk", *VmExeLine = "VmExe";
+	const int NameLineLen = strlen(NameLine), VmSizeLineLen = strlen(VmSizeLine),
+		  VmDataLineLen = strlen(VmDataLine), VmStkLineLen = strlen(VmStkLine),
+		  VmExeLineLen = strlen(VmExeLine), VmRSSLineLen = strlen(VmRSSLine);
 	int threshold = 400, unique;
 
 	if ((proc = opendir("/proc")) == NULL) {
@@ -437,24 +420,19 @@ machine_get_procs(LinkedList * procs)
 			if (!strncmp(buf, NameLine, NameLineLen)) {
 				/* Name: procName */
 				sscanf(buf, "%*s %s", procName);
-			}
-			else if (!strncmp(buf, VmSizeLine, VmSizeLineLen)) {
+			} else if (!strncmp(buf, VmSizeLine, VmSizeLineLen)) {
 				/* VmSize: procSize kB */
 				sscanf(buf, "%*s %d", &procSize);
-			}
-			else if (!strncmp(buf, VmRSSLine, VmRSSLineLen)) {
+			} else if (!strncmp(buf, VmRSSLine, VmRSSLineLen)) {
 				/* VmRSS: procRSS kB */
 				sscanf(buf, "%*s %d", &procRSS);
-			}
-			else if (!strncmp(buf, VmDataLine, VmDataLineLen)) {
+			} else if (!strncmp(buf, VmDataLine, VmDataLineLen)) {
 				/* VmData: procData kB */
 				sscanf(buf, "%*s %d", &procData);
-			}
-			else if (!strncmp(buf, VmStkLine, VmStkLineLen)) {
+			} else if (!strncmp(buf, VmStkLine, VmStkLineLen)) {
 				/* VmStk: procStk kB */
 				sscanf(buf, "%*s %d", &procStk);
-			}
-			else if (!strncmp(buf, VmExeLine, VmExeLineLen)) {
+			} else if (!strncmp(buf, VmExeLine, VmExeLineLen)) {
 				/* VmExe: procExe kB */
 				sscanf(buf, "%*s %d", &procExe);
 			}
@@ -495,8 +473,7 @@ machine_get_procs(LinkedList * procs)
 	return (TRUE);
 }
 
-int
-machine_get_smpload(load_type * result, int *numcpus)
+int machine_get_smpload(load_type *result, int *numcpus)
 {
 	char *token;
 	static load_type last_load[MAX_CPUS];
@@ -511,9 +488,15 @@ machine_get_smpload(load_type * result, int *numcpus)
 	token = strtok(procbuf, "\n");
 	while (token != NULL) {
 		if ((strlen(token) > 3) && (!strncmp(token, "cpu", 3)) && isdigit(token[3])) {
-			ret = sscanf(token, "cpu%*d %lu %lu %lu %lu %lu %lu %lu",
-				     &curr_load[ncpu].user, &curr_load[ncpu].nice, &curr_load[ncpu].system,
-				     &curr_load[ncpu].idle, &load_iowait, &load_irq, &load_softirq);
+			ret = sscanf(token,
+				     "cpu%*d %lu %lu %lu %lu %lu %lu %lu",
+				     &curr_load[ncpu].user,
+				     &curr_load[ncpu].nice,
+				     &curr_load[ncpu].system,
+				     &curr_load[ncpu].idle,
+				     &load_iowait,
+				     &load_irq,
+				     &load_softirq);
 
 			if (ret >= 5)
 				curr_load[ncpu].idle += load_iowait;
@@ -523,7 +506,7 @@ machine_get_smpload(load_type * result, int *numcpus)
 				curr_load[ncpu].system += load_softirq;
 
 			curr_load[ncpu].total = curr_load[ncpu].user + curr_load[ncpu].nice +
-				curr_load[ncpu].system + curr_load[ncpu].idle;
+						curr_load[ncpu].system + curr_load[ncpu].idle;
 
 			result[ncpu].total = curr_load[ncpu].total - last_load[ncpu].total;
 			result[ncpu].user = curr_load[ncpu].user - last_load[ncpu].user;
@@ -546,8 +529,7 @@ machine_get_smpload(load_type * result, int *numcpus)
 	return (TRUE);
 }
 
-int
-machine_get_uptime(double *up, double *idle)
+int machine_get_uptime(double *up, double *idle)
 {
 	double local_up, local_idle;
 
@@ -556,23 +538,19 @@ machine_get_uptime(double *up, double *idle)
 	if (up != NULL)
 		*up = local_up;
 	if (idle != NULL)
-		*idle = (local_up != 0)
-			? 100 * local_idle / local_up
-			: 100;
+		*idle = (local_up != 0) ? 100 * local_idle / local_up : 100;
 
 	return (TRUE);
 }
 
-
-int
-machine_get_iface_stats(IfaceInfo * interface)
+int machine_get_iface_stats(IfaceInfo *interface)
 {
-	FILE *file;		/* file handler */
-	char buffer[1024];	/* buffer to work with the file */
-	static int first_time = 1;	/* is it first time we call this
-					 * function? */
-	char *ch_pointer = NULL;/* pointer to where interface values are in
-				 * file */
+	FILE *file;		   /* file handler */
+	char buffer[1024];	   /* buffer to work with the file */
+	static int first_time = 1; /* is it first time we call this
+				    * function? */
+	char *ch_pointer = NULL;   /* pointer to where interface values are in
+				    * file */
 
 	/* Open the file in read-only mode and parse */
 	if ((file = fopen("/proc/net/dev", "r")) != NULL) {
@@ -587,8 +565,8 @@ machine_get_iface_stats(IfaceInfo * interface)
 		while ((fgets(buffer, sizeof(buffer), file) != NULL)) {
 			if (strstr(buffer, interface->name)) {
 				/* interface exists */
-				interface->status = up;	/* is up */
-				interface->last_online = time(NULL);	/* save actual time */
+				interface->status = up;		     /* is up */
+				interface->last_online = time(NULL); /* save actual time */
 
 				/* search ':' and skip over it */
 				ch_pointer = strchr(buffer, ':');
@@ -599,7 +577,8 @@ machine_get_iface_stats(IfaceInfo * interface)
 				 * iface_name
 				 */
 				/* Scan values from here */
-				sscanf(ch_pointer, "%lf %lf %*s %*s %*s %*s %*s %*s %lf %lf",
+				sscanf(ch_pointer,
+				       "%lf %lf %*s %*s %*s %*s %*s %*s %lf %lf",
 				       &interface->rc_byte,
 				       &interface->rc_pkt,
 				       &interface->tr_byte,
@@ -616,7 +595,7 @@ machine_get_iface_stats(IfaceInfo * interface)
 					interface->tr_byte_old = interface->tr_byte;
 					interface->rc_pkt_old = interface->rc_pkt;
 					interface->tr_pkt_old = interface->tr_pkt;
-					first_time = 0;	/* now it isn't first
+					first_time = 0; /* now it isn't first
 							 * time */
 				}
 			}
@@ -624,8 +603,7 @@ machine_get_iface_stats(IfaceInfo * interface)
 
 		fclose(file);
 		return (TRUE);
-	}
-	else {			/* error when opening the file */
+	} else { /* error when opening the file */
 		perror("Error: Could not open DEVFILE");
 		return (FALSE);
 	}

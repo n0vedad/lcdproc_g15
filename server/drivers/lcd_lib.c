@@ -8,7 +8,7 @@
 #include "lcd.h"
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 
 /**
@@ -19,29 +19,27 @@
  * LCDs that have the custom chars at other char numbers than 0 should put the
  * first custom char number in cc_offset.
  */
-void
-lib_hbar_static (Driver *drvthis, int x, int y, int len, int promille, int options, int cellwidth, int cc_offset)
+void lib_hbar_static(
+    Driver *drvthis, int x, int y, int len, int promille, int options, int cellwidth, int cc_offset)
 {
-	int total_pixels  = ((long) 2 * len * cellwidth + 1 ) * promille / 2000;
+	int total_pixels = ((long)2 * len * cellwidth + 1) * promille / 2000;
 	int pos;
 
-	for (pos = 0; pos < len; pos ++ ) {
+	for (pos = 0; pos < len; pos++) {
 
 		int pixels = total_pixels - cellwidth * pos;
 
-		if ( pixels >= cellwidth ) {
+		if (pixels >= cellwidth) {
 			/* write a "full" block to the screen... */
-			if ( options & BAR_SEAMLESS )
-				drvthis->chr (drvthis, x+pos, y, cellwidth + cc_offset);
+			if (options & BAR_SEAMLESS)
+				drvthis->chr(drvthis, x + pos, y, cellwidth + cc_offset);
 			else
-				drvthis->icon (drvthis, x+pos, y, ICON_BLOCK_FILLED);
-		}
-		else if ( pixels > 0 ) {
+				drvthis->icon(drvthis, x + pos, y, ICON_BLOCK_FILLED);
+		} else if (pixels > 0) {
 			/* write a partial block... */
-			drvthis->chr (drvthis, x+pos, y, pixels + cc_offset);
+			drvthis->chr(drvthis, x + pos, y, pixels + cc_offset);
 			break;
-		}
-		else {
+		} else {
 			; /* write nothing (not even a space) */
 		}
 	}
@@ -55,26 +53,30 @@ lib_hbar_static (Driver *drvthis, int x, int y, int len, int promille, int optio
  * LCDs that have the custom chars at other char numbers than 0 should put the
  * first custom char number in cc_offset.
  */
-void
-lib_vbar_static (Driver *drvthis, int x, int y, int len, int promille, int options, int cellheight, int cc_offset)
+void lib_vbar_static(Driver *drvthis,
+		     int x,
+		     int y,
+		     int len,
+		     int promille,
+		     int options,
+		     int cellheight,
+		     int cc_offset)
 {
-	int total_pixels = ((long) 2 * len * cellheight + 1 ) * promille / 2000;
+	int total_pixels = ((long)2 * len * cellheight + 1) * promille / 2000;
 	int pos;
 
-	for (pos = 0; pos < len; pos ++ ) {
+	for (pos = 0; pos < len; pos++) {
 
 		int pixels = total_pixels - cellheight * pos;
 
-		if ( pixels >= cellheight ) {
+		if (pixels >= cellheight) {
 			/* write a "full" block to the screen... */
-			drvthis->icon (drvthis, x, y-pos, ICON_BLOCK_FILLED);
-		}
-		else if ( pixels > 0 ) {
+			drvthis->icon(drvthis, x, y - pos, ICON_BLOCK_FILLED);
+		} else if (pixels > 0) {
 			/* write a partial block... */
-			drvthis->chr (drvthis, x, y-pos, pixels + cc_offset);
+			drvthis->chr(drvthis, x, y - pos, pixels + cc_offset);
 			break;
-		}
-		else {
+		} else {
 			; /* write nothing (not even a space) */
 		}
 	}

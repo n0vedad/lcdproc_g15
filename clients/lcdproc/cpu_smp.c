@@ -27,20 +27,19 @@
  * Refer to the COPYING file distributed with this package.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <ctype.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "shared/sockets.h"
 
+#include "cpu_smp.h"
+#include "machine.h"
 #include "main.h"
 #include "mode.h"
-#include "machine.h"
-#include "cpu_smp.h"
-
 
 /**
  * CPU screen shows info about percentage of the CPU being used
@@ -50,13 +49,12 @@
  * \param flags_ptr  Mode flags
  * \return  Always 0
  */
-int
-cpu_smp_screen (int rep, int display, int *flags_ptr)
+int cpu_smp_screen(int rep, int display, int *flags_ptr)
 {
 #undef CPU_BUF_SIZE
 #define CPU_BUF_SIZE 4
 	int z;
-	static float cpu[MAX_CPUS][CPU_BUF_SIZE + 1];	/* last buffer is scratch */
+	static float cpu[MAX_CPUS][CPU_BUF_SIZE + 1]; /* last buffer is scratch */
 	load_type load[MAX_CPUS];
 	int num_cpus = MAX_CPUS;
 	int bar_size;
@@ -82,8 +80,7 @@ cpu_smp_screen (int rep, int display, int *flags_ptr)
 		if (lines_used < lcd_hgt) {
 			sock_send_string(sock, "widget_add P title title\n");
 			sock_printf(sock, "widget_set P title {SMP CPU%s}\n", get_hostname());
-		}
-		else {
+		} else {
 			sock_send_string(sock, "screen_set P -heartbeat off\n");
 		}
 
@@ -91,12 +88,18 @@ cpu_smp_screen (int rep, int display, int *flags_ptr)
 
 		for (z = 0; z < num_cpus; z++) {
 			int y_offs = (lines_used < lcd_hgt) ? 2 : 1;
-			int x = (num_cpus > lcd_hgt) ? ((z % 2) * (lcd_wid/2) + 1) : 1;
-			int y = (num_cpus > lcd_hgt) ? (z/2 + y_offs) : (z + y_offs);
+			int x = (num_cpus > lcd_hgt) ? ((z % 2) * (lcd_wid / 2) + 1) : 1;
+			int y = (num_cpus > lcd_hgt) ? (z / 2 + y_offs) : (z + y_offs);
 
 			sock_printf(sock, "widget_add P cpu%d_title string\n", z);
-			sock_printf(sock, "widget_set P cpu%d_title %d %d \"CPU%d[%*s]\"\n",
-					z, x, y, z, bar_size, "");
+			sock_printf(sock,
+				    "widget_set P cpu%d_title %d %d \"CPU%d[%*s]\"\n",
+				    z,
+				    x,
+				    y,
+				    z,
+				    bar_size,
+				    "");
 			sock_printf(sock, "widget_add P cpu%d_bar hbar\n", z);
 		}
 
@@ -105,8 +108,8 @@ cpu_smp_screen (int rep, int display, int *flags_ptr)
 
 	for (z = 0; z < num_cpus; z++) {
 		int y_offs = (lines_used < lcd_hgt) ? 2 : 1;
-		int x = (num_cpus > lcd_hgt) ? ((z % 2) * (lcd_wid/2) + 6) : 6;
-		int y = (num_cpus > lcd_hgt) ? (z/2 + y_offs) : (z + y_offs);
+		int x = (num_cpus > lcd_hgt) ? ((z % 2) * (lcd_wid / 2) + 6) : 6;
+		int y = (num_cpus > lcd_hgt) ? (z / 2 + y_offs) : (z + y_offs);
 		float value = 0.0;
 		int i, n;
 
@@ -115,9 +118,12 @@ cpu_smp_screen (int rep, int display, int *flags_ptr)
 			cpu[z][i] = cpu[z][i + 1];
 
 		/* Read new data */
-		cpu[z][CPU_BUF_SIZE-1] = (load[z].total > 0L)
-				    ? (((float) load[z].user + (float) load[z].system + (float) load[z].nice) / (float) load[z].total) * 100.0
-				    : 0.0;
+		cpu[z][CPU_BUF_SIZE - 1] =
+		    (load[z].total > 0L)
+			? (((float)load[z].user + (float)load[z].system + (float)load[z].nice) /
+			   (float)load[z].total) *
+			      100.0
+			: 0.0;
 
 		/* Average values for final result */
 		for (i = 0; i < CPU_BUF_SIZE; i++) {
@@ -125,7 +131,7 @@ cpu_smp_screen (int rep, int display, int *flags_ptr)
 		}
 		value /= CPU_BUF_SIZE;
 
-		n = (int) ((value * lcd_cellwid * bar_size) / 100.0 + 0.5);
+		n = (int)((value * lcd_cellwid * bar_size) / 100.0 + 0.5);
 		sock_printf(sock, "widget_set P cpu%d_bar %d %d %d\n", z, x, y, n);
 	}
 

@@ -42,8 +42,7 @@ int config_read_string(const char *sectionname, const char *str);
  * key. Should be 0 to get the first one, 1 for the second etc. and -1 for the
  * last.
  */
-short config_get_bool(const char *sectionname, const char *keyname,
-		int skip, short default_value);
+short config_get_bool(const char *sectionname, const char *keyname, int skip, short default_value);
 
 /* Tries to interpret a value in the config file as a boolean.
  * 0, false, off, no, n = 0
@@ -55,16 +54,19 @@ short config_get_bool(const char *sectionname, const char *keyname,
  * key. Should be 0 to get the first one, 1 for the second etc. and -1 for the
  * last.
  */
-short config_get_tristate(const char *sectionname, const char *keyname,
-		int skip, const char *name3rd, short default_value);
+short config_get_tristate(const char *sectionname,
+			  const char *keyname,
+			  int skip,
+			  const char *name3rd,
+			  short default_value);
 
 /* Tries to interpret a value in the config file as an integer.*/
-long int config_get_int(const char *sectionname, const char *keyname,
-		int skip, long int default_value);
+long int
+config_get_int(const char *sectionname, const char *keyname, int skip, long int default_value);
 
 /* Tries to interpret a value in the config file as a float.*/
-double config_get_float(const char *sectionname, const char *keyname,
-		int skip, double default_value);
+double
+config_get_float(const char *sectionname, const char *keyname, int skip, double default_value);
 
 /* Returns a pointer to the string associated with the specified key.
  * The strings returned are always NUL-terminated.
@@ -86,8 +88,10 @@ double config_get_float(const char *sectionname, const char *keyname,
  *    if( device == NULL ) return -5; // or whatever < 0
  *    strcpy( device, s );
  */
-const char *config_get_string(const char *sectionname, const char *keyname,
-		int skip, const char *default_value);
+const char *config_get_string(const char *sectionname,
+			      const char *keyname,
+			      int skip,
+			      const char *default_value);
 
 /* Checks if a specified section exists.
  * Returns whether it exists.

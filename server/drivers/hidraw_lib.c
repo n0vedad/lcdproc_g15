@@ -4,10 +4,10 @@
  *
  * Copyright (C) 2017 Hans de Goede <hdegoede@redhat.com>
  * Copyright (C) 2025 n0vedad <https://github.com/n0vedad/>
- * 
+ *
  * 2025-08-21 RGB backlights support
  */
- 
+
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -28,8 +28,7 @@ struct lib_hidraw_handle {
 	int fd;
 };
 
-static int lib_hidraw_open_device(const char *device,
-				  const struct lib_hidraw_id *ids)
+static int lib_hidraw_open_device(const char *device, const struct lib_hidraw_id *ids)
 {
 	struct hidraw_report_descriptor descriptor;
 	struct hidraw_devinfo devinfo;
@@ -58,8 +57,8 @@ static int lib_hidraw_open_device(const char *device,
 
 		if (ids[i].descriptor_header[0] == 0 ||
 		    (descriptor.size >= LIB_HIDRAW_DESC_HDR_SZ &&
-		     memcmp(descriptor.value, ids[i].descriptor_header,
-			    LIB_HIDRAW_DESC_HDR_SZ) == 0))
+		     memcmp(descriptor.value, ids[i].descriptor_header, LIB_HIDRAW_DESC_HDR_SZ) ==
+			 0))
 			break; /* Found it */
 	}
 	if (!ids[i].devinfo.bustype) {
@@ -82,8 +81,7 @@ static int lib_hidraw_find_device(const struct lib_hidraw_id *ids)
 		return -1;
 
 	while ((dirent = readdir(dir)) != NULL) {
-		if (dirent->d_type != DT_CHR ||
-		    strncmp(dirent->d_name, "hidraw", 6))
+		if (dirent->d_type != DT_CHR || strncmp(dirent->d_name, "hidraw", 6))
 			continue;
 
 		strcpy(devname, "/dev/");
@@ -119,8 +117,7 @@ struct lib_hidraw_handle *lib_hidraw_open(const struct lib_hidraw_id *ids)
 	return handle;
 }
 
-void lib_hidraw_send_output_report(struct lib_hidraw_handle *handle,
-				   unsigned char *data, int count)
+void lib_hidraw_send_output_report(struct lib_hidraw_handle *handle, unsigned char *data, int count)
 {
 	int result;
 
@@ -151,8 +148,7 @@ void lib_hidraw_send_output_report(struct lib_hidraw_handle *handle,
 	}
 }
 
-int lib_hidraw_send_feature_report(struct lib_hidraw_handle *handle,
-				   unsigned char *data, int count)
+int lib_hidraw_send_feature_report(struct lib_hidraw_handle *handle, unsigned char *data, int count)
 {
 	int result = -1;
 
