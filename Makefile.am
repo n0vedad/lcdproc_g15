@@ -24,9 +24,11 @@ distclean-local:
 
 .PHONY: $(SUBDIRS) install-server install-clients format format-check
 
-# Auto-format before build
-all-local: format
-	@echo "Code formatted before build"
+# Auto-format before build (only if pre-commit hook is installed)
+all-local:
+	@if [ -f .git/hooks/pre-commit ]; then \
+		$(MAKE) format && echo "Code formatted before build"; \
+	fi
 
 $(SUBDIRS):
 	$(MAKE) -C $@
@@ -42,11 +44,24 @@ install-clients: clients
 ## Code formatting targets
 format:
 	@echo "Formatting C code with clang-format..."
-	@find . -name "*.c" -o -name "*.h" | grep -v -E "autom4te.cache|config\.h|\.deps" | xargs clang-format -i
+	@if command -v clang-format >/dev/null 2>&1; then \
+		find . -name "*.c" -o -name "*.h" | grep -v -E "autom4te.cache|config\.h|\.deps|pkg/" | xargs clang-format -i; \
+	else \
+		echo "clang-format not available"; \
+	fi
 	@echo "Formatting Markdown/JSON/Shell with prettier..."
-	@npx prettier --write "**/*.{md,json,sh}" || echo "prettier not available"
+	@if [ -f package-lock.json ] && command -v npx >/dev/null 2>&1; then \
+		npx prettier --write "**/*.{md,json,sh}" 2>/dev/null || echo "prettier not available"; \
+	else \
+		echo "prettier not available"; \
+	fi
 
 format-check:
+	@if [ ! -f .git/hooks/pre-commit ]; then \
+		echo "❌ Code formatting is not enabled"; \
+		echo "💡 Enable with: ./setup-hooks.sh install"; \
+		exit 1; \
+	fi
 	@echo "Checking C code formatting..."
 	@if find . -name "*.c" -o -name "*.h" | grep -v -E "autom4te.cache|config\.h|\.deps" | xargs clang-format --dry-run --Werror >/dev/null 2>&1; then \
 		echo "✅ C code properly formatted"; \
@@ -54,7 +69,7 @@ format-check:
 		echo "❌ C formatting issues found - run 'make format' to fix"; \
 	fi
 	@echo "Checking Markdown/JSON/Shell formatting..."
-	@if npx prettier --check "**/*.{md,json,sh}" >/dev/null 2>&1; then \
+	@if [ -f package-lock.json ] && npx prettier --check "**/*.{md,json,sh}" >/dev/null 2>&1; then \
 		echo "✅ Prettier files properly formatted"; \
 	else \
 		echo "❌ Some files need formatting - run 'make format'"; \

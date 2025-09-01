@@ -2,7 +2,7 @@
 # Based on original LCDproc by various contributors
 
 pkgname=lcdproc-g15
-pkgver=0.0.2
+pkgver=0.0.3
 pkgrel=1
 pkgdesc="LCDproc optimized for G15 keyboards - display driver for LCD devices"
 arch=('x86_64')
