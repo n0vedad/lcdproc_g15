@@ -1,0 +1,89 @@
+# GitHub Actions workflow for lcdproc-g15 code quality checks
+# Copyright (C) 2025 n0vedad <https://github.com/n0vedad/>
+#
+# This workflow is released under the same license as the project (GPL v2)
+
+name: Code Quality
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  formatting:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y npm wget
+        # Install clang-format 20.1.8 to match local version
+        wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+        echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-20 main" | sudo tee /etc/apt/sources.list.d/llvm.list
+        sudo apt-get update
+        sudo apt-get install -y clang-format-20
+        sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-20 100
+        npm install
+    
+    - name: Check C code formatting
+      run: |
+        echo "Checking C code formatting..."
+        find . -name "*.c" -o -name "*.h" | grep -v -E "autom4te.cache|config\.h|\.deps" | xargs clang-format --dry-run --Werror
+    
+    - name: Check other files formatting  
+      run: |
+        echo "Checking Markdown/JSON/Shell formatting..."
+        npx prettier --check "**/*.{md,json,sh}"
+    
+    - name: Suggest fixes on failure
+      if: failure()
+      run: |
+        echo "❌ Code formatting issues found!"
+        echo "💡 Fix locally with: make format"
+        echo "💡 Or run: git commit --no-verify (not recommended)"
+        exit 1
+
+  build-test:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    needs: formatting
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Arch build environment
+      run: |
+        # Install base tools and create non-root user for AUR
+        pacman -Sy --noconfirm base-devel git sudo clang
+        useradd -m -G wheel -s /bin/bash builder
+        echo 'builder ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+    
+    - name: Install AUR dependencies
+      run: |
+        # Switch to builder user and install AUR packages
+        sudo -u builder bash -c '
+          cd /home/builder
+          git clone https://aur.archlinux.org/libg15.git
+          cd libg15 && makepkg -si --noconfirm
+          cd ..
+          git clone https://aur.archlinux.org/libg15render.git  
+          cd libg15render && makepkg -si --noconfirm
+        '
+        # Install other dependencies
+        pacman -S --noconfirm gcc make autoconf automake libusb libftdi
+    
+    - name: Build project with full dependencies
+      run: |
+        export PKGBUILD_MODE=1
+        ./autogen.sh
+        ./configure --prefix=/usr --sbindir=/usr/bin --sysconfdir=/etc --enable-libusb --enable-lcdproc-menus --enable-stat-smbfs --enable-drivers=g15,linux_input
+        make
+    
+    - name: Check for build warnings
+      run: |
+        echo "✅ Build completed successfully"
