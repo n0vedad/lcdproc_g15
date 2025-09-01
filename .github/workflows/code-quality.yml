@@ -21,18 +21,22 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y npm wget
-        # Install clang-format 20.1.8 to match local version
-        wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+        sudo apt-get install -y npm wget gpg
+        # Add LLVM repository for clang-format-20
+        wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
         echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-20 main" | sudo tee /etc/apt/sources.list.d/llvm.list
         sudo apt-get update
+        # Install clang-format-20 directly
         sudo apt-get install -y clang-format-20
-        sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-20 100
+        # Make clang-format-20 the default
+        sudo ln -sf /usr/bin/clang-format-20 /usr/bin/clang-format
         npm install
     
     - name: Check C code formatting
       run: |
         echo "Checking C code formatting..."
+        echo "clang-format version:"
+        clang-format --version
         find . -name "*.c" -o -name "*.h" | grep -v -E "autom4te.cache|config\.h|\.deps" | xargs clang-format --dry-run --Werror
     
     - name: Check other files formatting  
@@ -87,3 +91,4 @@ jobs:
     - name: Check for build warnings
       run: |
         echo "✅ Build completed successfully"
+        
