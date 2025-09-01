@@ -17,5 +17,8 @@ AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
 AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: false
 BinPackParameters: false
 BinPackArguments: false
+# Force comments to separate lines, not at end of code lines
+CommentPragmas: '^$'
