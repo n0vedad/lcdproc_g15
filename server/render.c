@@ -248,8 +248,9 @@ static void render_frame(LinkedList *list,
 
 			debug(RPT_DEBUG, "%s: fy=%d", __FUNCTION__, fy);
 		}
-	} else if (fscroll == 'h') { /* horizontal scrolling */
-				     /* TODO:  Frames don't scroll horizontally yet! */
+	} else if (fscroll == 'h') {
+		/* horizontal scrolling */
+		/* TODO:  Frames don't scroll horizontally yet! */
 	}
 
 	/* reset widget list */
