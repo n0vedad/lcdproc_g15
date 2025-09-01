@@ -34,7 +34,7 @@ This fork includes an advanced G-Key macro recording and playback system with th
 
 ## Code Formatting
 
-This project supports **optioal automatic code formatting** for developers to maintain consistent code style. For more information please refer to [CODE FORMATTING](installation.md#code-formatting)
+This project supports **optioal automatic code formatting** for developers to maintain consistent code style. For more information please refer to [CODE FORMATTING](INSTALL.md#code-formatting)
 
 ## FAQ Section
 
