@@ -145,7 +145,7 @@ The usual configure commands to uses this G15-specific build:
     --enable-drivers=g15,linux_input,debug  # Build available drivers
 ```
 
-For more options like setting backlight colors and RGB methods please refer to the specific config file (lcdexec.conf, lcdproc.conf, LCDd.conf). See [RGB Backlight Configuration](#rgb-backlight-configuration-g510-only) below.
+For more options like setting backlight colors and RGB methods please refer to the specific config file (lcdexec.conf, lcdproc.conf, LCDd.conf). See [RGB Backlight Configuration](#rgb-backlight-configuration) below.
 
 But it may not do what you want, so please take a few seconds to type:
 
@@ -436,7 +436,7 @@ Edit `/etc/LCDd.conf` in the `[g15]` section and restart either your computer or
 
 ### HID Reports Implementation
 
-- Uses USB HID feature reports directly to G510 hardware zones
+- Uses USB HID feature reports directly to keyboard hardware zones
 - Writes to both RGB Zone 0 and Zone 1 for full keyboard coverage
 - Immediate effect but temporary storage in keyboard RAM
 - Compatible with original G15tools behavior
