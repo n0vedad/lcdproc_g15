@@ -31,23 +31,22 @@ typedef enum WidgetType {
 	WID_NUM
 } WidgetType;
 
-
 /** Widget structure */
 typedef struct Widget {
-	char *id;			/**< the widget's name */
-	WidgetType type;		/**< the widget's type */
-	Screen *screen;			/**< What screen is this widget in ? */
-	int x, y;			/**< Position */
-	int width, height;		/**< Visible size */
-	int left, top, right, bottom;	/**< bounding rectangle */
-	int length;			/**< size or direction */
-	int speed;			/**< For scroller... */
-	int promille;                   /**< For percentage / pbars */
-	char *text;			/**< text or binary data */
-	char *begin_label;		/**< label in front of pbars; or NULL */
-	char *end_label;		/**< label at end of pbars; or NULL */
-	struct Screen *frame_screen;	/**< frame widget get an associated screen */
-	//LinkedList *kids;		/* Frames can contain more widgets...*/
+	char *id;		      /**< the widget's name */
+	WidgetType type;	      /**< the widget's type */
+	Screen *screen;		      /**< What screen is this widget in ? */
+	int x, y;		      /**< Position */
+	int width, height;	      /**< Visible size */
+	int left, top, right, bottom; /**< bounding rectangle */
+	int length;		      /**< size or direction */
+	int speed;		      /**< For scroller... */
+	int promille;		      /**< For percentage / pbars */
+	char *text;		      /**< text or binary data */
+	char *begin_label;	      /**< label in front of pbars; or NULL */
+	char *end_label;	      /**< label at end of pbars; or NULL */
+	struct Screen *frame_screen;  /**< frame widget get an associated screen */
+				      // LinkedList *kids;		/* Frames can contain more widgets...*/
 } Widget;
 
 #define WID_MAX_DIR 4

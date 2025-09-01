@@ -10,44 +10,41 @@
  * Refer to the COPYING file distributed with this package.
  */
 
-#include <sys/types.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/utsname.h>
-#include <limits.h>
-#include <sys/param.h>
 #include <errno.h>
-
+#include <fcntl.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/utsname.h>
+#include <unistd.h>
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 
 #if TIME_WITH_SYS_TIME
-# include <sys/time.h>
-# include <time.h>
+#include <sys/time.h>
+#include <time.h>
 #else
-# if HAVE_SYS_TIME_H
-#  include <sys/time.h>
-# else
-#  include <time.h>
-# endif
+#if HAVE_SYS_TIME_H
+#include <sys/time.h>
+#else
+#include <time.h>
+#endif
 #endif
 
 #include "shared/configfile.h"
 #include "shared/sockets.h"
 
+#include "chrono.h"
+#include "machine.h"
 #include "main.h"
 #include "mode.h"
-#include "machine.h"
-#include "chrono.h"
-
 
 static char *tickTime(char *time, int heartbeat);
-
 
 /**
  * TimeDate Screen displays current time and date, uptime, OS ver...
@@ -68,8 +65,7 @@ static char *tickTime(char *time, int heartbeat);
  * \param flags_ptr  Mode flags
  * \return  Always 0
  */
-int
-time_screen(int rep, int display, int *flags_ptr)
+int time_screen(int rep, int display, int *flags_ptr)
 {
 	char now[40];
 	char today[40];
@@ -100,10 +96,12 @@ time_screen(int rep, int display, int *flags_ptr)
 			sock_send_string(sock, "widget_add T three string\n");
 
 			/* write title bar: OS name, OS version, hostname */
-			sock_printf(sock, "widget_set T title {%s %s:%s}\n",
-				get_sysname(), get_sysrelease(), get_hostname());
-		}
-		else {
+			sock_printf(sock,
+				    "widget_set T title {%s %s:%s}\n",
+				    get_sysname(),
+				    get_sysrelease(),
+				    get_hostname());
+		} else {
 			/* write title bar: hostname */
 			sock_printf(sock, "widget_set T title {TIME:%s}\n", get_hostname());
 		}
@@ -122,20 +120,25 @@ time_screen(int rep, int display, int *flags_ptr)
 	tickTime(now, heartbeat);
 
 	if (lcd_hgt >= 4) {
-		char tmp[40];	/* should be large enough */
+		char tmp[40]; /* should be large enough */
 
 		machine_get_uptime(&uptime, &idle);
 		machine_get_load(&load);
 
 		/* display the uptime... */
-		days = (int) uptime / 86400;
-		hour = ((int) uptime % 86400) / 3600;
-		min  = ((int) uptime % 3600) / 60;
-		sec  = ((int) uptime % 60);
+		days = (int)uptime / 86400;
+		hour = ((int)uptime % 86400) / 3600;
+		min = ((int)uptime % 3600) / 60;
+		sec = ((int)uptime % 60);
 
 		if (lcd_wid >= 20)
-			sprintf(tmp, "Up %3d day%s %02d:%02d:%02d",
-				days, ((days != 1) ? "s" : ""), hour, min, sec);
+			sprintf(tmp,
+				"Up %3d day%s %02d:%02d:%02d",
+				days,
+				((days != 1) ? "s" : ""),
+				hour,
+				min,
+				sec);
 		else
 			sprintf(tmp, "Up %dd %02d:%02d:%02d", days, hour, min, sec);
 
@@ -149,22 +152,22 @@ time_screen(int rep, int display, int *flags_ptr)
 			sock_printf(sock, "widget_set T two %i 3 {%s}\n", xoffs, today);
 
 		/* display the time & idle time... */
-		current_idle = (load.total > 0) ? (int)(100.0 * ((double) load.idle / (double) load.total)) : 0;
+		current_idle =
+		    (load.total > 0) ? (int)(100.0 * ((double)load.idle / (double)load.total)) : 0;
 		sprintf(tmp, "%s %3i%% idle", now, current_idle);
 		xoffs = (lcd_wid > strlen(tmp)) ? ((lcd_wid - strlen(tmp)) / 2) + 1 : 1;
 		if (display)
 			sock_printf(sock, "widget_set T three %i 4 {%s}\n", xoffs, tmp);
-	}
-	else {			/* 2 line version of the screen */
+	} else { /* 2 line version of the screen */
 		xoffs = (lcd_wid > (strlen(today) + strlen(now) + 1))
-			? ((lcd_wid - ((strlen(today) + strlen(now) + 1))) / 2) + 1 : 1;
+			    ? ((lcd_wid - ((strlen(today) + strlen(now) + 1))) / 2) + 1
+			    : 1;
 		if (display)
 			sock_printf(sock, "widget_set T one %i 2 {%s %s}\n", xoffs, today, now);
 	}
 
 	return 0;
-}				/* End time_screen() */
-
+} /* End time_screen() */
 
 /**
  * OldTime Screen displays current time and date...
@@ -192,8 +195,7 @@ time_screen(int rep, int display, int *flags_ptr)
  * \param flags_ptr  Mode flags
  * \return  Always 0
  */
-int
-clock_screen(int rep, int display, int *flags_ptr)
+int clock_screen(int rep, int display, int *flags_ptr)
 {
 	char now[40];
 	char today[40];
@@ -206,7 +208,7 @@ clock_screen(int rep, int display, int *flags_ptr)
 	struct tm *rtime;
 
 	if ((*flags_ptr & INITIALIZED) == 0) {
-		char tmp[257];	/* should be large enough for host name */
+		char tmp[257]; /* should be large enough for host name */
 
 		*flags_ptr |= INITIALIZED;
 
@@ -230,13 +232,12 @@ clock_screen(int rep, int display, int *flags_ptr)
 			sprintf(tmp, "%s", get_hostname());
 			xoffs = (lcd_wid > strlen(tmp)) ? (((lcd_wid - strlen(tmp)) / 2) + 1) : 1;
 			sock_printf(sock, "widget_set O one %i 2 {%s}\n", xoffs, tmp);
-		}
-		else {
+		} else {
 			if (showTitle) {
 				sock_send_string(sock, "widget_add O title title\n");
-				sock_printf(sock, "widget_set O title {TIME: %s}\n", get_hostname());
-			}
-			else {
+				sock_printf(
+				    sock, "widget_set O title {TIME: %s}\n", get_hostname());
+			} else {
 				sock_send_string(sock, "widget_add O two string\n");
 			}
 		}
@@ -254,7 +255,7 @@ clock_screen(int rep, int display, int *flags_ptr)
 		*now = '\0';
 	tickTime(now, heartbeat);
 
-	if (lcd_hgt >= 4) {	/* 4-line version of the screen */
+	if (lcd_hgt >= 4) { /* 4-line version of the screen */
 		xoffs = (lcd_wid > strlen(today)) ? ((lcd_wid - strlen(today)) / 2) + 1 : 1;
 		if (display)
 			sock_printf(sock, "widget_set O two %i 3 {%s}\n", xoffs, today);
@@ -262,15 +263,15 @@ clock_screen(int rep, int display, int *flags_ptr)
 		xoffs = (lcd_wid > strlen(now)) ? ((lcd_wid - strlen(now)) / 2) + 1 : 1;
 		if (display)
 			sock_printf(sock, "widget_set O three %i 4 {%s}\n", xoffs, now);
-	}
-	else {			/* 2-line version of the screen */
+	} else { /* 2-line version of the screen */
 		if (showTitle) {
 			xoffs = (lcd_wid > (strlen(today) + strlen(now) + 1))
-				? ((lcd_wid - ((strlen(today) + strlen(now) + 1))) / 2) + 1 : 1;
+				    ? ((lcd_wid - ((strlen(today) + strlen(now) + 1))) / 2) + 1
+				    : 1;
 			if (display)
-				sock_printf(sock, "widget_set O one %i 2 {%s %s}\n", xoffs, today, now);
-		}
-		else {
+				sock_printf(
+				    sock, "widget_set O one %i 2 {%s %s}\n", xoffs, today, now);
+		} else {
 			xoffs = (lcd_wid > strlen(today)) ? ((lcd_wid - strlen(today)) / 2) + 1 : 1;
 			if (display)
 				sock_printf(sock, "widget_set O one %i 1 {%s}\n", xoffs, today);
@@ -281,8 +282,7 @@ clock_screen(int rep, int display, int *flags_ptr)
 	}
 
 	return 0;
-}				/* End clock_screen() */
-
+} /* End clock_screen() */
 
 /**
  * Uptime Screen shows info about system uptime and OS version
@@ -303,14 +303,13 @@ clock_screen(int rep, int display, int *flags_ptr)
  * \param flags_ptr  Mode flags
  * \return  Always 0
  */
-int
-uptime_screen(int rep, int display, int *flags_ptr)
+int uptime_screen(int rep, int display, int *flags_ptr)
 {
 	int xoffs;
 	int days, hour, min, sec;
 	double uptime, idle;
 	static int heartbeat = 0;
-	char tmp[257];	/* should be large enough for host name */
+	char tmp[257]; /* should be large enough for host name */
 
 	if ((*flags_ptr & INITIALIZED) == 0) {
 		*flags_ptr |= INITIALIZED;
@@ -332,12 +331,14 @@ uptime_screen(int rep, int display, int *flags_ptr)
 			sprintf(tmp, "%s %s", get_sysname(), get_sysrelease());
 			xoffs = (lcd_wid > strlen(tmp)) ? (((lcd_wid - strlen(tmp)) / 2) + 1) : 1;
 			sock_printf(sock, "widget_set U three %i 4 {%s}\n", xoffs, tmp);
-		}
-		else {
+		} else {
 			sock_send_string(sock, "widget_add U one string\n");
 
-			sock_printf(sock, "widget_set U title {%s %s: %s}\n",
-					get_sysname(), get_sysrelease(), get_hostname());
+			sock_printf(sock,
+				    "widget_set U title {%s %s: %s}\n",
+				    get_sysname(),
+				    get_sysrelease(),
+				    get_hostname());
 		}
 	}
 
@@ -345,13 +346,13 @@ uptime_screen(int rep, int display, int *flags_ptr)
 	heartbeat ^= 1;
 
 	machine_get_uptime(&uptime, &idle);
-	days = (int) uptime / 86400;
-	hour = ((int) uptime % 86400) / 3600;
-	min =  ((int) uptime % 3600) / 60;
-	sec =  ((int) uptime % 60);
+	days = (int)uptime / 86400;
+	hour = ((int)uptime % 86400) / 3600;
+	min = ((int)uptime % 3600) / 60;
+	sec = ((int)uptime % 60);
 	if (lcd_wid >= 20)
-		sprintf(tmp, "%d day%s %02d:%02d:%02d",
-			days, ((days != 1) ? "s" : ""), hour, min, sec);
+		sprintf(
+		    tmp, "%d day%s %02d:%02d:%02d", days, ((days != 1) ? "s" : ""), hour, min, sec);
 	else
 		sprintf(tmp, "%dd %02d:%02d:%02d", days, hour, min, sec);
 
@@ -364,8 +365,7 @@ uptime_screen(int rep, int display, int *flags_ptr)
 	}
 
 	return 0;
-}				/* End uptime_screen() */
-
+} /* End uptime_screen() */
 
 /**
  * Big Clock Screen displays current time...
@@ -395,8 +395,7 @@ uptime_screen(int rep, int display, int *flags_ptr)
  * \param flags_ptr  Mode flags
  * \return  Always 0
  */
-int
-big_clock_screen(int rep, int display, int *flags_ptr)
+int big_clock_screen(int rep, int display, int *flags_ptr)
 {
 	time_t thetime;
 	struct tm *rtime;
@@ -441,31 +440,32 @@ big_clock_screen(int rep, int display, int *flags_ptr)
 	time(&thetime);
 	rtime = localtime(&thetime);
 
-	sprintf(fulltxt, "%02d%02d%02d",
-			((TwentyFourHour) ? rtime->tm_hour : (((rtime->tm_hour + 11) % 12) + 1)),
-			rtime->tm_min, rtime->tm_sec);
+	sprintf(fulltxt,
+		"%02d%02d%02d",
+		((TwentyFourHour) ? rtime->tm_hour : (((rtime->tm_hour + 11) % 12) + 1)),
+		rtime->tm_min,
+		rtime->tm_sec);
 
 	for (j = 0; j < digits; j++) {
 		if (fulltxt[j] != old_fulltxt[j]) {
-			sock_printf(sock, "widget_set K d%d %d %c\n", j, xoffs+pos[j], fulltxt[j]);
+			sock_printf(
+			    sock, "widget_set K d%d %d %c\n", j, xoffs + pos[j], fulltxt[j]);
 			old_fulltxt[j] = fulltxt[j];
 		}
 	}
 
-	if (heartbeat) {	/* 10 means: colon */
+	if (heartbeat) { /* 10 means: colon */
 		sock_printf(sock, "widget_set K c0 %d 10\n", xoffs + 7);
 		if (digits > 4)
 			sock_printf(sock, "widget_set K c1 %d 10\n", xoffs + 14);
-	}
-	else {			/* kludge: use illegal number to clear colon display */
+	} else { /* kludge: use illegal number to clear colon display */
 		sock_printf(sock, "widget_set K c0 %d 11\n", xoffs + 7);
 		if (digits > 4)
 			sock_printf(sock, "widget_set K c1 %d 11\n", xoffs + 14);
 	}
 
 	return 0;
-}				/* End big_clock_screen() */
-
+} /* End big_clock_screen() */
 
 /**
  * MiniClock Screen displays the current time with hours & minutes only
@@ -486,8 +486,7 @@ big_clock_screen(int rep, int display, int *flags_ptr)
  * \param flags_ptr  Mode flags
  * \return  Always 0
  */
-int
-mini_clock_screen(int rep, int display, int *flags_ptr)
+int mini_clock_screen(int rep, int display, int *flags_ptr)
 {
 	char now[40];
 	time_t thetime;
@@ -521,8 +520,7 @@ mini_clock_screen(int rep, int display, int *flags_ptr)
 	sock_printf(sock, "widget_set N one %d %d {%s}\n", xoffs, (lcd_hgt / 2), now);
 
 	return 0;
-}				/* End mini_clock_screen() */
-
+} /* End mini_clock_screen() */
 
 /** Helper function: toggle between ':' and ' ' in time strings.
  * \note The time string passed is modified directly!
@@ -530,8 +528,7 @@ mini_clock_screen(int rep, int display, int *flags_ptr)
  * \param heartbeat  Even numbers to display ':', odd to display ' '.
  * \return  Pointer to the modfied time string.
  */
-static char *
-tickTime(char *time, int heartbeat)
+static char *tickTime(char *time, int heartbeat)
 {
 	if (time != NULL) {
 		static char colon[] = {':', ' '};

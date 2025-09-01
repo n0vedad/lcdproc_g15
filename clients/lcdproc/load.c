@@ -9,23 +9,22 @@
  * Refer to the COPYING file distributed with this package.
  */
 
-#include <stdlib.h>
+#include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <fcntl.h>
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 
-#include "shared/configfile.h"
-#include "shared/sockets.h"
+#include "load.h"
+#include "machine.h"
 #include "main.h"
 #include "mode.h"
-#include "machine.h"
-#include "load.h"
-
+#include "shared/configfile.h"
+#include "shared/sockets.h"
 
 /**
  * Shows a display very similar to "xload"'s histogram.
@@ -46,8 +45,7 @@
  * \param flags_ptr  Mode flags
  * \return  The backlight state
  */
-int
-xload_screen(int rep, int display, int *flags_ptr)
+int xload_screen(int rep, int display, int *flags_ptr)
 {
 	static int gauge_hgt = 0;
 	static double loads[LCD_MAX_WIDTH];
@@ -104,27 +102,34 @@ xload_screen(int rep, int display, int *flags_ptr)
 		loadmax = max(loadmax, loads[i]);
 
 	/* poor man's ceil() */
-	loadtop = (int) loadmax;
+	loadtop = (int)loadmax;
 	if (loadtop < loadmax)
 		loadtop++;
 	loadtop = max(1, loadtop);
 
-	factor = (double) (lcd_cellhgt * gauge_hgt) / (double) loadtop;
+	factor = (double)(lcd_cellhgt * gauge_hgt) / (double)loadtop;
 
 	/* display load */
-	sock_printf(sock, "widget_set L top %i %i %i\n", lcd_wid, (lcd_hgt + 1 - gauge_hgt), loadtop);
+	sock_printf(
+	    sock, "widget_set L top %i %i %i\n", lcd_wid, (lcd_hgt + 1 - gauge_hgt), loadtop);
 
 	for (i = 0; i < lcd_wid - 1; i++) {
 		double x = loads[i] * factor;
 
-		sock_printf(sock, "widget_set L bar%i %i %i %i\n", i + 1, i + 1, lcd_hgt, (int) x);
+		sock_printf(sock, "widget_set L bar%i %i %i %i\n", i + 1, i + 1, lcd_hgt, (int)x);
 	}
 
 	/* And now the title... */
 	if (lcd_hgt > 2)
-		sock_printf(sock, "widget_set L title {LOAD %2.2f:%s}\n", loads[lcd_wid - 2], get_hostname());
+		sock_printf(sock,
+			    "widget_set L title {LOAD %2.2f:%s}\n",
+			    loads[lcd_wid - 2],
+			    get_hostname());
 	else
-		sock_printf(sock, "widget_set L title 1 1 {%s %2.2f}\n", get_hostname(), loads[lcd_wid - 2]);
+		sock_printf(sock,
+			    "widget_set L title 1 1 {%s %2.2f}\n",
+			    get_hostname(),
+			    loads[lcd_wid - 2]);
 
 	/* set return status depending on max & current load */
 	if (lowLoad < highLoad) {

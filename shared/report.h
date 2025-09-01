@@ -75,26 +75,25 @@
 #define RPT_DEST_STORE 2
 
 /** Sets reporting level and message destination. */
-int set_reporting( char *application_name, int new_level, int new_dest );
+int set_reporting(char *application_name, int new_level, int new_dest);
 
 /** Report the message to the selected destination if important enough */
-void report( const int level, const char *format, .../*args*/ );
+void report(const int level, const char *format, ... /*args*/);
 
 /**
  * The code that this function generates will not be in the executable when
  * compiled without debugging. This way memory and CPU cycles are saved.
  */
-static inline void dont_report( const int level, const char *format, .../*args*/ )
-{}
+static inline void dont_report(const int level, const char *format, ... /*args*/) {}
 
 /**
  * Consider the debug function to be exactly the same as the report function.
  * The only difference is that it is only compiled in if DEBUG is defined.
  */
 #ifdef DEBUG
-#  define debug report
+#define debug report
 #else
-#  define debug dont_report
+#define debug dont_report
 #endif
 
-#endif  /* REPORT_H */
+#endif /* REPORT_H */

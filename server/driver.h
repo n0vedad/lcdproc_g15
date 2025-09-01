@@ -15,40 +15,31 @@
 #include "drivers/lcd.h"
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 #ifdef HAVE_STDBOOL_H
-# include <stdbool.h>
+#include <stdbool.h>
 #endif
 #include "shared/defines.h"
 
-Driver *
-driver_load(const char *name, const char *filename);
+Driver *driver_load(const char *name, const char *filename);
 
-int
-driver_unload(Driver *driver);
+int driver_unload(Driver *driver);
 
-int
-driver_bind_module(Driver *driver);
+int driver_bind_module(Driver *driver);
 
-int
-driver_unbind_module(Driver *driver);
+int driver_unbind_module(Driver *driver);
 
-bool
-driver_does_output(Driver *driver);
+bool driver_does_output(Driver *driver);
 
-bool
-driver_does_input(Driver *driver);
+bool driver_does_input(Driver *driver);
 
-bool
-driver_support_multiple(Driver *driver);
+bool driver_support_multiple(Driver *driver);
 
-bool
-driver_stay_in_foreground(Driver *driver);
+bool driver_stay_in_foreground(Driver *driver);
 
-void
-driver_pbar(Driver *drv, int x, int y, int width, int promille, char *begin_label, char *end_label);
-
+void driver_pbar(
+    Driver *drv, int x, int y, int width, int promille, char *begin_label, char *end_label);
 
 /* Alternative functions for all extended functions */
 

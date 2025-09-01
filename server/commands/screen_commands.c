@@ -17,19 +17,19 @@
  *               2002, Joris Robijn
  */
 
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <ctype.h>
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "shared/report.h"
 #include "shared/sockets.h"
 
 #include "client.h"
-#include "screen.h"
 #include "render.h"
+#include "screen.h"
 #include "screen_commands.h"
 
 /**
@@ -39,8 +39,7 @@
  * Usage: screen_add <id>
  *\endverbatim
  */
-int
-screen_add_func(Client *c, int argc, char **argv)
+int screen_add_func(Client *c, int argc, char **argv)
 {
 	int err = 0;
 	Screen *s;
@@ -85,8 +84,7 @@ screen_add_func(Client *c, int argc, char **argv)
  * Usage: screen_del <screenid>
  *\endverbatim
  */
-int
-screen_del_func(Client *c, int argc, char **argv)
+int screen_del_func(Client *c, int argc, char **argv)
 {
 	int err = 0;
 	Screen *s;
@@ -110,11 +108,9 @@ screen_del_func(Client *c, int argc, char **argv)
 	err = client_remove_screen(c, s);
 	if (err == 0) {
 		sock_send_string(c->sock, "success\n");
-	}
-	else if (err < 0) {
+	} else if (err < 0) {
 		sock_send_error(c->sock, "failed to remove screen\n");
-	}
-	else {
+	} else {
 		sock_send_error(c->sock, "Unknown screen id\n");
 	}
 
@@ -135,28 +131,27 @@ screen_del_func(Client *c, int argc, char **argv)
  *     [-cursor <type>] [-cursor_x <xpos>] [-cursor_y <ypos>]
  *\endverbatim
  */
-int
-screen_set_func(Client *c, int argc, char **argv)
+int screen_set_func(Client *c, int argc, char **argv)
 {
 	int i;
 
 	int number;
 	char *id;
-	Screen * s;
+	Screen *s;
 
 	if (c->state != ACTIVE)
 		return 1;
 
 	if (argc == 1) {
-		sock_send_error(c->sock, "Usage: screen_set <id> [-name <name>]"
+		sock_send_error(c->sock,
+				"Usage: screen_set <id> [-name <name>]"
 				" [-wid <width>] [-hgt <height>] [-priority <prio>]"
 				" [-duration <int>] [-timeout <int>]"
 				" [-heartbeat <type>] [-backlight <type>]"
 				" [-cursor <type>]"
 				" [-cursor_x <xpos>] [-cursor_y <ypos>]\n");
 		return 0;
-	}
-	else if (argc == 2) {
+	} else if (argc == 2) {
 		sock_send_error(c->sock, "What do you want to set?\n");
 		return 0;
 	}
@@ -186,8 +181,7 @@ screen_set_func(Client *c, int argc, char **argv)
 					free(s->name);
 				s->name = strdup(argv[i]);
 				sock_send_string(c->sock, "success\n");
-			}
-			else {
+			} else {
 				sock_send_error(c->sock, "-name requires a parameter\n");
 			}
 		}
@@ -206,20 +200,17 @@ screen_set_func(Client *c, int argc, char **argv)
 						number = PRI_INFO;
 					else
 						number = PRI_BACKGROUND;
-				}
-				else {
+				} else {
 					/* Try if it is a priority class */
 					number = screen_pri_name_to_pri(argv[i]);
 				}
 				if (number >= 0) {
 					s->priority = number;
 					sock_send_string(c->sock, "success\n");
-				}
-				else {
+				} else {
 					sock_send_error(c->sock, "invalid argument at -priority\n");
 				}
-			}
-			else {
+			} else {
 				sock_send_error(c->sock, "-priority requires a parameter\n");
 			}
 		}
@@ -234,8 +225,7 @@ screen_set_func(Client *c, int argc, char **argv)
 				if (number > 0)
 					s->duration = number;
 				sock_send_string(c->sock, "success\n");
-			}
-			else {
+			} else {
 				sock_send_error(c->sock, "-duration requires a parameter\n");
 			}
 		}
@@ -253,8 +243,7 @@ screen_set_func(Client *c, int argc, char **argv)
 				else if (0 == strcmp(argv[i], "open"))
 					s->heartbeat = HEARTBEAT_OPEN;
 				sock_send_string(c->sock, "success\n");
-			}
-			else {
+			} else {
 				sock_send_error(c->sock, "-heartbeat requires a parameter\n");
 			}
 		}
@@ -269,8 +258,7 @@ screen_set_func(Client *c, int argc, char **argv)
 				if (number > 0)
 					s->width = number;
 				sock_send_string(c->sock, "success\n");
-			}
-			else {
+			} else {
 				sock_send_error(c->sock, "-wid requires a parameter\n");
 			}
 
@@ -286,8 +274,7 @@ screen_set_func(Client *c, int argc, char **argv)
 				if (number > 0)
 					s->height = number;
 				sock_send_string(c->sock, "success\n");
-			}
-			else {
+			} else {
 				sock_send_error(c->sock, "-hgt requires a parameter\n");
 			}
 		}
@@ -306,8 +293,7 @@ screen_set_func(Client *c, int argc, char **argv)
 					report(RPT_NOTICE, "Timeout set.");
 				}
 				sock_send_string(c->sock, "success\n");
-			}
-			else {
+			} else {
 				sock_send_error(c->sock, "-timeout requires a parameter\n");
 			}
 		}
@@ -325,12 +311,12 @@ screen_set_func(Client *c, int argc, char **argv)
 				else if (strcmp("toggle", argv[i]) == 0) {
 					if (s->backlight == BACKLIGHT_ON)
 						s->backlight = BACKLIGHT_OFF;
-					else if (s-backlight == BACKLIGHT_OFF)
+					else if (s - backlight == BACKLIGHT_OFF)
 						s->backlight = BACKLIGHT_ON;
 				}
 
 				else if (strcmp("blink", argv[i]) == 0)
-					s->backlight  |= BACKLIGHT_BLINK;
+					s->backlight |= BACKLIGHT_BLINK;
 
 				else if (strcmp("flash", argv[i]) == 0)
 					s->backlight |= BACKLIGHT_FLASH;
@@ -342,8 +328,7 @@ screen_set_func(Client *c, int argc, char **argv)
 					sock_send_error(c->sock, "unknown backlight mode\n");
 
 				sock_send_string(c->sock, "success\n");
-			}
-			else {
+			} else {
 				sock_send_error(c->sock, "-backlight requires a parameter\n");
 			}
 		}
@@ -363,8 +348,7 @@ screen_set_func(Client *c, int argc, char **argv)
 				if (0 == strcmp(argv[i], "block"))
 					s->cursor = CURSOR_BLOCK;
 				sock_send_string(c->sock, "success\n");
-			}
-			else {
+			} else {
 				sock_send_error(c->sock, "-cursor requires a parameter\n");
 			}
 		}
@@ -379,12 +363,11 @@ screen_set_func(Client *c, int argc, char **argv)
 				if (number > 0 && number <= s->width) {
 					s->cursor_x = number;
 					sock_send_string(c->sock, "success\n");
+				} else {
+					sock_send_error(c->sock,
+							"Cursor position outside screen\n");
 				}
-				else {
-					sock_send_error(c->sock, "Cursor position outside screen\n");
-				}
-			}
-			else {
+			} else {
 				sock_send_error(c->sock, "-cursor_x requires a parameter\n");
 			}
 		}
@@ -399,21 +382,20 @@ screen_set_func(Client *c, int argc, char **argv)
 				if (number > 0 && number <= s->height) {
 					s->cursor_y = number;
 					sock_send_string(c->sock, "success\n");
+				} else {
+					sock_send_error(c->sock,
+							"Cursor position outside screen\n");
 				}
-				else {
-					sock_send_error(c->sock, "Cursor position outside screen\n");
-				}
-			}
-			else {
+			} else {
 				sock_send_error(c->sock, "-cursor_y requires a parameter\n");
 			}
 		}
 
-		else sock_send_error(c->sock, "invalid parameter\n");
-	}/* done checking argv*/
+		else
+			sock_send_error(c->sock, "invalid parameter\n");
+	} /* done checking argv*/
 	return 0;
 }
-
 
 /**
  * Tells the server which keys the screen uses for interaction
@@ -422,8 +404,7 @@ screen_set_func(Client *c, int argc, char **argv)
  * Usage: key_add screen_id {<key>}+
  *\endverbatim
  */
-int
-key_add_func(Client *c, int argc, char **argv)
+int key_add_func(Client *c, int argc, char **argv)
 {
 	Screen *s;
 	int len;
@@ -450,7 +431,6 @@ key_add_func(Client *c, int argc, char **argv)
 	return 0;
 }
 
-
 /**
  * Tells the server the screen is no longer interested in some keys
  *
@@ -458,8 +438,7 @@ key_add_func(Client *c, int argc, char **argv)
  * Usage: key_del screen_id {<key>}+
  *\endverbatim
  */
-int
-key_del_func(Client *c, int argc, char **argv)
+int key_del_func(Client *c, int argc, char **argv)
 {
 	Screen *s;
 	int i, len;
@@ -485,8 +464,7 @@ key_del_func(Client *c, int argc, char **argv)
 			s->keys_size -= len;
 
 			sock_send_string(c->sock, "success\n");
-		}
-		else
+		} else
 			sock_send_error(c->sock, "Key not requested\n");
 	}
 

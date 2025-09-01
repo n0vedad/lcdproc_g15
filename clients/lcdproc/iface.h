@@ -15,10 +15,12 @@
 #ifndef IFACE_H
 #define IFACE_H
 
+#include "machine.h"
+
 /** max number of interfaces in multi-interface mode */
 #define MAX_INTERFACES 3
 
-extern IfaceInfo iface[MAX_INTERFACES];	/* interface info */
+extern IfaceInfo iface[MAX_INTERFACES]; /* interface info */
 
 /** Update screen content */
 int iface_screen(int rep, int display, int *flags_ptr);

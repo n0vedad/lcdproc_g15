@@ -20,26 +20,25 @@
  *               2007, Peter Marschall
  */
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 
-#include "shared/report.h"
 #include "shared/configfile.h"
+#include "shared/report.h"
 
-#include "drivers.h"
 #include "clients.h"
+#include "drivers.h"
+#include "main.h"
 #include "render.h"
 #include "screen.h"
 #include "screenlist.h"
-#include "widget.h"
-#include "main.h"
 #include "serverscreens.h"
-
+#include "widget.h"
 
 /* global variables */
 Screen *server_screen = NULL;
@@ -51,14 +50,12 @@ static int has_hello_msg = 0;
 /* file-local function declarations */
 static int reset_server_screen(int rotate, int heartbeat, int title);
 
-
 /**
  * Create the server screen and (optionally) print the hello message to it.
  * \return  -1 on error allocating the screen or one of its widgets,
  *           0 otherwise.
  */
-int
-server_screen_init(void)
+int server_screen_init(void)
 {
 	Widget *w;
 	int i;
@@ -79,7 +76,7 @@ server_screen_init(void)
 	/* Create all the widgets...*/
 	for (i = 0; i < display_props->height; i++) {
 		char id[8];
-		sprintf(id, "line%d", i+1);
+		sprintf(id, "line%d", i + 1);
 
 		w = widget_create(id, WID_STRING, server_screen);
 		if (w == NULL) {
@@ -88,22 +85,22 @@ server_screen_init(void)
 		}
 		screen_add_widget(server_screen, w);
 		w->x = 1;
-		w->y = i+1;
-		w->text = calloc(LCD_MAX_WIDTH+1, 1);
+		w->y = i + 1;
+		w->text = calloc(LCD_MAX_WIDTH + 1, 1);
 	}
 
 	/* set parameters for server_screen and it's widgets */
 	reset_server_screen(rotate_server_screen, !has_hello_msg, !has_hello_msg);
 
 	/* set the widgets depending on the Hello option in LCDd.conf */
-	if (has_hello_msg) {		/* show whole Hello message */
+	if (has_hello_msg) { /* show whole Hello message */
 		int i;
 
 		for (i = 0; i < display_props->height; i++) {
-	 		const char *line = config_get_string("Server", "Hello", i, "");
+			const char *line = config_get_string("Server", "Hello", i, "");
 			char id[8];
 
-			sprintf(id, "line%d", i+1);
+			sprintf(id, "line%d", i + 1);
 			w = screen_find_widget(server_screen, id);
 			if ((w != NULL) && (w->text != NULL)) {
 				strncpy(w->text, line, LCD_MAX_WIDTH);
@@ -120,8 +117,7 @@ server_screen_init(void)
 	return 0;
 }
 
-int
-server_screen_shutdown(void)
+int server_screen_shutdown(void)
 {
 	if (server_screen == NULL)
 		return -1;
@@ -131,15 +127,13 @@ server_screen_shutdown(void)
 	return 0;
 }
 
-
 /**
  * Print the numbers of connected clients and screens on the server screen
  * unless screen is set to be blank. If a custom hello message has been set
  * it is shown until the first client connects.
  * \return  Always 0.
  */
-int
-update_server_screen(void)
+int update_server_screen(void)
 {
 	static int hello_done = 0;
 	Client *c;
@@ -163,8 +157,7 @@ update_server_screen(void)
 		if (num_clients != 0) {
 			reset_server_screen(rotate_server_screen, 1, 1);
 			hello_done = 1;
-		}
-		else {
+		} else {
 			return 0;
 		}
 	}
@@ -177,32 +170,30 @@ update_server_screen(void)
 	/* update statistics if we do not only want to show a blank screen */
 	if (rotate_server_screen != SERVERSCREEN_BLANK) {
 		/* format strings for the appropriate display size ... */
-		if (display_props->height >= 3) {	/* >2-line display */
+		if (display_props->height >= 3) { /* >2-line display */
 			w = screen_find_widget(server_screen, "line2");
 			if ((w != NULL) && (w->text != NULL)) {
-				snprintf(w->text, LCD_MAX_WIDTH,
-						"Clients: %i", num_clients);
+				snprintf(w->text, LCD_MAX_WIDTH, "Clients: %i", num_clients);
 			}
 
 			w = screen_find_widget(server_screen, "line3");
 			if ((w != NULL) && (w->text != NULL)) {
-				snprintf(w->text, LCD_MAX_WIDTH,
-						"Screens: %i", num_screens);
+				snprintf(w->text, LCD_MAX_WIDTH, "Screens: %i", num_screens);
 			}
-		} else {				/* 2-line display */
+		} else { /* 2-line display */
 			w = screen_find_widget(server_screen, "line2");
 			if ((w != NULL) && (w->text != NULL)) {
-				snprintf(w->text, LCD_MAX_WIDTH,
-						((display_props->width >= 16)
-						 ? "Cli: %i  Scr: %i"
-						 : "C: %i  S: %i"),
-						num_clients, num_screens);
+				snprintf(w->text,
+					 LCD_MAX_WIDTH,
+					 ((display_props->width >= 16) ? "Cli: %i  Scr: %i"
+								       : "C: %i  S: %i"),
+					 num_clients,
+					 num_screens);
 			}
 		}
 	}
 	return 0;
 }
-
 
 /**
  * Writes the default or a custom goodbye message defined in the config file
@@ -210,25 +201,23 @@ update_server_screen(void)
  * message has to be formatted by the user.
  * \return  Always 0.
  */
-int
-goodbye_screen(void)
+int goodbye_screen(void)
 {
 	if (!display_props)
 		return 0;
 
 	drivers_clear();
 
-	if (config_has_key("Server", "GoodBye")) {	/* custom GoodBye */
+	if (config_has_key("Server", "GoodBye")) { /* custom GoodBye */
 		int i;
 
 		/* loop over all display lines to read config & display message */
 		for (i = 0; i < display_props->height; i++) {
 			const char *line = config_get_string("Server", "GoodBye", i, "");
 
-			drivers_string(1, 1+i, line);
+			drivers_string(1, 1 + i, line);
 		}
-	}
-	else {		/* default GoodBye */
+	} else { /* default GoodBye */
 		if ((display_props->height >= 2) && (display_props->width >= 16)) {
 			int xoffs = (display_props->width - 16) / 2;
 			int yoffs = (display_props->height - 2) / 2;
@@ -240,8 +229,8 @@ goodbye_screen(void)
 			char *low = "    LCDproc!    ";
 #endif
 
-			drivers_string(1+xoffs, 1+yoffs, top);
-			drivers_string(1+xoffs, 2+yoffs, low);
+			drivers_string(1 + xoffs, 1 + yoffs, top);
+			drivers_string(1 + xoffs, 2 + yoffs, low);
 		}
 	}
 
@@ -250,7 +239,6 @@ goodbye_screen(void)
 
 	return 0;
 }
-
 
 /**
  * Clear all text on the server screen and (optionally) reset the title. If
@@ -262,30 +250,29 @@ goodbye_screen(void)
  * \param title      If true (1) and screen is not blank print the default title.
  * \return  -1 if no server screen has been created yet, 0 otherwise.
  */
-static int
-reset_server_screen(int rotate, int heartbeat, int title)
+static int reset_server_screen(int rotate, int heartbeat, int title)
 {
 	int i;
 
 	if (server_screen == NULL)
 		return -1;
 
-	server_screen->heartbeat = (heartbeat && (rotate != SERVERSCREEN_BLANK))
-					? HEARTBEAT_OPEN : HEARTBEAT_OFF;
-	server_screen->priority = (rotate == SERVERSCREEN_ON)
-					? PRI_INFO : PRI_BACKGROUND;
+	server_screen->heartbeat =
+	    (heartbeat && (rotate != SERVERSCREEN_BLANK)) ? HEARTBEAT_OPEN : HEARTBEAT_OFF;
+	server_screen->priority = (rotate == SERVERSCREEN_ON) ? PRI_INFO : PRI_BACKGROUND;
 
 	for (i = 0; i < display_props->height; i++) {
 		char id[8];
 		Widget *w;
 
-		sprintf(id, "line%d", i+1);
+		sprintf(id, "line%d", i + 1);
 		w = screen_find_widget(server_screen, id);
 		if (w != NULL) {
 			w->x = 1;
-			w->y = i+1;
+			w->y = i + 1;
 			w->type = ((i == 0) && (title) && (rotate != SERVERSCREEN_BLANK))
-					? WID_TITLE : WID_STRING;
+				      ? WID_TITLE
+				      : WID_STRING;
 
 			if (w->text != NULL) {
 				w->text[0] = '\0';

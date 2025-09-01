@@ -29,6 +29,6 @@ Client *clients_getnext(void);
 int clients_client_count(void);
 
 /* Search for a client with a particular filedescriptor...*/
-Client * clients_find_client_by_sock(int sock);
+Client *clients_find_client_by_sock(int sock);
 
 #endif

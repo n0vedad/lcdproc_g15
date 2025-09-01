@@ -21,9 +21,9 @@
 #undef INC_TYPES_ONLY
 
 /* Server functions...*/
-int sock_init(char* bind_addr, int bind_port);
+int sock_init(char *bind_addr, int bind_port);
 int sock_shutdown(void);
-int sock_create_inet_socket(char* bind_addr, unsigned int port);
+int sock_create_inet_socket(char *bind_addr, unsigned int port);
 int sock_poll_clients(void);
 int sock_destroy_client_socket(Client *client);
 int verify_ipv4(const char *addr);

@@ -15,71 +15,67 @@
  *		 2008, Peter Marschall
  */
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 
-#include "shared/sockets.h"
 #include "shared/report.h"
+#include "shared/sockets.h"
 
+#include "drivers/lcd.h"
+#include "render.h"
 #include "screen.h"
 #include "widget.h"
-#include "render.h"
-#include "drivers/lcd.h"
 
 char *typenames[] = {
-	"none",		/* WID_NONE */
-	"string",	/* WID_STRING */
-	"hbar",		/* WID_HBAR */
-	"vbar",		/* WID_VBAR */
-	"pbar",		/* WID_PBAR */
-	"icon",		/* WID_ICON */
-	"title",	/* WID_TITLE */
-	"scroller",	/* WID_SCROLLER */
-	"frame",	/* WID_FRAME */
-	"num",		/* WID_NUM */
-	NULL,		/* WID_NONE */
+    "none",	/* WID_NONE */
+    "string",	/* WID_STRING */
+    "hbar",	/* WID_HBAR */
+    "vbar",	/* WID_VBAR */
+    "pbar",	/* WID_PBAR */
+    "icon",	/* WID_ICON */
+    "title",	/* WID_TITLE */
+    "scroller", /* WID_SCROLLER */
+    "frame",	/* WID_FRAME */
+    "num",	/* WID_NUM */
+    NULL,	/* WID_NONE */
 };
 
 struct icontable {
 	int icon;
 	char *iconname;
-} icontable[] = {
-	{ICON_BLOCK_FILLED, "BLOCK_FILLED"},
-	{ICON_HEART_OPEN, "HEART_OPEN"},
-	{ICON_HEART_FILLED, "HEART_FILLED"},
-	{ICON_ARROW_UP, "ARROW_UP"},
-	{ICON_ARROW_DOWN, "ARROW_DOWN"},
-	{ICON_ARROW_LEFT, "ARROW_LEFT"},
-	{ICON_ARROW_RIGHT, "ARROW_RIGHT"},
-	{ICON_CHECKBOX_OFF, "CHECKBOX_OFF"},
-	{ICON_CHECKBOX_ON, "CHECKBOX_ON"},
-	{ICON_CHECKBOX_GRAY, "CHECKBOX_GRAY"},
-	{ICON_SELECTOR_AT_LEFT, "SELECTOR_AT_LEFT"},
-	{ICON_SELECTOR_AT_RIGHT, "SELECTOR_AT_RIGHT"},
-	{ICON_ELLIPSIS, "ELLIPSIS"},
-	{ICON_STOP, "STOP"},
-	{ICON_PAUSE, "PAUSE"},
-	{ICON_PLAY, "PLAY"},
-	{ICON_PLAYR, "PLAYR"},
-	{ICON_FF, "FF"},
-	{ICON_FR, "FR"},
-	{ICON_NEXT, "NEXT"},
-	{ICON_PREV, "PREV"},
-	{ICON_REC, "REC"},
-	{0,NULL}
-};
-
+} icontable[] = {{ICON_BLOCK_FILLED, "BLOCK_FILLED"},
+		 {ICON_HEART_OPEN, "HEART_OPEN"},
+		 {ICON_HEART_FILLED, "HEART_FILLED"},
+		 {ICON_ARROW_UP, "ARROW_UP"},
+		 {ICON_ARROW_DOWN, "ARROW_DOWN"},
+		 {ICON_ARROW_LEFT, "ARROW_LEFT"},
+		 {ICON_ARROW_RIGHT, "ARROW_RIGHT"},
+		 {ICON_CHECKBOX_OFF, "CHECKBOX_OFF"},
+		 {ICON_CHECKBOX_ON, "CHECKBOX_ON"},
+		 {ICON_CHECKBOX_GRAY, "CHECKBOX_GRAY"},
+		 {ICON_SELECTOR_AT_LEFT, "SELECTOR_AT_LEFT"},
+		 {ICON_SELECTOR_AT_RIGHT, "SELECTOR_AT_RIGHT"},
+		 {ICON_ELLIPSIS, "ELLIPSIS"},
+		 {ICON_STOP, "STOP"},
+		 {ICON_PAUSE, "PAUSE"},
+		 {ICON_PLAY, "PLAY"},
+		 {ICON_PLAYR, "PLAYR"},
+		 {ICON_FF, "FF"},
+		 {ICON_FR, "FR"},
+		 {ICON_NEXT, "NEXT"},
+		 {ICON_PREV, "PREV"},
+		 {ICON_REC, "REC"},
+		 {0, NULL}};
 
 /** Create a widget.
-  * \param id       Widget identifier; it's name.
-  * \param type     Widget type.
-  * \param screen   Screen on which the widget is to be placed.
-  * \return         Pointer to the freshly created widget.
-  */
-Widget *
-widget_create(char *id, WidgetType type, Screen *screen)
+ * \param id       Widget identifier; it's name.
+ * \param type     Widget type.
+ * \param screen   Screen on which the widget is to be placed.
+ * \return         Pointer to the freshly created widget.
+ */
+Widget *widget_create(char *id, WidgetType type, Screen *screen)
 {
 	Widget *w;
 
@@ -110,12 +106,10 @@ widget_create(char *id, WidgetType type, Screen *screen)
 	return w;
 }
 
-
 /** Destroy a widget.
  * \param w    Widget to destroy.
  */
-void
-widget_destroy(Widget *w)
+void widget_destroy(Widget *w)
 {
 	debug(RPT_DEBUG, "%s(w=[%s])", __FUNCTION__, w->id);
 
@@ -132,13 +126,11 @@ widget_destroy(Widget *w)
 	free(w);
 }
 
-
 /** Convert a widget type name to a widget type.
  * \param typename  Name of the widget type.
  * \return          Widget type.
  */
-WidgetType
-widget_typename_to_type(char *typename)
+WidgetType widget_typename_to_type(char *typename)
 {
 	int i;
 
@@ -149,25 +141,18 @@ widget_typename_to_type(char *typename)
 	return WID_NONE;
 }
 
-
 /** Convert a widget type to the associated type name.
  * \param t  Widget type.
  * \return   Widget type's name.
  */
-char *
-widget_type_to_typename(WidgetType t)
-{
-	return typenames[t];
-}
-
+char *widget_type_to_typename(WidgetType t) { return typenames[t]; }
 
 /** Find subordinate widgets of a widget by name.
  * \param w   Widget.
  * \param id  Name of the subiordinate widget.
  * \return    Pointer to the sub-widget; \c NULL if not found or on error.
  */
-Widget *
-widget_search_subs(Widget *w, char *id)
+Widget *widget_search_subs(Widget *w, char *id)
 {
 	if (w->type == WID_FRAME) {
 		return screen_find_widget(w->frame_screen, id);
@@ -175,7 +160,6 @@ widget_search_subs(Widget *w, char *id)
 		return NULL; /* no kids */
 	}
 }
-
 
 /** Find a widget icon by type.
  * \param icon    Icon type.
@@ -194,7 +178,6 @@ char *widget_icon_to_iconname(int icon)
 	return NULL;
 }
 
-
 /** Find a widget icon by name.
  * \param iconname  Icon name.
  * \return          Icon type
@@ -211,4 +194,3 @@ int widget_iconname_to_icon(char *iconname)
 
 	return -1;
 }
-

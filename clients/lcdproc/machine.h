@@ -12,74 +12,68 @@
 #ifndef _lcdproc_machine_h_
 #define _lcdproc_machine_h_
 
-#include <time.h>
 #include "shared/LL.h"
+#include <time.h>
 
 #ifndef LOADAVG_NSTATS
-# define LOADAVG_NSTATS	3	/**< size of loadavg[] parameter to getloadavg() */
+#define LOADAVG_NSTATS 3 /**< size of loadavg[] parameter to getloadavg() */
 #endif
 
 #ifndef LOADAVG_1MIN
-# define LOADAVG_1MIN	0	/**< index in loadavg[] parameter to getloadavg() for 1 minute load average */
+#define LOADAVG_1MIN                                                                               \
+	0 /**< index in loadavg[] parameter to getloadavg() for 1 minute load average */
 #endif
 
 #ifndef LOADAVG_5MIN
-# define LOADAVG_5MIN	1	/**< index in loadavg[] parameter to getloadavg() for 5 minute load average */
+#define LOADAVG_5MIN                                                                               \
+	1 /**< index in loadavg[] parameter to getloadavg() for 5 minute load average */
 #endif
 
 #ifndef LOADAVG_15MIN
-# define LOADAVG_15MIN	2	/**< index in loadavg[] parameter to getloadavg() for 15 minute load average */
+#define LOADAVG_15MIN                                                                              \
+	2 /**< index in loadavg[] parameter to getloadavg() for 15 minute load average */
 #endif
 
 #ifndef MAX_CPUS
-# define MAX_CPUS	16	/**< maximal number of CPUs for which load history is kept */
+#define MAX_CPUS 16 /**< maximal number of CPUs for which load history is kept */
 #endif
 
-
 /** Information about CPU load */
-typedef struct
-{
-	unsigned long total;	/**< total time (in USER_HZ; since last call) */
-	unsigned long user;	/**< time in user mode (in USER_HZ; since last call) */
-	unsigned long system;	/**< time in kernel mode (in USER_HZ; since last call) */
-	unsigned long nice;	/**< time in 'niced' user mode (in USER_HZ; since last call) */
-	unsigned long idle;	/**< time idling (in USER_HZ; since last call) */
+typedef struct {
+	unsigned long total;  /**< total time (in USER_HZ; since last call) */
+	unsigned long user;   /**< time in user mode (in USER_HZ; since last call) */
+	unsigned long system; /**< time in kernel mode (in USER_HZ; since last call) */
+	unsigned long nice;   /**< time in 'niced' user mode (in USER_HZ; since last call) */
+	unsigned long idle;   /**< time idling (in USER_HZ; since last call) */
 } load_type;
 
-
 /** Information about mounted file systems */
-typedef struct
-{
-	char dev[256];		/**< device name */
-	char type[64];		/**< file system type (as string) */
-	char mpoint[256];	/**< mount point name */
-	long bsize;		/**< transfer block size */
-	long blocks;		/**< total data blocks in file system */
-	long bfree;		/**< free blocks in fs */
-	long files;		/**< total file nodes in file system */
-	long ffree;		/**< free file nodes in fs */
+typedef struct {
+	char dev[256];	  /**< device name */
+	char type[64];	  /**< file system type (as string) */
+	char mpoint[256]; /**< mount point name */
+	long bsize;	  /**< transfer block size */
+	long blocks;	  /**< total data blocks in file system */
+	long bfree;	  /**< free blocks in fs */
+	long files;	  /**< total file nodes in file system */
+	long ffree;	  /**< free file nodes in fs */
 } mounts_type;
 
-
 /** Information about memory status */
-typedef struct
-{
-	long total;		/**< total memory (in kB) */
-	long cache;		/**< memory in page cache (in kB) */
-	long buffers;		/**< memory in buffer cache (in kB) */
-	long free;		/**< free memory (in kB) */
-	long shared;		/**< ??? (in kB) */
+typedef struct {
+	long total;   /**< total memory (in kB) */
+	long cache;   /**< memory in page cache (in kB) */
+	long buffers; /**< memory in buffer cache (in kB) */
+	long free;    /**< free memory (in kB) */
+	long shared;  /**< ??? (in kB) */
 } meminfo_type;
 
-
 /** Information about processes and their size */
-typedef struct
-{
-	char name[16];		/**< process name */
-	long totl;		/**< process memory usage (in kB) */
-	int number;		/**< incstances of the process */
+typedef struct {
+	char name[16]; /**< process name */
+	long totl;     /**< process memory usage (in kB) */
+	int number;    /**< incstances of the process */
 } procinfo_type;
-
 
 /** Status definitions for network interfaces */
 typedef enum {
@@ -88,28 +82,26 @@ typedef enum {
 } IfaceStatus;
 
 /* Network Interface information */
-typedef struct iface_info
-{
-	char *name;		/**< physical interface name */
-	char *alias;		/**< displayed name of interface */
+typedef struct iface_info {
+	char *name;  /**< physical interface name */
+	char *alias; /**< displayed name of interface */
 
-	IfaceStatus status;	/**< status of the interface */
+	IfaceStatus status; /**< status of the interface */
 
 	time_t last_online;
 
-	double rc_byte;		/**< currently received bytes */
-	double rc_byte_old;	/**< previously received bytes */
+	double rc_byte;	    /**< currently received bytes */
+	double rc_byte_old; /**< previously received bytes */
 
-	double tr_byte;		/**< currently sent bytes */
-	double tr_byte_old;	/**< previously sent bytes */
+	double tr_byte;	    /**< currently sent bytes */
+	double tr_byte_old; /**< previously sent bytes */
 
-	double rc_pkt;		/**< currently received packages */
-	double rc_pkt_old;	/**< previously received packages */
+	double rc_pkt;	   /**< currently received packages */
+	double rc_pkt_old; /**< previously received packages */
 
-	double tr_pkt;		/**< currently sent packages */
-	double tr_pkt_old;	/**< previously sent packages */
+	double tr_pkt;	   /**< currently sent packages */
+	double tr_pkt_old; /**< previously sent packages */
 } IfaceInfo;
-
 
 /**
  * Set up OS specific functions.
@@ -124,7 +116,6 @@ int machine_init(void);
  * \retval  TRUE   OK
  */
 int machine_close(void);
-
 
 /**
  * Get battery information.
@@ -204,6 +195,5 @@ int machine_get_uptime(double *up, double *idle);
  * \retval  TRUE   OK, parameter pointers are filled with sensible data.
  */
 int machine_get_iface_stats(IfaceInfo *interface);
-
 
 #endif /* _lcdproc_machine_h_ */

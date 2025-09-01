@@ -9,19 +9,19 @@
  * Refer to the COPYING file distributed with this package.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/utsname.h>
+#include <unistd.h>
 
 #include "shared/sockets.h"
 
-#include "main.h"
-#include "mode.h"
 #include "batt.h"
 #include "machine.h"
+#include "main.h"
+#include "mode.h"
 
 /** Map status code > status text */
 typedef struct {
@@ -35,16 +35,13 @@ typedef struct {
  * \param status  Numeric status as returned by machine_get_battstat
  * \return  Name of the status
  */
-static const char *
-ac_status(int status)
+static const char *ac_status(int status)
 {
-	const NameTable ac_table[] = {
-		{ LCDP_AC_OFF,     "Off"     },
-		{ LCDP_AC_ON,      "On"      },
-		{ LCDP_AC_BACKUP,  "Backup"  },
-		{ LCDP_AC_UNKNOWN, "Unknown" },
-		{ 0, NULL }
-	};
+	const NameTable ac_table[] = {{LCDP_AC_OFF, "Off"},
+				      {LCDP_AC_ON, "On"},
+				      {LCDP_AC_BACKUP, "Backup"},
+				      {LCDP_AC_UNKNOWN, "Unknown"},
+				      {0, NULL}};
 	int i;
 
 	for (i = 0; ac_table[i].name != NULL; i++)
@@ -60,18 +57,15 @@ ac_status(int status)
  * \param status  Numeric status as returned by machine_get_battstat
  * \return  Name of the status
  */
-static const char *
-battery_status(int status)
+static const char *battery_status(int status)
 {
-	const NameTable batt_table[] = {
-		{ LCDP_BATT_HIGH,     "High"     },
-		{ LCDP_BATT_LOW,      "Low"      },
-		{ LCDP_BATT_CRITICAL, "Critical" },
-		{ LCDP_BATT_CHARGING, "Charging" },
-		{ LCDP_BATT_ABSENT,   "Absent"   },
-		{ LCDP_BATT_UNKNOWN,  "Unknown"  },
-		{ 0, NULL }
-	};
+	const NameTable batt_table[] = {{LCDP_BATT_HIGH, "High"},
+					{LCDP_BATT_LOW, "Low"},
+					{LCDP_BATT_CRITICAL, "Critical"},
+					{LCDP_BATT_CHARGING, "Charging"},
+					{LCDP_BATT_ABSENT, "Absent"},
+					{LCDP_BATT_UNKNOWN, "Unknown"},
+					{0, NULL}};
 	int i;
 
 	for (i = 0; batt_table[i].name != NULL; i++)
@@ -100,8 +94,7 @@ battery_status(int status)
  * \param flags_ptr  Mode flags
  * \return  Always 0
  */
-int
-battery_screen(int rep, int display, int *flags_ptr)
+int battery_screen(int rep, int display, int *flags_ptr)
 {
 	int acstat = 0, battstat = 0, percent = 0;
 	int gauge_wid = lcd_wid - 2;
@@ -135,21 +128,25 @@ battery_screen(int rep, int display, int *flags_ptr)
 			sprintf(tmp, "%d%%", percent);
 		else
 			sprintf(tmp, "??%%");
-		sock_printf(sock, "widget_set B title {%s: %s:%s}\n",
-				(acstat == LCDP_AC_ON && battstat == LCDP_BATT_ABSENT) ? "AC" : "Batt",
-				tmp, get_hostname());
+		sock_printf(sock,
+			    "widget_set B title {%s: %s:%s}\n",
+			    (acstat == LCDP_AC_ON && battstat == LCDP_BATT_ABSENT) ? "AC" : "Batt",
+			    tmp,
+			    get_hostname());
 
-		if (lcd_hgt >= 4) {		/* 4-line version of the screen */
+		if (lcd_hgt >= 4) { /* 4-line version of the screen */
 			sock_printf(sock, "widget_set B one 1 2 {AC: %s}\n", ac_status(acstat));
-			sock_printf(sock, "widget_set B two 1 3 {Batt: %s}\n", battery_status(battstat));
+			sock_printf(
+			    sock, "widget_set B two 1 3 {Batt: %s}\n", battery_status(battstat));
 			if (percent > 0)
-				sock_printf(sock, "widget_set B gauge 2 4 %d\n",
-						(percent * gauge_wid * lcd_cellwid) / 100);
-		}
-		else {				/* two-line version of the screen */
-			sock_printf(sock, "widget_set B one 1 2 {%sBatt: %s}\n",
-					(acstat == LCDP_AC_ON) ? "AC, " : "",
-					battery_status(battstat));
+				sock_printf(sock,
+					    "widget_set B gauge 2 4 %d\n",
+					    (percent * gauge_wid * lcd_cellwid) / 100);
+		} else { /* two-line version of the screen */
+			sock_printf(sock,
+				    "widget_set B one 1 2 {%sBatt: %s}\n",
+				    (acstat == LCDP_AC_ON) ? "AC, " : "",
+				    battery_status(battstat));
 		}
 	}
 

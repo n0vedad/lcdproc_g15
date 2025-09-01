@@ -19,4 +19,3 @@ int key_add_func(Client *c, int argc, char **argv);
 int key_del_func(Client *c, int argc, char **argv);
 
 #endif
-

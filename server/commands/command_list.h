@@ -19,14 +19,13 @@
  * The function list for clients is stored in a table, and the items each
  * point to a function to call, defined below.
  */
-typedef int (*CommandFunc) (Client *c, int argc, char **argv);
+typedef int (*CommandFunc)(Client *c, int argc, char **argv);
 
 /** Defines an entry in the command table */
 typedef struct client_function {
-	char *keyword;		/**< Command string in the protocol */
-	CommandFunc function;	/**< Pointer to the associated function */
+	char *keyword;	      /**< Command string in the protocol */
+	CommandFunc function; /**< Pointer to the associated function */
 } client_function;
-
 
 CommandFunc get_command_function(char *cmd);
 

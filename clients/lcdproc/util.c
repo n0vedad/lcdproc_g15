@@ -20,11 +20,10 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301.
  */
 
-#include <sys/types.h>
-#include "shared/sockets.h"
-#include "main.h"
 #include "util.h"
-
+#include "main.h"
+#include "shared/sockets.h"
+#include <sys/types.h>
 
 /** Print a memory value with the correct unit to a given string.
  * \param *dst        String to print the value to.
@@ -32,8 +31,7 @@
  * \param roundlimit  Set < 1.0 if precision of original input value is not sufficient.
  * \return  dst
  */
-char *
-sprintf_memory(char *dst, double value, double roundlimit)
+char *sprintf_memory(char *dst, double value, double roundlimit)
 {
 	if (dst != NULL) {
 		char *format = "%.1f%s";
@@ -50,14 +48,12 @@ sprintf_memory(char *dst, double value, double roundlimit)
 	return dst;
 }
 
-
 /** Print a percentage value to a given string.
  * \param *dst     String to print the percentage value to.
  * \param percent  Value to print.
  * \return  dst
  */
-char *
-sprintf_percent(char *dst, double percent)
+char *sprintf_percent(char *dst, double percent)
 {
 	if (dst != NULL) {
 		if (percent > 99.9)
@@ -68,7 +64,6 @@ sprintf_percent(char *dst, double percent)
 	return dst;
 }
 
-
 /** Convert a value with unit value.
  * does not do formatting
  * \param *value       Pointer to the value to be scaled
@@ -76,8 +71,7 @@ sprintf_percent(char *dst, double percent)
  * \param roundlimit   Set < 1.0 if precision of original input value is not sufficient
  * \return       Unit string to be used when displaying value
  */
-char *
-convert_double(double *value, int base, double roundlimit)
+char *convert_double(double *value, int base, double roundlimit)
 {
 	static char *units[] = {"", "k", "M", "G", "T", "P", "E", "Z", "Y", NULL};
 	int off = 0;
@@ -105,19 +99,15 @@ convert_double(double *value, int base, double roundlimit)
  * \param screen       Name of the screen to add the widget to.
  * \param name         Name of the widget.
  */
-void
-pbar_widget_add(const char *screen, const char *name)
+void pbar_widget_add(const char *screen, const char *name)
 {
 
 	if (check_protocol_version(0, 4)) {
 		sock_printf(sock, "widget_add %s %s pbar\n", screen, name);
 	} else {
-		sock_printf(sock, "widget_add %s %s-begin-label string\n",
-			    screen, name);
-		sock_printf(sock, "widget_add %s %s hbar\n",
-			    screen, name);
-		sock_printf(sock, "widget_add %s %s-end-label string\n",
-			    screen, name);
+		sock_printf(sock, "widget_add %s %s-begin-label string\n", screen, name);
+		sock_printf(sock, "widget_add %s %s hbar\n", screen, name);
+		sock_printf(sock, "widget_add %s %s-end-label string\n", screen, name);
 	}
 }
 
@@ -134,21 +124,38 @@ pbar_widget_add(const char *screen, const char *name)
  *                     at the beginning of the percentage-bar.
  * \param end_label    Optional text to render at the end of the pbar.
  */
-void
-pbar_widget_set(const char *screen, const char *name, int x, int y, int width,
-		int promille, char *begin_label, char *end_label)
+void pbar_widget_set(const char *screen,
+		     const char *name,
+		     int x,
+		     int y,
+		     int width,
+		     int promille,
+		     char *begin_label,
+		     char *end_label)
 {
 	int begin_length, end_length, len, hbar_pixels;
 
 	if (check_protocol_version(0, 4)) {
 		if (begin_label || end_label)
-			sock_printf(sock, "widget_set %s %s %d %d %d %d {%s} {%s}\n",
-				    screen, name, x, y, width, promille,
+			sock_printf(sock,
+				    "widget_set %s %s %d %d %d %d {%s} {%s}\n",
+				    screen,
+				    name,
+				    x,
+				    y,
+				    width,
+				    promille,
 				    begin_label ? begin_label : "",
 				    end_label ? end_label : "");
 		else
-			sock_printf(sock, "widget_set %s %s %d %d %d %d\n",
-				    screen, name, x, y, width, promille);
+			sock_printf(sock,
+				    "widget_set %s %s %d %d %d %d\n",
+				    screen,
+				    name,
+				    x,
+				    y,
+				    width,
+				    promille);
 		return;
 	}
 
@@ -180,18 +187,16 @@ pbar_widget_set(const char *screen, const char *name, int x, int y, int width,
 
 	len = width - begin_length - end_length;
 
-	sock_printf(sock, "widget_set %s %s-begin-label %d %d {%s}\n",
-		    screen, name, x, y, begin_label);
+	sock_printf(
+	    sock, "widget_set %s %s-begin-label %d %d {%s}\n", screen, name, x, y, begin_label);
 	x += begin_length;
 
 	/* hbar takes number of pixels to fill as 3th argument */
 	hbar_pixels = (promille * lcd_cellwid * len + 500) / 1000;
-	sock_printf(sock, "widget_set %s %s %d %d %d\n",
-		    screen, name, x, y, hbar_pixels);
+	sock_printf(sock, "widget_set %s %s %d %d %d\n", screen, name, x, y, hbar_pixels);
 	x += len;
 
-	sock_printf(sock, "widget_set %s %s-end-label %d %d {%s}\n",
-		    screen, name, x, y, end_label);
+	sock_printf(sock, "widget_set %s %s-end-label %d %d {%s}\n", screen, name, x, y, end_label);
 }
 
 /* EOF */

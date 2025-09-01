@@ -11,14 +11,14 @@
  *		 2003, Joris Robijn
  */
 
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-#include "shared/sockets.h"
-#include "shared/report.h"
-#include "shared/configfile.h"
 #include "shared/LL.h"
+#include "shared/configfile.h"
+#include "shared/report.h"
+#include "shared/sockets.h"
 
 #include "drivers.h"
 
@@ -26,11 +26,10 @@
 #include "client.h"
 #include "screen.h"
 #undef INC_TYPES_ONLY
-#include "screenlist.h"
-#include "menuscreens.h"
 #include "input.h"
+#include "menuscreens.h"
 #include "render.h" /* For server_msg* */
-
+#include "screenlist.h"
 
 LinkedList *keylist;
 char *toggle_rotate_key;
@@ -42,7 +41,6 @@ char *scroll_down_key;
 /* Local functions */
 int server_input(int key);
 void input_internal_key(const char *key);
-
 
 int input_init(void)
 {
@@ -60,7 +58,6 @@ int input_init(void)
 	return 0;
 }
 
-
 void input_shutdown()
 {
 	if (!keylist) {
@@ -76,7 +73,6 @@ void input_shutdown()
 	free(scroll_up_key);
 	free(scroll_down_key);
 }
-
 
 void handle_input(void)
 {
@@ -98,8 +94,7 @@ void handle_input(void)
 
 		/* keys from key_add have highest priority */
 		if (current_screen && screen_find_key(current_screen, key)) {
-			sock_printf(current_client->sock, "key %s %s\n",
-				    key, current_screen->id);
+			sock_printf(current_client->sock, "key %s %s\n", key, current_screen->id);
 			continue;
 		}
 
@@ -116,14 +111,11 @@ void handle_input(void)
 	}
 }
 
-
-void
-input_internal_key(const char *key)
+void input_internal_key(const char *key)
 {
 	if (is_menu_key(key) || screenlist_current() == menuscreen) {
 		menuscreen_key_handler(key);
-	}
-	else {
+	} else {
 		/* Keys are for scrolling or rotating */
 		if (strcmp(key, toggle_rotate_key) == 0) {
 			autorotate = !autorotate;
@@ -132,18 +124,14 @@ input_internal_key(const char *key)
 			} else {
 				server_msg("Hold", 4);
 			}
-		}
-		else if (strcmp(key, prev_screen_key) == 0) {
+		} else if (strcmp(key, prev_screen_key) == 0) {
 			screenlist_goto_prev();
 			server_msg("Prev", 4);
-		}
-		else if (strcmp(key, next_screen_key) == 0) {
+		} else if (strcmp(key, next_screen_key) == 0) {
 			screenlist_goto_next();
 			server_msg("Next", 4);
-		}
-		else if (strcmp(key, scroll_up_key) == 0) {
-		}
-		else if (strcmp(key, scroll_down_key) == 0) {
+		} else if (strcmp(key, scroll_up_key) == 0) {
+		} else if (strcmp(key, scroll_down_key) == 0) {
 		}
 	}
 }
@@ -152,8 +140,12 @@ int input_reserve_key(const char *key, bool exclusive, Client *client)
 {
 	KeyReservation *kr;
 
-	debug(RPT_DEBUG, "%s(key=\"%.40s\", exclusive=%d, client=[%d])",
-		__FUNCTION__, key, exclusive, (client?client->sock:-1));
+	debug(RPT_DEBUG,
+	      "%s(key=\"%.40s\", exclusive=%d, client=[%d])",
+	      __FUNCTION__,
+	      key,
+	      exclusive,
+	      (client ? client->sock : -1));
 
 	/* Find out if this key is already reserved in a way that interferes
 	 * with the new reservation.
@@ -174,8 +166,11 @@ int input_reserve_key(const char *key, bool exclusive, Client *client)
 	kr->client = client;
 	LL_Push(keylist, kr);
 
-	report(RPT_INFO, "Key \"%.40s\" is now reserved %s by client [%d]",
-		key, (exclusive ? "exclusively" : "shared"), (client ? client->sock : -1));
+	report(RPT_INFO,
+	       "Key \"%.40s\" is now reserved %s by client [%d]",
+	       key,
+	       (exclusive ? "exclusively" : "shared"),
+	       (client ? client->sock : -1));
 
 	return 0;
 }
@@ -184,12 +179,19 @@ void input_release_key(const char *key, Client *client)
 {
 	KeyReservation *kr;
 
-	debug(RPT_DEBUG, "%s(key=\"%.40s\", client=[%d])", __FUNCTION__, key, (client ? client->sock : -1));
+	debug(RPT_DEBUG,
+	      "%s(key=\"%.40s\", client=[%d])",
+	      __FUNCTION__,
+	      key,
+	      (client ? client->sock : -1));
 
 	for (kr = LL_GetFirst(keylist); kr != NULL; kr = LL_GetNext(keylist)) {
 		if ((kr->client == client) && (strcmp(kr->key, key) == 0)) {
-			report(RPT_INFO, "Key \"%.40s\" reserved %s by client [%d] and is now released",
-				key, (kr->exclusive ? "exclusively" : "shared"), (client ? client->sock : -1));
+			report(RPT_INFO,
+			       "Key \"%.40s\" reserved %s by client [%d] and is now released",
+			       key,
+			       (kr->exclusive ? "exclusively" : "shared"),
+			       (client ? client->sock : -1));
 			free(kr->key);
 			free(kr);
 			LL_DeleteNode(keylist, NEXT);
@@ -206,8 +208,11 @@ void input_release_client_keys(Client *client)
 
 	for (kr = LL_GetFirst(keylist); kr != NULL; kr = LL_GetNext(keylist)) {
 		if (kr->client == client) {
-			report(RPT_INFO, "Key \"%.40s\" reserved %s by client [%d] and is now released",
-				kr->key, (kr->exclusive ? "exclusively" : "shared"), (client ? client->sock : -1));
+			report(RPT_INFO,
+			       "Key \"%.40s\" reserved %s by client [%d] and is now released",
+			       kr->key,
+			       (kr->exclusive ? "exclusively" : "shared"),
+			       (client ? client->sock : -1));
 			free(kr->key);
 			free(kr);
 			// jump to node before deleted one to not miss any
@@ -220,7 +225,11 @@ KeyReservation *input_find_key(const char *key, Client *client)
 {
 	KeyReservation *kr;
 
-	debug(RPT_DEBUG, "%s(key=\"%.40s\", client=[%d])", __FUNCTION__, key, (client?client->sock:-1));
+	debug(RPT_DEBUG,
+	      "%s(key=\"%.40s\", client=[%d])",
+	      __FUNCTION__,
+	      key,
+	      (client ? client->sock : -1));
 
 	for (kr = LL_GetFirst(keylist); kr != NULL; kr = LL_GetNext(keylist)) {
 		if (strcmp(kr->key, key) == 0) {

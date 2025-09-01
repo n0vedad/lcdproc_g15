@@ -12,32 +12,31 @@
  * Refer to the COPYING file distributed with this package.
  */
 
-#include <sys/types.h>
-#include <sys/param.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <limits.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/param.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "shared/sockets.h"
 
+#include "eyebox.h"
+#include "machine.h"
 #include "main.h"
 #include "mode.h"
-#include "machine.h"
-#include "eyebox.h"
 #include "util.h"
 
-int
-eyebox_screen(char display, int init)
+int eyebox_screen(char display, int init)
 {
 #undef CPU_BUF_SIZE
 #define CPU_BUF_SIZE 4
 	int i, j;
 	double value;
-	static double cpu[CPU_BUF_SIZE + 1][5];	/* last buffer is scratch */
+	static double cpu[CPU_BUF_SIZE + 1][5]; /* last buffer is scratch */
 	meminfo_type mem[2];
 	load_type load;
 
@@ -58,13 +57,14 @@ eyebox_screen(char display, int init)
 
 	/* Read new data */
 	if (load.total > 0L) {
-		cpu[CPU_BUF_SIZE - 1][0] = 100.0 * ((double) load.user / (double) load.total);
-		cpu[CPU_BUF_SIZE - 1][1] = 100.0 * ((double) load.system / (double) load.total);
-		cpu[CPU_BUF_SIZE - 1][2] = 100.0 * ((double) load.nice / (double) load.total);
-		cpu[CPU_BUF_SIZE - 1][3] = 100.0 * ((double) load.idle / (double) load.total);
-		cpu[CPU_BUF_SIZE - 1][4] = 100.0 * (((double) load.user + (double) load.system + (double) load.nice) / (double) load.total);
-	}
-	else {
+		cpu[CPU_BUF_SIZE - 1][0] = 100.0 * ((double)load.user / (double)load.total);
+		cpu[CPU_BUF_SIZE - 1][1] = 100.0 * ((double)load.system / (double)load.total);
+		cpu[CPU_BUF_SIZE - 1][2] = 100.0 * ((double)load.nice / (double)load.total);
+		cpu[CPU_BUF_SIZE - 1][3] = 100.0 * ((double)load.idle / (double)load.total);
+		cpu[CPU_BUF_SIZE - 1][4] =
+		    100.0 * (((double)load.user + (double)load.system + (double)load.nice) /
+			     (double)load.total);
+	} else {
 		cpu[CPU_BUF_SIZE - 1][0] = 0.0;
 		cpu[CPU_BUF_SIZE - 1][1] = 0.0;
 		cpu[CPU_BUF_SIZE - 1][2] = 0.0;
@@ -86,23 +86,24 @@ eyebox_screen(char display, int init)
 	 * a = Bar ID
 	 * b = Level
 	 */
-	sock_printf(sock, "widget_set %c eyebo_cpu 1 2 {/xB%d%d}\n",
-			display, 2,(int)(cpu[CPU_BUF_SIZE][4]/10));
+	sock_printf(sock,
+		    "widget_set %c eyebo_cpu 1 2 {/xB%d%d}\n",
+		    display,
+		    2,
+		    (int)(cpu[CPU_BUF_SIZE][4] / 10));
 
 	/*-
 	 * /xBab = Use Bas
 	 * a = Bar ID
 	 * b = Level
 	 */
-	value = 1.0 - (double) (mem[0].free + mem[0].buffers + mem[0].cache)
-		/ (double) mem[0].total;
-	sock_printf(sock, "widget_set %c eyebo_mem 1 3 {/xB%d%d}\n", display, 1, (int) (value * 10));
+	value = 1.0 - (double)(mem[0].free + mem[0].buffers + mem[0].cache) / (double)mem[0].total;
+	sock_printf(sock, "widget_set %c eyebo_mem 1 3 {/xB%d%d}\n", display, 1, (int)(value * 10));
 
 	return 0;
 }
 
-void
-eyebox_clear(void)
+void eyebox_clear(void)
 {
 	/* Clear LEDs before exit */
 	sock_send_string(sock, "screen_add OFF\n");
@@ -118,6 +119,5 @@ eyebox_clear(void)
 	sock_send_string(sock, "widget_set OFF about 5 4 {EyeBO by NeZetiC}\n");
 	sock_printf(sock, "widget_set OFF cpu 1 2 {/xB%d%d}\n", 2, 0);
 	sock_printf(sock, "widget_set OFF mem 1 3 {/xB%d%d}\n", 1, 0);
-	usleep(2000000);	/* Wait last order execution */
+	usleep(2000000); /* Wait last order execution */
 }
-

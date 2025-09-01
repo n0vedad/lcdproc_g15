@@ -27,15 +27,20 @@
 #include "shared/LL.h"
 
 #ifdef INC_TYPES_ONLY
-# include "client.h"
+#include "client.h"
 #else
-# define INC_TYPES_ONLY 1
-# include "client.h"
-# undef INC_TYPES_ONLY
+#define INC_TYPES_ONLY 1
+#include "client.h"
+#undef INC_TYPES_ONLY
 #endif
 
-typedef enum {	PRI_HIDDEN, PRI_BACKGROUND, PRI_INFO, PRI_FOREGROUND,
-		PRI_ALERT, PRI_INPUT
+typedef enum {
+	PRI_HIDDEN,
+	PRI_BACKGROUND,
+	PRI_INFO,
+	PRI_FOREGROUND,
+	PRI_ALERT,
+	PRI_INPUT
 } Priority;
 
 typedef struct Screen {
@@ -56,8 +61,8 @@ typedef struct Screen {
 	struct Client *client;
 } Screen;
 
-extern int  default_duration ;
-extern int  default_priority ;
+extern int default_duration;
+extern int default_priority;
 
 #endif
 
@@ -84,18 +89,13 @@ int screen_remove_widget(Screen *s, Widget *w);
 /* List functions */
 static inline Widget *screen_getfirst_widget(Screen *s)
 {
-	return (Widget *) ((s != NULL)
-			   ? LL_GetFirst(s->widgetlist)
-			   : NULL);
+	return (Widget *)((s != NULL) ? LL_GetFirst(s->widgetlist) : NULL);
 }
 
 static inline Widget *screen_getnext_widget(Screen *s)
 {
-	return (Widget *) ((s != NULL)
-			   ? LL_GetNext(s->widgetlist)
-			   : NULL);
+	return (Widget *)((s != NULL) ? LL_GetNext(s->widgetlist) : NULL);
 }
-
 
 /* Find a widget in a screen */
 Widget *screen_find_widget(Screen *s, char *id);

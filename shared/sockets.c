@@ -8,23 +8,23 @@
  * Feel free to use this in your own clients... :)
  */
 
-#include <unistd.h>
+#include <arpa/inet.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
-#include <string.h>
-#include <errno.h>
 #include <stdlib.h>
-#include <sys/types.h>
+#include <string.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <sys/un.h>
-#include <netinet/in.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <stdarg.h>
-#include <fcntl.h>
+#include <unistd.h>
 
 #ifdef HAVE_CONFIG_H
-# include "config.h"
+#include "config.h"
 #endif
 
 #include "report.h"
@@ -42,20 +42,19 @@ typedef struct sockaddr_in sockaddr_in;
  * \param port      Port number
  * \return  0 on success, -1 on error.
  */
-static int
-sock_init_sockaddr (sockaddr_in *name, const char *hostname, unsigned short int port)
+static int sock_init_sockaddr(sockaddr_in *name, const char *hostname, unsigned short int port)
 {
 	struct hostent *hostinfo;
 
-	memset (name, '\0', sizeof (*name));
+	memset(name, '\0', sizeof(*name));
 	name->sin_family = AF_INET;
-	name->sin_port = htons (port);
-	hostinfo = gethostbyname (hostname);
+	name->sin_port = htons(port);
+	hostinfo = gethostbyname(hostname);
 	if (hostinfo == NULL) {
-		report (RPT_ERR, "sock_init_sockaddr: Unknown host %s.", hostname);
+		report(RPT_ERR, "sock_init_sockaddr: Unknown host %s.", hostname);
 		return -1;
 	}
-	name->sin_addr = *(struct in_addr *) hostinfo->h_addr;
+	name->sin_addr = *(struct in_addr *)hostinfo->h_addr;
 
 	return 0;
 }
@@ -66,32 +65,31 @@ sock_init_sockaddr (sockaddr_in *name, const char *hostname, unsigned short int 
  * \param port  Port number
  * \return  socket file descriptor on success, -1 on error
  */
-int
-sock_connect (char *host, unsigned short int port)
+int sock_connect(char *host, unsigned short int port)
 {
 	struct sockaddr_in servername;
 	int sock;
 	int err = 0;
 
-	report (RPT_DEBUG, "sock_connect: Creating socket");
-	sock = socket (PF_INET, SOCK_STREAM, 0);
+	report(RPT_DEBUG, "sock_connect: Creating socket");
+	sock = socket(PF_INET, SOCK_STREAM, 0);
 	if (sock < 0) {
-		report (RPT_ERR, "sock_connect: Error creating socket");
+		report(RPT_ERR, "sock_connect: Error creating socket");
 		return sock;
 	}
-	debug (RPT_DEBUG, "sock_connect: Created socket (%i)", sock);
+	debug(RPT_DEBUG, "sock_connect: Created socket (%i)", sock);
 
-	if (sock_init_sockaddr (&servername, host, port) < 0)
+	if (sock_init_sockaddr(&servername, host, port) < 0)
 		return -1;
 
-	err = connect (sock, (struct sockaddr *) &servername, sizeof (servername));
+	err = connect(sock, (struct sockaddr *)&servername, sizeof(servername));
 	if (err < 0) {
-		report (RPT_ERR, "sock_connect: connect failed");
-		shutdown (sock, SHUT_RDWR);
+		report(RPT_ERR, "sock_connect: connect failed");
+		shutdown(sock, SHUT_RDWR);
 		return -1;
 	}
 
-	fcntl (sock, F_SETFL, O_NONBLOCK);
+	fcntl(sock, F_SETFL, O_NONBLOCK);
 
 	return sock;
 }
@@ -101,18 +99,16 @@ sock_connect (char *host, unsigned short int port)
  * \param fd  Socket file descriptor
  * \return  0 on success, -1 on error.
  */
-int
-sock_close (int fd)
+int sock_close(int fd)
 {
 	int err;
 
-	err = shutdown (fd, SHUT_RDWR);
+	err = shutdown(fd, SHUT_RDWR);
 	if (!err)
-		close (fd);
+		close(fd);
 
 	return err;
 }
-
 
 /**
  * Send printf-like formatted output.
@@ -121,8 +117,7 @@ sock_close (int fd)
  * \param ...     Arguments to the format string
  * \return  Number of bytes sent.
  */
-int
-sock_printf(int fd, const char *format, .../*args*/ )
+int sock_printf(int fd, const char *format, ... /*args*/)
 {
 	char buf[MAXMSG];
 	va_list ap;
@@ -148,11 +143,7 @@ sock_printf(int fd, const char *format, .../*args*/ )
  * \param string  Pointer to the string to send.
  * \return  Number of bytes sent.
  */
-int
-sock_send_string (int fd, const char *string)
-{
-	return sock_send(fd, string, strlen(string));
-}
+int sock_send_string(int fd, const char *string) { return sock_send(fd, string, strlen(string)); }
 
 /**
  * Receive a line of text.
@@ -162,8 +153,7 @@ sock_send_string (int fd, const char *string)
  * \param maxlen  Number of bytes to read at most (size of buffer)
  * \return  Number of bytes received.
  */
-int
-sock_recv_string (int fd, char *dest, size_t maxlen)
+int sock_recv_string(int fd, char *dest, size_t maxlen)
 {
 	char *ptr = dest;
 	int recvBytes = 0;
@@ -174,7 +164,7 @@ sock_recv_string (int fd, char *dest, size_t maxlen)
 		return 0;
 
 	while (1) {
-		int err = read (fd, ptr, 1);
+		int err = read(fd, ptr, 1);
 		if (err == -1) {
 			if (errno == EAGAIN) {
 				if (recvBytes) {
@@ -184,7 +174,7 @@ sock_recv_string (int fd, char *dest, size_t maxlen)
 				}
 				return 0;
 			} else {
-				report (RPT_ERR, "sock_recv_string: socket read error");
+				report(RPT_ERR, "sock_recv_string: socket read error");
 				return err;
 			}
 		} else if (err == 0) {
@@ -218,8 +208,7 @@ sock_recv_string (int fd, char *dest, size_t maxlen)
  * \param size  Number of bytes to send at most
  * \return  Number of bytes sent.
  */
-int
-sock_send (int fd, const void *src, size_t size)
+int sock_send(int fd, const void *src, size_t size)
 {
 	int offset = 0;
 
@@ -229,11 +218,12 @@ sock_send (int fd, const void *src, size_t size)
 	while (offset != size) {
 		// write isn't guaranteed to send the entire string at once,
 		// so we have to sent it in a loop like this
-                int sent = write (fd, ((char *) src) + offset, size - offset);
+		int sent = write(fd, ((char *)src) + offset, size - offset);
 		if (sent == -1) {
 			if (errno != EAGAIN) {
-				report (RPT_ERR, "sock_send: socket write error");
-				report (RPT_DEBUG, "Message was: '%.*s'", size-offset, (char *) src);
+				report(RPT_ERR, "sock_send: socket write error");
+				report(
+				    RPT_DEBUG, "Message was: '%.*s'", size - offset, (char *)src);
 				return sent;
 			}
 			continue;
@@ -256,8 +246,7 @@ sock_send (int fd, const void *src, size_t size)
  * \param maxlen  Number of bytes to read at most (size of buffer)
  * \return  Number of bytes received.
  */
-int
-sock_recv (int fd, void *dest, size_t maxlen)
+int sock_recv(int fd, void *dest, size_t maxlen)
 {
 	int err;
 
@@ -266,12 +255,12 @@ sock_recv (int fd, void *dest, size_t maxlen)
 	if (maxlen <= 0)
 		return 0;
 
-	err = read (fd, dest, maxlen);
+	err = read(fd, dest, maxlen);
 	if (err < 0) {
-		//report (RPT_DEBUG,"sock_recv: socket read error");
+		// report (RPT_DEBUG,"sock_recv: socket read error");
 		return err;
 	}
-	//debug(RPT_DEBUG, "sock_recv: Got message \"%s\"", (char *)dest);
+	// debug(RPT_DEBUG, "sock_recv: Got message \"%s\"", (char *)dest);
 
 	return err;
 }
@@ -282,11 +271,7 @@ sock_recv (int fd, void *dest, size_t maxlen)
  * Return the error message for the last error occured.
  * \return  Error message string
  */
-char*
-sock_geterror(void)
-{
-    return strerror(errno);
-}
+char *sock_geterror(void) { return strerror(errno); }
 
 /**
  * Send an already formatted error message to the client.
@@ -304,8 +289,7 @@ int sock_send_error(int fd, const char *message)
  *   method
  * \param fd socket
  * \param format a printf format */
-int
-sock_printf_error(int fd, const char *format, .../*args*/ )
+int sock_printf_error(int fd, const char *format, ... /*args*/)
 {
 	static const char huh[] = "huh? ";
 	char buf[MAXMSG];
@@ -315,15 +299,15 @@ sock_printf_error(int fd, const char *format, .../*args*/ )
 	strncpy(buf, huh, sizeof(huh)); // note: sizeof(huh) < MAXMSG
 
 	va_start(ap, format);
-	size = vsnprintf(buf + (sizeof(huh)-1), sizeof(buf) - (sizeof(huh)-1), format, ap);
-	buf[sizeof(buf)-1] = '\0';
+	size = vsnprintf(buf + (sizeof(huh) - 1), sizeof(buf) - (sizeof(huh) - 1), format, ap);
+	buf[sizeof(buf) - 1] = '\0';
 	va_end(ap);
 
 	if (size < 0) {
 		report(RPT_ERR, "sock_printf_error: vsnprintf failed");
 		return -1;
 	}
-	if (size >= sizeof(buf) - (sizeof(huh)-1))
+	if (size >= sizeof(buf) - (sizeof(huh) - 1))
 		report(RPT_WARNING, "sock_printf_error: vsnprintf truncated message");
 
 	report(RPT_INFO, "client error: %s", buf);

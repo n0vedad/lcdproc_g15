@@ -16,9 +16,9 @@
 #include "screen.h"
 
 /* server screen rotation states */
-#define SERVERSCREEN_OFF	0	/**< Show server screen in rotation. */
-#define SERVERSCREEN_ON		1	/**< Show server sreen only when there is no other screen. */
-#define SERVERSCREEN_BLANK	2	/**< Don't rotate, and only show a blank screen. */
+#define SERVERSCREEN_OFF 0   /**< Show server screen in rotation. */
+#define SERVERSCREEN_ON 1    /**< Show server sreen only when there is no other screen. */
+#define SERVERSCREEN_BLANK 2 /**< Don't rotate, and only show a blank screen. */
 
 extern Screen *server_screen;
 
