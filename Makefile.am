@@ -48,9 +48,17 @@ format:
 
 format-check:
 	@echo "Checking C code formatting..."
-	@find . -name "*.c" -o -name "*.h" | grep -v -E "autom4te.cache|config\.h|\.deps" | xargs clang-format --dry-run --Werror && echo "✅ C code properly formatted" || echo "❌ C formatting issues found - run 'make format' to fix"
+	@if find . -name "*.c" -o -name "*.h" | grep -v -E "autom4te.cache|config\.h|\.deps" | xargs clang-format --dry-run --Werror >/dev/null 2>&1; then \
+		echo "✅ C code properly formatted"; \
+	else \
+		echo "❌ C formatting issues found - run 'make format' to fix"; \
+	fi
 	@echo "Checking Markdown/JSON/Shell formatting..."
-	@npx prettier --check "**/*.{md,json,sh}" && echo "✅ All files properly formatted" || echo "❌ Some files need formatting - run 'make format'"
+	@if npx prettier --check "**/*.{md,json,sh}" >/dev/null 2>&1; then \
+		echo "✅ Prettier files properly formatted"; \
+	else \
+		echo "❌ Some files need formatting - run 'make format'"; \
+	fi
 
 
 ## EOF
