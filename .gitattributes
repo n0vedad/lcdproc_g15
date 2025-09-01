@@ -1,17 +1,56 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Linux x86_64 C project attributes
+# Enforce Unix line endings (LF) for all text files
 
-# Custom for Visual Studio
-*.cs     diff=csharp
+# C source files - Unix line endings with C syntax highlighting
+*.c text eol=lf diff=c
+*.h text eol=lf diff=c
 
-# Standard to msysgit
-*.doc	 diff=astextplain
-*.DOC	 diff=astextplain
-*.docx diff=astextplain
-*.DOCX diff=astextplain
-*.dot  diff=astextplain
-*.DOT  diff=astextplain
-*.pdf  diff=astextplain
-*.PDF	 diff=astextplain
-*.rtf	 diff=astextplain
-*.RTF	 diff=astextplain
+# Build system files - Unix line endings
+*.ac text eol=lf
+*.am text eol=lf
+*.in text eol=lf
+*.m4 text eol=lf
+configure text eol=lf
+Makefile text eol=lf
+
+# Configuration files - Unix line endings
+*.conf text eol=lf
+*.install text eol=lf
+
+# Shell scripts - Unix line endings (critical for execution)
+*.sh text eol=lf
+autogen.sh text eol=lf
+
+# Service files - Unix line endings (systemd requirement)
+*.service text eol=lf
+
+# Documentation - Unix line endings
+*.md text eol=lf
+*.txt text eol=lf
+README text eol=lf
+COPYING text eol=lf
+INSTALL* text eol=lf
+
+# Python scripts - Unix line endings
+*.py text eol=lf diff=python
+
+# PKGBUILD - Unix line endings (Arch Linux requirement)
+PKGBUILD text eol=lf
+
+# Binary files - no text conversion, store as-is
+*.o binary
+*.a binary
+*.so binary
+*.tar.gz binary
+*.zst binary
+*.pkg.tar.* binary
+*.db binary
+
+# Archive/patch files - no conversion
+*.patch text eol=lf
+*.diff text eol=lf
+*.orig text eol=lf
+*.rej text eol=lf
+
+# Default fallback - auto-detect with LF preference
+* text=auto eol=lf
