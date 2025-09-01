@@ -1,0 +1,89 @@
+# C source files (Prettier doesn't support C parser)
+*.c
+*.h
+
+# Build system files (preserve exact formatting)
+Makefile*
+*.am
+*.ac
+*.in
+*.m4
+
+# Config files (preserve exact formatting)
+*.conf
+*.service
+
+# Build artifacts
+*.o
+*.a
+*.so
+.deps/
+.libs/
+autom4te.cache/
+config.h
+config.log
+config.status
+Makefile
+configure
+compile
+depcomp
+install-sh
+missing
+ar-lib
+
+# Generated files
+stamp-h1
+*.1
+*.5
+*.8
+*.gz
+
+# Package builds
+pkg/
+*.pkg.tar.*
+*.src.tar.*
+*.zst
+
+# Archives
+*.tar.gz
+*.patch
+*.diff
+*.orig
+*.rej
+
+# Binary files
+*.db
+core
+*.core
+
+# Temporary files
+*~
+*.tmp
+*.bak
+*.swp
+
+# IDE files
+.vscode/
+.idea/
+tags
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Auto-generated headers (if any)
+*_generated.h
+*_auto.c
+
+# Large data files or logs
+*.log
+gdb.txt
+
+# Documentation that shouldn't be reformatted
+COPYING
+LICENSE*
+
+# Config files with specific formatting requirements
+/server/LCDd.conf
+/clients/lcdproc/lcdproc.conf
+/clients/lcdexec/lcdexec.conf

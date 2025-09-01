@@ -1,0 +1,17 @@
+[Unit]
+Description=ydotoold daemon
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/ydotoold --socket-path=/tmp/.ydotool_socket --socket-perm=0666
+ExecStartPost=/bin/chmod 0666 /tmp/.ydotool_socket
+Restart=always
+User=root
+Group=input
+CapabilityBoundingSet=CAP_SYS_ADMIN
+ProtectSystem=full
+ProtectHome=yes
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

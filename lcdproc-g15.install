@@ -1,27 +1,49 @@
 post_install() {
-    echo "Enabling and starting LCDproc services..."
+    echo "Enabling and starting services..."
     systemctl daemon-reload
     systemctl enable --now lcdd.service
     systemctl enable --now lcdproc.service
-    echo "LCDproc services started successfully."
+    systemctl enable --now ydotoold.service
+    
+    # Check service status
+    failed_services=""
+    if ! systemctl is-active --quiet lcdd.service; then
+        failed_services="$failed_services lcdd.service"
+    fi
+    if ! systemctl is-active --quiet lcdproc.service; then
+        failed_services="$failed_services lcdproc.service"
+    fi
+    if ! systemctl is-active --quiet ydotoold.service; then
+        failed_services="$failed_services ydotoold.service"
+    fi
+    
+    if [ -n "$failed_services" ]; then
+        echo "Warning: Some services failed to start:$failed_services"
+        echo "Check with: systemctl status <service-name>"
+    else
+        echo "All services started successfully."
+    fi
 }
 
 post_upgrade() {
-    echo "Restarting LCDproc services..."
+    echo "Restarting services..."
     systemctl daemon-reload
     systemctl restart lcdd.service
     systemctl restart lcdproc.service
+    systemctl restart ydotoold.service
 }
 
 pre_remove() {
-    echo "Stopping LCDproc services..."
+    echo "Stopping services..."
     systemctl stop lcdproc.service || true
     systemctl stop lcdd.service || true
+    systemctl stop ydotoold.service || true
     systemctl disable lcdproc.service || true
     systemctl disable lcdd.service || true
+    systemctl disable ydotoold.service || true
 }
 
 post_remove() {
     systemctl daemon-reload
-    echo "LCDproc services stopped and disabled."
+    echo "All services stopped and disabled."
 }
