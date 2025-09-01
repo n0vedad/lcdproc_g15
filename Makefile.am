@@ -15,7 +15,8 @@ distclean-local:
 	-rm -rf autom4te.cache pkg/ src/ node_modules/
 	-rm -f *.tar.gz aclocal.m4 compile configure configure~ depcomp missing
 	-rm -f install-sh config.guess config.sub config.h.in config.h.in~ ar-lib
-	-rm -f *.pkg.tar.* *.log package-lock.json
+	-rm -f *.pkg.tar.* *.log
+	-./setup-hooks.sh remove 2>/dev/null || true
 	-find . -name "Makefile.in" -delete
 	-find . -name ".deps" -type d -exec rm -rf {} + 2>/dev/null || true
 
