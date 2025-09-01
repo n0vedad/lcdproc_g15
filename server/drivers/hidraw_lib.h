@@ -3,6 +3,9 @@
  * Utility lib for using hidraw devices in LCDd drivers.
  *
  * Copyright (C) 2017 Hans de Goede <hdegoede@redhat.com>
+ * Copyright (C) 2025 n0vedad <https://github.com/n0vedad/>
+ * 
+ * 2025-08-21 RGB backlights support
  */
 
 #ifndef HIDRAW_LIB_H

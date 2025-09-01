@@ -26,6 +26,10 @@ In order to compile/install LCDproc, you'll need the following programs:
 * libg15 and libg15render (>= 1.1.1) for use with the g15 driver,
   see http://www.g15tools.com/
 
+**Note:** You can use optional automatic code formatting. This requires:
+- `clang-format` for C code formatting  
+- `npm` for Markdown/JSON/Shell formatting (includes Node.js)
+
 #
 
 ### Install Required Dependencies:
@@ -44,27 +48,43 @@ G-Key Macro System:
 sudo pacman -S ydotool
 ```
 
+Code formatting:
+```
+sudo pacman -S clang npm
+```
+
 ## Installation
 
 ### Install from PKGBUILD (Recommended)
 
 ```
 # Clone this repository
-git clone https://github.com/n0vedad/lcdproc-g15-arch.git
-cd lcdproc-g15-arch
+git clone https://github.com/n0vedad/lcdproc-g15.git
+cd lcdproc-g15
 
 # Build and install package
 makepkg -si
+```
+
+**Note:** PKGBUILD installation runs in **non-interactive mode** - code formatting setup is automatically skipped. After installation, developers can optionally enable formatting with:
+
+```
+# Enable code formatting for development
+./setup-hooks.sh install
 ```
 ### Manual Build
 
 If you prefer to build manually:
 ```
-sh ./autogen.sh
+./autogen.sh
 ./configure --prefix=/usr --sbindir=/usr/bin --sysconfdir=/etc --enable-libusb --enable-lcdproc-menus --enable-stat-smbfs --enable-drivers=g15,linux_input
 make
 make install (if you're root) 
 ```
+
+**Interactive Code Formatting Setup:** `autogen.sh` runs in **interactive mode** and will ask if you want to enable automatic code formatting. This requires:
+
+If you skip formatting setup or dependencies are missing, the build will continue normally. You can enable formatting later with `./setup-hooks.sh install`.
 
 ### Clean Build
 
@@ -79,7 +99,7 @@ make
 make distclean
 ```
 
-and run same steps from above.
+and run same steps from above. For reconfigure code formatting please see [CODE FORMATTING](#code-formatting)
 
 #
 
@@ -88,7 +108,7 @@ If you want to know more read from here:
 ### Preparing a Git distro
 If you retrieved these files from the Git, you will first need to run:
 ```
-sh ./autogen.sh
+./autogen.sh
 ```
 ### Configuration
 The simplest way of doing it is with:
@@ -165,7 +185,7 @@ If you installed via `make install`:
 
 ```
 # Uninstall (from the build directory)
-cd lcdproc-g15-arch
+cd lcdproc-g15
 sudo make uninstall
 ```
 
@@ -265,7 +285,7 @@ but run in the foreground.
 By default, the client tries to connect to a server located on localhost
 and listening to port 13666. To change this, use the -s and -p options.
 
-## G-Key Macro System Usage
+## G-KEY MACRO SYSTEM
 
 Once both LCDd server and lcdproc client are running with proper permissions:
 
@@ -302,3 +322,45 @@ sudo lcdproc -f -c /etc/lcdproc.conf
 ```
 
 The macro system captures real keyboard and mouse input events directly from the Linux input subsystem, providing precise timing and comprehensive input recording for professional macro automation.
+
+# CODE FORMATTING
+
+## Automatic vs Manual Setup
+
+You can choose about two installation methods - whatever fits your need!
+
+#### 1. **PKGBUILD Installation** (Non-Interactive)
+```
+makepkg -si
+```
+- **Automatically skips** formatting setup
+- **No user interaction** required
+- **Minimal dependencies** - only installs runtime requirements
+- **Optional dependencies** available for developers: `clang` and `npm`
+
+#### 2. **Manual Build** (Interactive) 
+```
+./autogen.sh
+```
+- **Asks interactively** about code formatting
+- **Checks dependencies** and provides installation instructions
+- **Graceful fallback** if dependencies are missing
+- **Build continues** regardless of formatting choice
+
+### Post-Installation Setup
+
+After any installation method, developers can enable code formatting:
+
+```
+# Install formatting dependencies
+sudo pacman -S clang npm
+
+# Enable git hooks for automatic formatting
+./setup-hooks.sh install
+
+# Check status
+./setup-hooks.sh status
+
+# Format code manually
+make format
+```

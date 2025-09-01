@@ -1,8 +1,10 @@
 /*  This is the LCDproc driver for the LCD on the Logitech G15 keyboard
 
     Copyright (C) 2006 Anthony J. Mirabella.
+	Copyright (C) 2025 n0vedad <https://github.com/n0vedad/>
 
     2006-07-23 Version 1.0: Most functions should be implemented and working
+	2025-08-21 RGB backlights support
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

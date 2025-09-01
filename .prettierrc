@@ -1,0 +1,47 @@
+{
+	"printWidth": 100,
+	"tabWidth": 4,
+	"useTabs": true,
+	"semi": true,
+	"singleQuote": false,
+	"quoteProps": "as-needed",
+	"trailingComma": "none",
+	"bracketSpacing": true,
+	"bracketSameLine": false,
+	"arrowParens": "avoid",
+	"endOfLine": "lf",
+	"embeddedLanguageFormatting": "auto",
+	"plugins": ["prettier-plugin-sh"],
+
+	"overrides": [
+		{
+			"files": ["*.md"],
+			"options": {
+				"parser": "markdown",
+				"printWidth": 80,
+				"tabWidth": 2,
+				"useTabs": false,
+				"proseWrap": "preserve"
+			}
+		},
+		{
+			"files": ["*.json", "*.jsonc"],
+			"options": {
+				"parser": "json",
+				"printWidth": 80,
+				"tabWidth": 2,
+				"useTabs": false,
+				"trailingComma": "none"
+			}
+		},
+		{
+			"files": ["*.sh"],
+			"options": {
+				"parser": "sh",
+				"printWidth": 100,
+				"tabWidth": 4,
+				"useTabs": false
+			}
+		}
+	]
+}

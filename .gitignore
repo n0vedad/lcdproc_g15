@@ -27,6 +27,7 @@ mkinstalldirs
 
 # Compiled binaries
 lcdproc
+lcdexec
 LCDd
 
 # Arch Linux packaging
@@ -42,7 +43,6 @@ pkg/
 core
 *.core
 *.debug
-debug_*.py
 gdb.txt
 
 # Temporary/backup files
@@ -87,3 +87,6 @@ Desktop.ini
 
 # Claude AI
 .claude
+
+# NodeJS
+node_modules

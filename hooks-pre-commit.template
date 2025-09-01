@@ -1,0 +1,72 @@
+#!/bin/bash
+# Pre-commit hook for lcdproc-g15 - ensures code is properly formatted
+#
+# Copyright (C) 2025 n0vedad <https://github.com/n0vedad/>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# any later version.
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo -e "${YELLOW}Pre-commit: Checking code formatting...${NC}"
+
+# Check if clang-format is available
+if ! command -v clang-format >/dev/null 2>&1; then
+    echo -e "${RED}Error: clang-format not found${NC}"
+    echo "Install with: sudo pacman -S clang"
+    exit 1
+fi
+
+# Get list of staged C files
+staged_c_files=$(git diff --cached --name-only --diff-filter=AM | grep -E '\.(c|h)$' | grep -v -E "autom4te.cache|config\.h|\.deps" || true)
+
+if [ -z "$staged_c_files" ]; then
+    echo -e "${GREEN}No C files to check${NC}"
+else
+    echo "Checking C files: $staged_c_files"
+    
+    # Check formatting of staged files
+    formatting_issues=false
+    for file in $staged_c_files; do
+        if [ -f "$file" ]; then
+            if ! clang-format --dry-run --Werror "$file" >/dev/null 2>&1; then
+                echo -e "${RED}✗ $file needs formatting${NC}"
+                formatting_issues=true
+            else
+                echo -e "${GREEN}✓ $file${NC}"
+            fi
+        fi
+    done
+    
+    if [ "$formatting_issues" = true ]; then
+        echo -e "${RED}Code formatting issues found!${NC}"
+        echo -e "${YELLOW}Fix with: make format${NC}"
+        echo -e "${YELLOW}Or format manually: clang-format -i <files>${NC}"
+        exit 1
+    fi
+fi
+
+# Check Markdown/JSON/Shell formatting if prettier is available
+if command -v npx >/dev/null 2>&1; then
+    staged_other_files=$(git diff --cached --name-only --diff-filter=AM | grep -E '\.(md|json|sh)$' || true)
+    
+    if [ -n "$staged_other_files" ]; then
+        echo "Checking Markdown/JSON/Shell files with prettier..."
+        if ! npx prettier --check $staged_other_files 2>/dev/null; then
+            echo -e "${RED}Prettier formatting issues found!${NC}"
+            echo -e "${YELLOW}Fix with: make format${NC}"
+            exit 1
+        fi
+    fi
+fi
+
+echo -e "${GREEN}✓ All code properly formatted${NC}"
+exit 0

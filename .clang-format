@@ -1,0 +1,21 @@
+# clang-format configuration for lcdproc-g15
+#
+# Copyright (C) 2025 n0vedad <https://github.com/n0vedad/>
+#
+# This configuration is released under the same license as the project (GPL v2)
+
+# Based on Linux Kernel style with modifications for lcdproc
+BasedOnStyle: LLVM
+IndentWidth: 8
+UseTab: Always
+TabWidth: 8
+ColumnLimit: 100
+BreakBeforeBraces: Linux
+PointerAlignment: Right
+SpaceAfterCStyleCast: false
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+BinPackParameters: false
+BinPackArguments: false

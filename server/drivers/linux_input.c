@@ -1,6 +1,9 @@
 /** \file server/drivers/linux_input.c
  * LCDd \c linux event device driver for inputting data from the input
  * subsystem of the linux kernel..
+ * 
+ * Copyright (C) 2025 n0vedad <https://github.com/n0vedad/>
+ * 2025-08-31 G-Key macro system
  */
 
 #include <dirent.h>

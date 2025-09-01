@@ -7,9 +7,10 @@
  *
  * This file is released under the GNU General Public License.
  * Refer to the COPYING file distributed with this package.
+ * 
+ * Copyright (C) 2025 n0vedad <https://github.com/n0vedad/>
+ * 2025-08-31 remove non-linux support
  */
-
-/* Linux x86_64 only - conditional compilation removed */
 
 #include <sys/types.h>
 #include <stdlib.h>
