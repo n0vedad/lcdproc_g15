@@ -399,4 +399,7 @@ sudo pacman -S clang npm
 
 # Format code manually
 make format
+
+# Check format status
+make format-check
 ```
