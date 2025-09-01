@@ -48,6 +48,23 @@ A: In `~/.config/lcdproc/g15_macros.json` with automatic saving.
 **Q: What gets recorded in macros?**  
 A: Keyboard input, mouse clicks, mouse movements, and timing between actions. Fast typing is automatically consolidated into efficient commands.
 
+## RGB Backlight Control
+
+**Q: What RGB control methods are available?**  
+A: Two methods: `hid_reports` (temporary) and `led_subsystem` (persistent). Configure via `RGBMethod` in `/etc/LCDd.conf`.
+
+**Q: What's the difference between HID reports and LED subsystem?**  
+A: **HID reports** (`RGBMethod=hid_reports`): Temporary RGB colors, lost on reboot/power cycle. **LED subsystem** (`RGBMethod=led_subsystem`): Persistent RGB colors stored in hardware, survive reboots and OS changes.
+
+**Q: Which RGB method should I choose?**  
+A: Use `led_subsystem` (default) for persistent colors that survive reboots. Use `hid_reports` for temporary colors or if you want manual hardware control.
+
+**Q: Can hardware buttons override software RGB settings?**  
+A: With `hid_reports`: Yes, hardware buttons can easily override software colors. With `led_subsystem`: Hardware settings are synchronized with software settings.
+
+**Q: How do I change RGB colors?**  
+A: Set `BacklightRed`, `BacklightGreen`, `BacklightBlue` values (0-255) in `/etc/LCDd.conf`, then restart `lcdd.service`.
+
 ## System Services
 
 **Q: How do I start LCDproc services?**  

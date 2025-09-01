@@ -144,6 +144,13 @@ MODULE_EXPORT int g15_init(Driver *drvthis)
 
 	/* Initialize the PrivateData structure */
 	p->backlight_state = BACKLIGHT_ON;
+
+	/* Read RGB method configuration */
+	const char *rgb_method_str =
+	    drvthis->config_get_string(drvthis->name, "RGBMethod", 0, "led_subsystem");
+	p->rgb_method_hid = (strcmp(rgb_method_str, "hid_reports") == 0) ? 1 : 0;
+	report(RPT_INFO, "%s: Using RGB method: %s", drvthis->name, rgb_method_str);
+
 	p->hidraw_handle = lib_hidraw_open(hidraw_ids);
 	if (!p->hidraw_handle) {
 		report(RPT_ERR, "%s: Sorry, cannot find a G15 keyboard", drvthis->name);
@@ -575,28 +582,54 @@ static int write_led_file(const char *path, const char *value)
 	return (result > 0) ? 0 : -1;
 }
 
-MODULE_EXPORT int g15_set_rgb_backlight(Driver *drvthis, int red, int green, int blue)
+/* RGB backlight control via HID reports (original implementation) */
+static int g15_set_rgb_hid_reports(Driver *drvthis, int red, int green, int blue)
+{
+	PrivateData *p = drvthis->private_data;
+	unsigned char rgb_report[G510_RGB_REPORT_SIZE];
+	int result = 0;
+
+	/* Set RGB for both zones (G510 has 2 RGB zones) */
+
+	/* Zone 0 */
+	rgb_report[0] = G510_FEATURE_RGB_ZONE0;
+	rgb_report[1] = (unsigned char)red;
+	rgb_report[2] = (unsigned char)green;
+	rgb_report[3] = (unsigned char)blue;
+
+	if (lib_hidraw_send_feature_report(p->hidraw_handle, rgb_report, G510_RGB_REPORT_SIZE) <
+	    0) {
+		report(RPT_ERR, "%s: Failed to set RGB zone 0 via HID reports", drvthis->name);
+		result = -1;
+	}
+
+	/* Zone 1 */
+	rgb_report[0] = G510_FEATURE_RGB_ZONE1;
+
+	if (lib_hidraw_send_feature_report(p->hidraw_handle, rgb_report, G510_RGB_REPORT_SIZE) <
+	    0) {
+		report(RPT_ERR, "%s: Failed to set RGB zone 1 via HID reports", drvthis->name);
+		result = -1;
+	}
+
+	if (result == 0) {
+		report(RPT_INFO,
+		       "%s: Set RGB backlight via HID reports to (%d,%d,%d)",
+		       drvthis->name,
+		       red,
+		       green,
+		       blue);
+	}
+
+	return result;
+}
+
+/* RGB backlight control via LED subsystem (persistent implementation) */
+static int g15_set_rgb_led_subsystem(Driver *drvthis, int red, int green, int blue)
 {
 	PrivateData *p = drvthis->private_data;
 	char color_hex[8];
 	int result = 0;
-
-	if (!p->has_rgb_backlight) {
-		report(RPT_WARNING, "%s: Device does not support RGB backlight", drvthis->name);
-		return -1;
-	}
-
-	/* Validate RGB values */
-	if (red < 0 || red > 255 || green < 0 || green > 255 || blue < 0 || blue > 255) {
-		report(
-		    RPT_ERR, "%s: Invalid RGB values (%d,%d,%d)", drvthis->name, red, green, blue);
-		return -1;
-	}
-
-	/* Store current RGB values */
-	p->rgb_red = (unsigned char)red;
-	p->rgb_green = (unsigned char)green;
-	p->rgb_blue = (unsigned char)blue;
 
 	/* Use LED subsystem for RGB control - works with hardware button */
 	snprintf(color_hex, sizeof(color_hex), "#%02x%02x%02x", red, green, blue);
@@ -643,6 +676,38 @@ MODULE_EXPORT int g15_set_rgb_backlight(Driver *drvthis, int red, int green, int
 		       red,
 		       green,
 		       blue);
+	}
+
+	return result;
+}
+
+MODULE_EXPORT int g15_set_rgb_backlight(Driver *drvthis, int red, int green, int blue)
+{
+	PrivateData *p = drvthis->private_data;
+	int result = 0;
+
+	if (!p->has_rgb_backlight) {
+		report(RPT_WARNING, "%s: Device does not support RGB backlight", drvthis->name);
+		return -1;
+	}
+
+	/* Validate RGB values */
+	if (red < 0 || red > 255 || green < 0 || green > 255 || blue < 0 || blue > 255) {
+		report(
+		    RPT_ERR, "%s: Invalid RGB values (%d,%d,%d)", drvthis->name, red, green, blue);
+		return -1;
+	}
+
+	/* Store current RGB values */
+	p->rgb_red = (unsigned char)red;
+	p->rgb_green = (unsigned char)green;
+	p->rgb_blue = (unsigned char)blue;
+
+	/* Choose RGB control method based on configuration */
+	if (p->rgb_method_hid) {
+		result = g15_set_rgb_hid_reports(drvthis, red, green, blue);
+	} else {
+		result = g15_set_rgb_led_subsystem(drvthis, red, green, blue);
 	}
 
 	return result;

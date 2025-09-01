@@ -145,7 +145,7 @@ The usual configure commands to uses this G15-specific build:
     --enable-drivers=g15,linux_input,debug  # Build available drivers
 ```
 
-For more options like setting backlights color please refer to the specific config file (lcdexec.conf, lcdproc.conf, LCDd.conf)
+For more options like setting backlight colors and RGB methods please refer to the specific config file (lcdexec.conf, lcdproc.conf, LCDd.conf). See [RGB Backlight Configuration](#rgb-backlight-configuration-g510-only) below.
 
 But it may not do what you want, so please take a few seconds to type:
 
@@ -403,3 +403,47 @@ make format
 # Check format status
 make format-check
 ```
+
+# RGB BACKLIGHT CONFIGURATION
+
+## Overview
+
+The keyboard supports RGB backlight control through two different methods, each with distinct characteristics:
+
+### RGB Control Methods
+
+#### 1. **HID Reports Method** (Temporary)
+
+- **Configuration**: `RGBMethod=hid_reports` in `/etc/LCDd.conf`
+- **Behavior**: RGB colors are written directly to keyboard RAM
+- **Persistence**: **Non-persistent** - colors are lost on reboot/power cycle
+- **Hardware Override**: Hardware buttons can easily override software colors
+- **Use Case**: Temporary color effects, testing, or when you want full hardware control
+
+#### 2. **LED Subsystem Method** (Persistent) - **Default**
+
+- **Configuration**: `RGBMethod=led_subsystem` in `/etc/LCDd.conf`
+- **Behavior**: RGB colors are written to keyboard firmware/EEPROM
+- **Persistence**: **Persistent** - colors survive reboots and OS changes
+- **Hardware Override**: Hardware settings are synchronized with software
+- **Use Case**: Permanent color configuration, cross-OS consistency
+
+## Configuration
+
+Edit `/etc/LCDd.conf` in the `[g15]` section and restart either your computer or just controlling services.
+
+## Technical Details
+
+### HID Reports Implementation
+
+- Uses USB HID feature reports directly to G510 hardware zones
+- Writes to both RGB Zone 0 and Zone 1 for full keyboard coverage
+- Immediate effect but temporary storage in keyboard RAM
+- Compatible with original G15tools behavior
+
+### LED Subsystem Implementation
+
+- Uses Linux LED subsystem: `/sys/class/leds/g15::*/`
+- Writes to both current (`kbd_backlight`) and persistent (`power_on_backlight_val`) settings
+- Hardware firmware stores colors in non-volatile memory
+- Ensures consistency between software and hardware button controls

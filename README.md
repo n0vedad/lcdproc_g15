@@ -32,6 +32,16 @@ This fork includes an advanced G-Key macro recording and playback system with th
 - **Multi-mode support** - separate macro sets for M1/M2/M3 modes
 - **Persistent storage** - macros saved in JSON format at `~/.config/lcdproc/g15_macros.json`
 
+## RGB Backlight Control
+
+Advanced RGB backlight management with dual control methods:
+
+- **LED Subsystem Method** (default) - **Persistent** RGB colors stored in hardware firmware
+- **HID Reports Method** - **Temporary** RGB colors for immediate effects
+- **Configuration-driven** - Choose method via `RGBMethod` setting in `/etc/LCDd.conf`
+- **Hardware synchronization** - LED subsystem method syncs with hardware buttons
+- **Cross-OS compatibility** - Persistent colors survive OS changes and reboots
+
 ## Code Formatting
 
 This project supports **optioal automatic code formatting** for developers to maintain consistent code style. For more information please refer to [CODE FORMATTING](INSTALL.md#code-formatting)
