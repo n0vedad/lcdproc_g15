@@ -12,6 +12,8 @@
 #ifndef RENDER_H
 #define RENDER_H
 
+#include "screen.h"
+
 #define HEARTBEAT_OFF 0
 #define HEARTBEAT_ON 1
 #define HEARTBEAT_OPEN 2

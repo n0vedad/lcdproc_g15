@@ -24,6 +24,8 @@
 #ifndef ADV_BIGNUM_H
 #define ADV_BIGNUM_H
 
+#include "lcd.h"
+
 /* Bit patterns for creating custom characters */
 #define b_______ 0x00
 #define b______X 0x01

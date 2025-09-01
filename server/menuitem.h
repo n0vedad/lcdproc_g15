@@ -27,6 +27,9 @@
 #ifndef MENUITEM_H
 #define MENUITEM_H
 
+#include "client.h"
+#include "screen.h"
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
