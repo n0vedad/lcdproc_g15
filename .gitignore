@@ -26,9 +26,9 @@ mkinstalldirs
 .libs/
 
 # Compiled binaries
-lcdproc/lcdproc
-lcdexec/lcdexec
-LCDd/LCDd
+clients/lcdproc/lcdproc
+clients/lcdexec/lcdexec
+server/LCDd
 
 # Arch Linux packaging
 pkg/
