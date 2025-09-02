@@ -22,27 +22,39 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y npm wget gpg
-        # Add LLVM repository for clang-format-20
+        # Add LLVM repository for clang tools
         wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
         echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-20 main" | sudo tee /etc/apt/sources.list.d/llvm.list
         sudo apt-get update
-        # Install clang-format-20 directly
-        sudo apt-get install -y clang-format-20
-        # Make clang-format-20 the default
+        # Install clang tools
+        sudo apt-get install -y clang-format-20 clang-tidy-20
+        # Make clang tools the default
         sudo ln -sf /usr/bin/clang-format-20 /usr/bin/clang-format
+        sudo ln -sf /usr/bin/clang-tidy-20 /usr/bin/clang-tidy
         npm install
     
-    - name: Check C code formatting
+    - name: Setup environment for make format-check
       run: |
-        echo "Checking C code formatting..."
+        # Create minimal environment for our make format-check to work
+        echo "Setting up environment..."
         echo "clang-format version:"
         clang-format --version
-        find . -name "*.c" -o -name "*.h" | grep -v -E "autom4te.cache|config\.h|\.deps" | xargs clang-format --dry-run --Werror
+        # Install formatting hooks (creates .git/hooks/pre-commit)
+        ./setup-hooks.sh install
+        # Generate Makefile from Makefile.am
+        sudo apt-get install -y autoconf automake
+        ./autogen.sh
+        # Configure to generate actual Makefile
+        ./configure --prefix=/usr --sbindir=/usr/bin --sysconfdir=/etc --enable-libusb --enable-lcdproc-menus --enable-stat-smbfs --enable-drivers=g15,linux_input
     
-    - name: Check other files formatting  
+    - name: Run format check
       run: |
-        echo "Checking Markdown/JSON/Shell formatting..."
-        npx prettier --check "**/*.{md,json,sh}"
+        echo "🔍 Running format check using project's Makefile system..."
+        # First check if our Makefile was created correctly
+        echo "Available make targets:"
+        make -n format-check || echo "format-check target not found"
+        # Use our intelligent format-check system
+        make format-check
     
     - name: Suggest fixes on failure
       if: failure()
@@ -50,6 +62,8 @@ jobs:
         echo "❌ Code formatting issues found!"
         echo "💡 Fix locally with: make format"
         echo "💡 Or run: git commit --no-verify (not recommended)"
+        echo ""
+        echo "ℹ️  The CI uses the same 'make format-check' that you can run locally"
         exit 1
 
   build-test:
@@ -91,4 +105,3 @@ jobs:
     - name: Check for build warnings
       run: |
         echo "✅ Build completed successfully"
-        
