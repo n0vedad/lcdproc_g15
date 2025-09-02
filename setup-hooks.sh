@@ -44,6 +44,14 @@ install_hook() {
         echo -e "${YELLOW}⚠ npm not available - prettier formatting will not work${NC}"
     fi
 
+    # Check clang-tidy availability for static analysis
+    if command -v clang-tidy > /dev/null 2>&1; then
+        echo -e "${GREEN}✓ clang-tidy available for static analysis${NC}"
+    else
+        echo -e "${YELLOW}⚠ clang-tidy not available - static analysis will not work${NC}"
+        echo -e "${BLUE}💡 Install with: sudo pacman -S clang${NC}"
+    fi
+
     if [ -f "$HOOK_SOURCE" ] && [ -x "$HOOK_SOURCE" ]; then
         echo -e "${GREEN}✓ Pre-commit hook already installed and executable${NC}"
     elif [ -f "$HOOK_SOURCE" ]; then

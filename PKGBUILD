@@ -11,7 +11,8 @@ license=('GPL')
 depends=('libg15' 'libg15render' 'libusb' 'libftdi-compat' 'ydotool')
 makedepends=('gcc' 'make' 'autoconf' 'automake')
 optdepends=('clang: for automatic code formatting'
-            'npm: for prettier code formatting')
+            'npm: for prettier code formatting'
+            'bear: for generating compile database (static analysis)')
 install=lcdproc-g15.install
 backup=(
     'etc/LCDd.conf'

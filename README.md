@@ -42,9 +42,15 @@ Advanced RGB backlight management with dual control methods:
 - **Hardware synchronization** - LED subsystem method syncs with hardware buttons
 - **Cross-OS compatibility** - Persistent colors survive OS changes and reboots
 
-## Code Formatting
+## Code Quality & Analysis
 
-This project supports **optioal automatic code formatting** for developers to maintain consistent code style. For more information please refer to [CODE FORMATTING](INSTALL.md#code-formatting)
+This project includes comprehensive code quality tools for developers:
+
+- **Code Formatting** - Automatic formatting with clang-format and prettier
+- **Static Analysis** - Security and performance analysis with clang-tidy
+- **Hardware-focused** - Optimized for system-level C programming
+
+For more information please refer to [CODE FORMATTING](INSTALL.md#code-formatting) and [STATIC ANALYSIS](INSTALL.md#static-analysis)
 
 ## FAQ Section
 

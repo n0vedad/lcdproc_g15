@@ -53,10 +53,10 @@ G-Key Macro System:
 sudo pacman -S ydotool
 ```
 
-Code formatting:
+Code formatting and static analysis:
 
 ```
-sudo pacman -S clang npm
+sudo pacman -S clang npm bear
 ```
 
 ## Installation
@@ -388,8 +388,8 @@ makepkg -si
 After any installation method, developers can enable code formatting:
 
 ```
-# Install formatting dependencies
-sudo pacman -S clang npm
+# Install formatting and static analysis dependencies
+sudo pacman -S clang npm bear
 
 # Enable git hooks for automatic formatting
 ./setup-hooks.sh install
@@ -402,7 +402,54 @@ make format
 
 # Check format status
 make format-check
+
+# Run static analysis
+make lint
+
+# Auto-fix static analysis issues
+make lint-fix
+
+# Check for static analysis issues (no fixes)
+make lint-check
 ```
+
+## Static Analysis
+
+This project uses **clang-tidy** for comprehensive static analysis of C code:
+
+### Features
+
+- **Security Analysis**: Buffer overflows, use-after-free, concurrency issues
+- **Performance**: Inefficient operations, unnecessary allocations
+- **Modernization**: Suggests modern C patterns and best practices
+- **Hardware-specific**: Optimized for system-level and embedded code
+
+### Usage
+
+```bash
+# Run complete static analysis
+make lint
+
+# Auto-fix issues where possible
+make lint-fix
+
+# Check issues without making changes
+make lint-check
+```
+
+### Configuration
+
+Static analysis rules are configured in `.clang-tidy` with focus on:
+
+- System programming patterns (USB, threading, memory management)
+- Security-critical code paths
+- Performance optimizations for real-time applications
+
+### Dependencies
+
+- **bear**: Generates compile database (`compile_commands.json`) for accurate header resolution
+- **clang-tidy**: Performs the actual static analysis
+- The compile database is automatically generated when needed by `make lint`
 
 # RGB BACKLIGHT CONFIGURATION
 

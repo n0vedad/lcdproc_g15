@@ -31,6 +31,12 @@ A: Install dependencies (`sudo pacman -S clang npm`) then run `./setup-hooks.sh 
 **Q: How do I check if code formatting is active?**  
 A: Run `./setup-hooks.sh status` or `make format-check`.
 
+**Q: How do I run static analysis on the code?**  
+A: Use `make lint` to run clang-tidy static analysis. Use `make lint-fix` to auto-fix issues where possible, or `make lint-check` for analysis without changes.
+
+**Q: What static analysis tools are used?**  
+A: clang-tidy for comprehensive C code analysis including security, performance, and modernization checks. Configuration is in `.clang-tidy`.
+
 ## G-Key Macro System
 
 **Q: Why do I need root privileges for macros?**  

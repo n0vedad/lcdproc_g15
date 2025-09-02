@@ -89,5 +89,59 @@ format-check:
 		fi; \
 	fi
 
+## Static analysis targets
+lint:
+	@echo "Running clang-tidy static analysis..."
+	@if command -v clang-tidy >/dev/null 2>&1; then \
+		if [ ! -f compile_commands.json ]; then \
+			echo "⚠ Generating compile database..."; \
+			$(MAKE) clean >/dev/null 2>&1 || true; \
+			bear -- $(MAKE) >/dev/null 2>&1 || { \
+				echo "❌ bear not available - install with: sudo pacman -S bear"; \
+				echo "💡 Running clang-tidy without compile database (limited analysis)"; \
+				find ./shared -name "*.c" | xargs -n5 clang-tidy --quiet --format-style=file || echo "clang-tidy found issues"; \
+			}; \
+		fi; \
+		if [ -f compile_commands.json ]; then \
+			echo "⚠ Analyzing files in small batches to avoid memory issues..."; \
+			find . -name "*.c" | grep -v -E "autom4te.cache|config\.h|\.deps|pkg/" | \
+			xargs -n5 clang-tidy --quiet --format-style=file || echo "clang-tidy found issues"; \
+		fi; \
+	else \
+		echo "❌ clang-tidy not available"; \
+		echo "💡 Install with: sudo pacman -S clang"; \
+		exit 1; \
+	fi
+
+lint-fix:
+	@echo "Auto-fixing clang-tidy issues..."
+	@if command -v clang-tidy >/dev/null 2>&1; then \
+		find . -name "*.c" | grep -v -E "autom4te.cache|config\.h|\.deps|pkg/" | \
+		xargs -n5 clang-tidy --fix --quiet --format-style=file; \
+		echo "✅ clang-tidy auto-fixes applied"; \
+	else \
+		echo "❌ clang-tidy not available"; \
+		echo "💡 Install with: sudo pacman -S clang"; \
+		exit 1; \
+	fi
+
+lint-check:
+	@echo "Checking code with clang-tidy (no fixes)..."
+	@if command -v clang-tidy >/dev/null 2>&1; then \
+		issues=$$(find . -name "*.c" | grep -v -E "autom4te.cache|config\.h|\.deps|pkg/" | \
+			xargs -n5 clang-tidy --quiet 2>&1 | grep -E "warning:|error:" || true); \
+		if [ -z "$$issues" ]; then \
+			echo "✅ No clang-tidy issues found"; \
+		else \
+			echo "❌ clang-tidy found issues:"; \
+			echo "$$issues"; \
+			echo "💡 Run 'make lint-fix' to auto-fix some issues"; \
+		fi; \
+	else \
+		echo "❌ clang-tidy not available"; \
+		echo "💡 Install with: sudo pacman -S clang"; \
+		exit 1; \
+	fi
+
 
 ## EOF

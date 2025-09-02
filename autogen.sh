@@ -85,8 +85,8 @@ echo ""
 # Interactive setup for code formatting
 setup_formatting() {
     echo -e "${BLUE}=== Code Formatting Setup ===${NC}"
-    echo "This project uses automatic code formatting for consistency."
-    echo "Dependencies: clang-format (C code), prettier (other files)"
+    echo "This project uses automatic code formatting and static analysis."
+    echo "Dependencies: clang-format (C formatting), prettier (other files), clang-tidy (static analysis)"
     echo ""
 
     # Check if already set up
@@ -102,7 +102,7 @@ setup_formatting() {
         return 0
     fi
 
-    printf "Enable automatic code formatting? [Y/n]: "
+    printf "Enable automatic code analysis? [Y/n]: "
     read -r response
     case "$response" in
         [nN] | [nN][oO])
