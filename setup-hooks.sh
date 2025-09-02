@@ -29,6 +29,21 @@ usage() {
 }
 
 install_hook() {
+    # Install npm dependencies for prettier if needed
+    if command -v npm > /dev/null 2>&1; then
+        if [ ! -f "package-lock.json" ] || [ ! -d "node_modules" ]; then
+            echo -e "${YELLOW}Installing prettier dependencies...${NC}"
+            npm install || {
+                echo -e "${RED}✗ Failed to install npm dependencies${NC}"
+                echo -e "${YELLOW}⚠ Continuing with hook installation anyway${NC}"
+            }
+        else
+            echo -e "${GREEN}✓ Prettier dependencies already installed${NC}"
+        fi
+    else
+        echo -e "${YELLOW}⚠ npm not available - prettier formatting will not work${NC}"
+    fi
+
     if [ -f "$HOOK_SOURCE" ] && [ -x "$HOOK_SOURCE" ]; then
         echo -e "${GREEN}✓ Pre-commit hook already installed and executable${NC}"
     elif [ -f "$HOOK_SOURCE" ]; then

@@ -26,7 +26,7 @@ A: Yes! Use `make format` to format code manually anytime.
 A: The build will continue normally. Formatting is completely optional for building the project.
 
 **Q: How do I enable code formatting after installation?**  
-A: Install dependencies (`sudo pacman -S clang npm`) then run `./setup-hooks.sh install`.
+A: Install dependencies (`sudo pacman -S clang npm`) then run `./setup-hooks.sh install`. This will automatically install prettier dependencies and git hooks.
 
 **Q: How do I check if code formatting is active?**  
 A: Run `./setup-hooks.sh status` or `make format-check`.
