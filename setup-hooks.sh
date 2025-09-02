@@ -44,6 +44,14 @@ install_hook() {
         echo -e "${YELLOW}⚠ npm not available - prettier formatting will not work${NC}"
     fi
 
+    # Check clang-format availability for code formatting
+    if command -v clang-format > /dev/null 2>&1; then
+        echo -e "${GREEN}✓ clang-format available for code formatting${NC}"
+    else
+        echo -e "${YELLOW}⚠ clang-format not available - code formatting will not work${NC}"
+        echo -e "${BLUE}💡 Install with: sudo pacman -S clang${NC}"
+    fi
+
     # Check clang-tidy availability for static analysis
     if command -v clang-tidy > /dev/null 2>&1; then
         echo -e "${GREEN}✓ clang-tidy available for static analysis${NC}"
@@ -61,7 +69,7 @@ install_hook() {
         cp "$HOOK_TEMPLATE" "$HOOK_SOURCE"
         chmod +x "$HOOK_SOURCE"
         echo ""
-        echo -e "${GREEN}✓ Pre-commit hook installed from template${NC}"
+        echo -e "${GREEN}✓ Pre-commit hook available from template${NC}"
     else
         echo -e "${RED}✗ Hook template not found at $HOOK_TEMPLATE${NC}"
         echo -e "${RED}Cannot install git hook without template.${NC}"
