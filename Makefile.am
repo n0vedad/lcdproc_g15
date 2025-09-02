@@ -30,7 +30,15 @@ all-recursive: format-before-build
 
 format-before-build:
 	@if [ -f .git/hooks/pre-commit ]; then \
-		$(MAKE) format && echo "Code formatted before build"; \
+		echo "🔍 Checking code formatting before build..."; \
+		$(MAKE) format-check; \
+		if [ $$? -ne 0 ]; then \
+			echo "⚠️  Formatting issues found - fixing automatically..."; \
+			$(MAKE) format; \
+			echo "✅ Files formatted - proceeding with build"; \
+		else \
+			echo "✅ All files properly formatted - proceeding with build"; \
+		fi; \
 	fi
 
 $(SUBDIRS):
@@ -46,17 +54,33 @@ install-clients: clients
 
 ## Code formatting targets
 format:
-	@echo "Formatting C code with clang-format..."
-	@if command -v clang-format >/dev/null 2>&1; then \
-		find . -name "*.c" -o -name "*.h" | grep -v -E "autom4te.cache|config\.h|\.deps|pkg/" | xargs clang-format -i; \
+	@echo "🔍 Checking if formatting is needed..."
+	@c_issues=$$(find . -name "*.c" -o -name "*.h" | grep -v -E "autom4te.cache|config\.h|\.deps|pkg/" | xargs clang-format --dry-run --Werror 2>&1 | grep -v "^$$" || true); \
+	prettier_issues=""; \
+	if [ -f package-lock.json ] && command -v npx >/dev/null 2>&1; then \
+		prettier_issues=$$(npx prettier --check "**/*.{md,json,sh}" 2>&1 | grep -E "\.md$$|\.json$$|\.sh$$" || true); \
+	fi; \
+	if [ -z "$$c_issues" ] && [ -z "$$prettier_issues" ]; then \
+		echo "✅ Nothing to do! All files are already properly formatted."; \
 	else \
-		echo "clang-format not available"; \
-	fi
-	@echo "Formatting Markdown/JSON/Shell with prettier..."
-	@if [ -f package-lock.json ] && command -v npx >/dev/null 2>&1; then \
-		npx prettier --write "**/*.{md,json,sh}" 2>/dev/null || echo "prettier not available"; \
-	else \
-		echo "prettier not available"; \
+		echo "⚠️  Formatting issues found - fixing now..."; \
+		if [ -n "$$c_issues" ]; then \
+			echo "Formatting C code with clang-format..."; \
+			if command -v clang-format >/dev/null 2>&1; then \
+				find . -name "*.c" -o -name "*.h" | grep -v -E "autom4te.cache|config\.h|\.deps|pkg/" | xargs clang-format -i; \
+			else \
+				echo "clang-format not available"; \
+			fi; \
+		fi; \
+		if [ -n "$$prettier_issues" ]; then \
+			echo "Formatting Markdown/JSON/Shell with prettier..."; \
+			if [ -f package-lock.json ] && command -v npx >/dev/null 2>&1; then \
+				npx prettier --write --log-level warn "**/*.{md,json,sh}" || echo "prettier not available"; \
+			else \
+				echo "prettier not available"; \
+			fi; \
+		fi; \
+		echo "✅ Formatting complete!"; \
 	fi
 
 format-check:
@@ -66,21 +90,26 @@ format-check:
 		exit 1; \
 	fi
 	@echo "Checking C code formatting..."
-	@c_issues=$$(find . -name "*.c" -o -name "*.h" | grep -v -E "autom4te.cache|config\.h|\.deps" | xargs clang-format --dry-run --Werror 2>&1 | grep -v "^$$" || true); \
+	@c_issues=$$(find . -name "*.c" -o -name "*.h" | grep -v -E "autom4te.cache|config\.h|\.deps|pkg/" | xargs clang-format --dry-run --Werror 2>&1 | grep -v "^$$" || true); \
+	c_exit=0; \
 	if [ -z "$$c_issues" ]; then \
 		echo "✅ C code properly formatted"; \
 	else \
 		echo "❌ C formatting issues found in the following files:"; \
 		echo "$$c_issues" | grep -E "\.c:|\.h:" | sed 's/^/  /'; \
 		echo "💡 Run 'make format' to fix these issues"; \
-	fi
-	@echo "Checking Markdown/JSON/Shell formatting..."
-	@if [ ! -f package-lock.json ]; then \
+		c_exit=1; \
+	fi; \
+	echo "Checking Markdown/JSON/Shell formatting..."; \
+	prettier_exit=0; \
+	if [ ! -f package-lock.json ]; then \
 		echo "❌ Prettier dependencies missing (no package-lock.json found)"; \
 		echo "💡 Install with: ./setup-hooks.sh install"; \
+		prettier_exit=1; \
 	elif ! command -v npx >/dev/null 2>&1; then \
 		echo "❌ npx command not available"; \
 		echo "💡 Install npm: sudo pacman -S npm"; \
+		prettier_exit=1; \
 	else \
 		prettier_issues=$$(npx prettier --check "**/*.{md,json,sh}" 2>&1 | grep -E "\.md$$|\.json$$|\.sh$$" || true); \
 		if [ -z "$$prettier_issues" ]; then \
@@ -89,7 +118,11 @@ format-check:
 			echo "❌ Prettier formatting issues found in the following files:"; \
 			echo "$$prettier_issues" | sed 's/^/  /'; \
 			echo "💡 Run 'make format' to fix these issues"; \
+			prettier_exit=1; \
 		fi; \
+	fi; \
+	if [ "$$c_exit" -ne 0 ] || [ "$$prettier_exit" -ne 0 ]; then \
+		exit 1; \
 	fi
 
 ## Static analysis targets
