@@ -57,7 +57,7 @@ char *sprintf_percent(char *dst, double percent)
 {
 	if (dst != NULL) {
 		if (percent > 99.9)
-			strcpy(dst, "100%");
+			strncpy(dst, "100%", 5);
 		else
 			sprintf(dst, "%.1f%%", (percent >= 0) ? percent : 0);
 	}

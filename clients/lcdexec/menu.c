@@ -216,8 +216,7 @@ MenuEntry *menu_read(MenuEntry *parent, const char *name)
 				// menu_free(me);
 				return NULL;
 			}
-			strcpy(me->name, "Apply_");
-			strcat(me->name, parent->name);
+			snprintf(me->name, strlen(parent->name) + 10, "Apply_%s", parent->name);
 
 			me->displayname = strdup("Apply!");
 			if (me->displayname == NULL) {
@@ -335,11 +334,16 @@ int menu_sock_send(MenuEntry *me, MenuEntry *parent, int sock)
 
 			// join all strings with TAB as separator
 			for (i = 0; me->data.ring.strings[i] != NULL; i++) {
-				tmp = realloc(
-				    tmp, strlen(tmp) + 1 + strlen(me->data.ring.strings[i]) + 1);
-				if (tmp[0] != '\0')
-					strcat(tmp, "\t");
-				strcat(tmp, me->data.ring.strings[i]);
+				size_t new_len =
+				    strlen(tmp) + 1 + strlen(me->data.ring.strings[i]) + 1;
+				tmp = realloc(tmp, new_len);
+				if (tmp != NULL) {
+					if (tmp[0] != '\0')
+						strncat(tmp, "\t", new_len - strlen(tmp) - 1);
+					strncat(tmp,
+						me->data.ring.strings[i],
+						new_len - strlen(tmp) - 1);
+				}
 			}
 
 			if (sock_printf(sock,

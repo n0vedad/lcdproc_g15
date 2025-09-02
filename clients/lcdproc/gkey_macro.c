@@ -215,7 +215,7 @@ static void load_macros(void)
 				/* Read commands from rest of line */
 				char *ptr = line;
 				/* Skip mode, gkey, cmd_count */
-				for (int i = 0; i < 3; i++) {
+				for (int i = 0; i < 3 && ptr; i++) {
 					ptr = strchr(ptr, ' ');
 					if (ptr)
 						ptr++;

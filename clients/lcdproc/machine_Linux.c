@@ -460,7 +460,8 @@ int machine_get_procs(LinkedList *procs)
 					perror("mem_top_screen: Error allocating process entry");
 					break;
 				}
-				strcpy(p->name, procName);
+				strncpy(p->name, procName, sizeof(p->name) - 1);
+				p->name[sizeof(p->name) - 1] = '\0';
 				p->totl = procData + procStk + procExe;
 				p->number = 1;
 				/* TODO:  Check for errors here? */

@@ -99,10 +99,14 @@ int set_reporting(char *application_name, int new_level, int new_dest)
 static void store_report_message(int level, const char *message)
 {
 	if (num_stored_msgs < MAX_STORED_MSGS) {
-		stored_msgs[num_stored_msgs] = malloc(strlen(message) + 1);
-		strcpy(stored_msgs[num_stored_msgs], message);
-		stored_levels[num_stored_msgs] = level;
-		num_stored_msgs++;
+		size_t msg_len = strlen(message);
+		stored_msgs[num_stored_msgs] = malloc(msg_len + 1);
+		if (stored_msgs[num_stored_msgs] != NULL) {
+			strncpy(stored_msgs[num_stored_msgs], message, msg_len);
+			stored_msgs[num_stored_msgs][msg_len] = '\0';
+			stored_levels[num_stored_msgs] = level;
+			num_stored_msgs++;
+		}
 	}
 }
 

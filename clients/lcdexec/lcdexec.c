@@ -454,13 +454,19 @@ static int process_response(char *str)
 				break;
 			case MT_ARG_ALPHA:
 				entry->data.alpha.value =
-				    realloc(entry->data.alpha.value, strlen(argv[3]));
-				strcpy(entry->data.alpha.value, argv[3]);
+				    realloc(entry->data.alpha.value, strlen(argv[3]) + 1);
+				if (entry->data.alpha.value != NULL) {
+					strncpy(entry->data.alpha.value, argv[3], strlen(argv[3]));
+					entry->data.alpha.value[strlen(argv[3])] = '\0';
+				}
 				break;
 			case MT_ARG_IP:
 				entry->data.ip.value =
-				    realloc(entry->data.ip.value, strlen(argv[3]));
-				strcpy(entry->data.ip.value, argv[3]);
+				    realloc(entry->data.ip.value, strlen(argv[3]) + 1);
+				if (entry->data.ip.value != NULL) {
+					strncpy(entry->data.ip.value, argv[3], strlen(argv[3]));
+					entry->data.ip.value[strlen(argv[3])] = '\0';
+				}
 				break;
 			case MT_ARG_CHECKBOX:
 				if ((entry->data.checkbox.allow_gray) &&

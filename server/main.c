@@ -826,16 +826,15 @@ static void exit_program(int val)
 	 */
 
 	if (val > 0) {
-		strncpy(buf, "Server shutting down on ", sizeof(buf));
 		switch (val) {
 		case 1:
-			strcat(buf, "SIGHUP");
+			snprintf(buf, sizeof(buf), "Server shutting down on SIGHUP");
 			break;
 		case 2:
-			strcat(buf, "SIGINT");
+			snprintf(buf, sizeof(buf), "Server shutting down on SIGINT");
 			break;
 		case 15:
-			strcat(buf, "SIGTERM");
+			snprintf(buf, sizeof(buf), "Server shutting down on SIGTERM");
 			break;
 		default:
 			snprintf(buf, sizeof(buf), "Server shutting down on signal %d", val);
