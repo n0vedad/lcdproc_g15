@@ -63,16 +63,30 @@ format-check:
 		exit 1; \
 	fi
 	@echo "Checking C code formatting..."
-	@if find . -name "*.c" -o -name "*.h" | grep -v -E "autom4te.cache|config\.h|\.deps" | xargs clang-format --dry-run --Werror >/dev/null 2>&1; then \
+	@c_issues=$$(find . -name "*.c" -o -name "*.h" | grep -v -E "autom4te.cache|config\.h|\.deps" | xargs clang-format --dry-run --Werror 2>&1 | grep -v "^$$" || true); \
+	if [ -z "$$c_issues" ]; then \
 		echo "✅ C code properly formatted"; \
 	else \
-		echo "❌ C formatting issues found - run 'make format' to fix"; \
+		echo "❌ C formatting issues found in the following files:"; \
+		echo "$$c_issues" | grep -E "\.c:|\.h:" | sed 's/^/  /'; \
+		echo "💡 Run 'make format' to fix these issues"; \
 	fi
 	@echo "Checking Markdown/JSON/Shell formatting..."
-	@if [ -f package-lock.json ] && npx prettier --check "**/*.{md,json,sh}" >/dev/null 2>&1; then \
-		echo "✅ Prettier files properly formatted"; \
+	@if [ ! -f package-lock.json ]; then \
+		echo "❌ Prettier dependencies missing (no package-lock.json found)"; \
+		echo "💡 Install with: ./setup-hooks.sh install"; \
+	elif ! command -v npx >/dev/null 2>&1; then \
+		echo "❌ npx command not available"; \
+		echo "💡 Install npm: sudo pacman -S npm"; \
 	else \
-		echo "❌ Some files need formatting - run 'make format'"; \
+		prettier_issues=$$(npx prettier --check "**/*.{md,json,sh}" 2>&1 | grep -E "\.md$$|\.json$$|\.sh$$" || true); \
+		if [ -z "$$prettier_issues" ]; then \
+			echo "✅ Prettier files properly formatted"; \
+		else \
+			echo "❌ Prettier formatting issues found in the following files:"; \
+			echo "$$prettier_issues" | sed 's/^/  /'; \
+			echo "💡 Run 'make format' to fix these issues"; \
+		fi; \
 	fi
 
 
