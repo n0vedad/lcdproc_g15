@@ -3,7 +3,7 @@
 ## set automake strictness to 'foreign'
 AUTOMAKE_OPTIONS = foreign
 
-SUBDIRS = shared clients server services
+SUBDIRS = shared clients server services .
 
 EXTRA_DIST =
 
@@ -11,6 +11,7 @@ clean-local:
 	-rm -rf pkg/ src/ node_modules/
 	-rm -f *.pkg.tar.* *.log
 
+# distclean-local runs LAST now (SUBDIRS = ... .), so we can clean everything
 distclean-local:
 	-rm -rf autom4te.cache pkg/ src/ node_modules/
 	-rm -f *.tar.gz aclocal.m4 compile configure configure~ depcomp missing
@@ -22,10 +23,12 @@ distclean-local:
 
 ## convenience targets
 
-.PHONY: $(SUBDIRS) install-server install-clients format format-check
+.PHONY: $(SUBDIRS) install-server install-clients format format-check format-before-build
 
-# Auto-format before build (only if pre-commit hook is installed)
-all-local:
+# Format code before any compilation starts
+all-recursive: format-before-build
+
+format-before-build:
 	@if [ -f .git/hooks/pre-commit ]; then \
 		$(MAKE) format && echo "Code formatted before build"; \
 	fi
