@@ -1,11 +1,33 @@
-# LCDproc Fork for G15 Devices
+# LCDproc Fork for Logitech G-Series Keyboards
 
-This is a specialized fork from the [official LCDproc repository](https://github.com/lcdproc/lcdproc) optimized specifically for Logitech G15 keyboards under Arch with Wayland.
+This is a specialized fork from the [official LCDproc repository](https://github.com/lcdproc/lcdproc) optimized specifically for **supported Logitech G-Series keyboards** under Arch with Wayland.
+
+## Supported Devices
+
+### ✅ **Fully Supported:**
+
+| Device                      | LCD Display | RGB Backlight | G-Keys | Configuration Status  |
+| --------------------------- | ----------- | ------------- | ------ | --------------------- |
+| **Logitech G15** (Original) | 160x43 mono | ❌            | ✅     | ✅ Tested             |
+| **Logitech G15 v2**         | 160x43 mono | ❌            | ✅     | ✅ Tested             |
+| **Logitech G510**           | 160x43 mono | ✅ RGB        | ✅     | ✅ Tested             |
+| **Logitech G510s**          | 160x43 mono | ✅ RGB        | ✅     | ✅ **Primary Config** |
+
+### ❌ **NOT Supported:**
+
+| Device           | Reason                                                           | Alternative                  |
+| ---------------- | ---------------------------------------------------------------- | ---------------------------- |
+| **Logitech G19** | 320x240 **color** LCD requires completely different architecture | Use Logitech Gaming Software |
+| **Logitech G13** | Different USB protocol and display specs                         | Community drivers available  |
+
+### ⚠️ **Important Note:**
+
+**This configuration is specifically optimized for the Logitech G510s.** Key mappings, RGB settings, and macro configurations may need adjustment for other supported devices.
 
 ## Introduction
 
-LCDproc G15 is a client/server suite designed exclusively for Logitech G15 keyboards with integrated LCD displays.
-The G15 driver supports the 160x43 pixel monochrome LCD display found on Logitech G15 keyboards, providing system information display capabilities.
+LCDproc G15 is a client/server suite designed for **Logitech G-Series keyboards with 160x43 monochrome LCD displays**.
+The G15 driver supports system information display and advanced RGB backlight control (G510/G510s only).
 
 Various clients are available that display things like CPU load, system load, memory usage, uptime, and more directly on your G15's LCD screen.
 
@@ -49,7 +71,6 @@ This project uses a **Clang-based toolchain** for consistent development experie
 - **Clang Compiler** - Default compiler for toolchain consistency and better diagnostics
 - **Code Formatting** - Automatic formatting with clang-format and prettier
 - **Static Analysis** - Security and performance analysis with clang-tidy
-- **Hardware-focused** - Optimized for system-level C programming
 
 For more information please refer to [CODE FORMATTING](INSTALL.md#code-formatting) and [STATIC ANALYSIS](INSTALL.md#static-analysis)
 

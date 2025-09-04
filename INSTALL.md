@@ -1,6 +1,29 @@
 # PREREQUISITES
 
-## Quick Build for G15 Devices
+## Device Compatibility Check
+
+**Before installation, verify your device is supported:**
+
+### ✅ **Supported Logitech Keyboards:**
+
+- **G15 (Original)** - USB ID `046d:c222` - Monochrome LCD only
+- **G15 v2** - USB ID `046d:c227` - Monochrome LCD only
+- **G510** - USB ID `046d:c22d` / `046d:c22e` - Monochrome LCD + RGB backlight
+- **G510s** - Uses G510 USB IDs - **Primary configuration target**
+
+### ❌ **NOT Supported:**
+
+- **G19** - Color LCD (320x240) requires different driver architecture
+- **G13** - Different LCD specifications and USB protocol
+
+### 🔍 **Check Your Device:**
+
+```
+lsusb | grep -i logitech
+# Look for USB IDs: 046d:c222, 046d:c227, 046d:c22d, or 046d:c22e
+```
+
+## Quick Build for Supported Devices
 
 First read the [README](README.md) if you haven't already.
 
@@ -52,11 +75,13 @@ G15 Device:
 sudo pacman -S libg15 libg15render libusb libftdi-compat
 ```
 
-G-Key Macro System:
+G-Key Macro System (G15/G510/G510s only):
 
 ```
 sudo pacman -S ydotool
 ```
+
+**Note:** G-Key configurations in this implementation are optimized for **G510s**. Other supported devices may have different key layouts and may require configuration adjustments.
 
 Code formatting and static analysis:
 
@@ -233,6 +258,9 @@ the configfile.
 # RUNNING LCDPROC
 
 ## Prerequisites for G-Key Macro System
+
+**⚠️ Device-Specific Notice:**
+This G-Key macro implementation is specifically configured for the **Logitech G510s**. If you have a different supported device (G15/G15v2/G510), key mappings and macro behaviors may differ and require manual adjustment.
 
 ### Setup ydotool daemon (Wayland compatibility)
 
@@ -431,7 +459,7 @@ This project uses **clang-tidy** for comprehensive static analysis of C code:
 
 ### Usage
 
-```bash
+```
 # Run complete static analysis
 make lint
 

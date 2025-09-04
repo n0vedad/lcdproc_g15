@@ -4,7 +4,7 @@
 pkgname=lcdproc-g15
 pkgver=0.0.3
 pkgrel=1
-pkgdesc="LCDproc optimized for G15 keyboards - display driver for LCD devices"
+pkgdesc="LCDproc for Logitech G15/G510/G510s keyboards - optimized for G510s with RGB backlight and macro support"
 arch=('x86_64')
 url="https://lcdproc.org/"
 license=('GPL')
