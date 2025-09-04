@@ -90,3 +90,6 @@ Desktop.ini
 
 # NodeJS
 node_modules
+
+# Test System
+*.log
