@@ -6,8 +6,8 @@ First read the [README](README.md) if you haven't already.
 
 In order to compile/install LCDproc, you'll need the following programs:
 
-- A C compiler which supports C99, we recommend GCC. Most Linux or BSD systems
-  come with GCC.
+- **Clang compiler** - This project defaults to Clang for toolchain consistency with
+  code formatting and static analysis tools. GCC is also supported as fallback.
 
 - GNU Make. It is available for all major distributions. If you want to
   compile it yourself, see http://www.gnu.org/software/make/make.html .
@@ -26,9 +26,9 @@ In order to compile/install LCDproc, you'll need the following programs:
 - libg15 and libg15render (>= 1.1.1) for use with the g15 driver,
   see http://www.g15tools.com/
 
-**Note:** You can use optional automatic code formatting. This requires:
+**Note:** Code quality tools (formatting and static analysis) require:
 
-- `clang-format` for C code formatting
+- `clang` (compiler + clang-format + clang-tidy) for comprehensive toolchain
 - `npm` for Markdown/JSON/Shell formatting (includes Node.js)
 
 #
@@ -38,8 +38,13 @@ In order to compile/install LCDproc, you'll need the following programs:
 Build:
 
 ```
-sudo pacman -S gcc make autoconf automake
+sudo pacman -S clang gcc make autoconf automake
 ```
+
+**Note:** Both `clang` and `gcc` are recommended since:
+
+- **Clang**: Primary compiler for this project (toolchain consistency)
+- **GCC**: Required for building AUR dependencies (libg15, libg15render)
 
 G15 Device:
 

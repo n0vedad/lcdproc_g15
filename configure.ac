@@ -51,7 +51,8 @@ dnl (the spaces before $CFLAGS and -O are significant)
 fi
 
 dnl Checks for programs used in building
-AC_PROG_CC
+dnl Prefer Clang for toolchain consistency with clang-format/clang-tidy
+AC_PROG_CC([clang gcc cc])
 AC_PROG_CPP
 AC_PROG_INSTALL
 AC_PROG_RANLIB

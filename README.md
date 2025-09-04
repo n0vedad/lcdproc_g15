@@ -44,8 +44,9 @@ Advanced RGB backlight management with dual control methods:
 
 ## Code Quality & Analysis
 
-This project includes comprehensive code quality tools for developers:
+This project uses a **Clang-based toolchain** for consistent development experience:
 
+- **Clang Compiler** - Default compiler for toolchain consistency and better diagnostics
 - **Code Formatting** - Automatic formatting with clang-format and prettier
 - **Static Analysis** - Security and performance analysis with clang-tidy
 - **Hardware-focused** - Optimized for system-level C programming
