@@ -37,5 +37,6 @@ int lib_hidraw_send_feature_report(struct lib_hidraw_handle *handle,
 				   unsigned char *data,
 				   int count);
 void lib_hidraw_close(struct lib_hidraw_handle *handle);
+unsigned short lib_hidraw_get_product_id(struct lib_hidraw_handle *handle);
 
 #endif

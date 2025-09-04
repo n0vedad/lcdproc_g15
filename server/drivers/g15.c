@@ -1,5 +1,18 @@
 /** \file server/drivers/g15.c
- * LCDd \c g15 driver for the LCD on the Logitech G15 keyboard.
+ * LCDd \c g15 driver for Logitech G-Series keyboards with 160x43 monochrome LCDs.
+ *
+ * SUPPORTED DEVICES:
+ * - Logitech G15 (Original, USB ID: 046d:c222) - Monochrome LCD only
+ * - Logitech G15 v2 (USB ID: 046d:c227) - Monochrome LCD only
+ * - Logitech G510 (USB ID: 046d:c22d/046d:c22e) - Monochrome LCD + RGB backlight
+ * - Logitech G510s - Uses G510 USB IDs, primary configuration target
+ *
+ * NOT SUPPORTED:
+ * - Logitech G19 - Has 320x240 color LCD, requires different driver architecture
+ * - Logitech G13 - Different USB protocol and LCD specifications
+ *
+ * NOTE: This implementation is specifically optimized for the G510s.
+ * Other supported devices may require configuration adjustments.
  */
 
 /*
@@ -68,12 +81,15 @@ MODULE_EXPORT char *symbol_prefix = "g15_";
 
 void g15_close(Driver *drvthis);
 
+/* Supported Logitech G-Series keyboard USB IDs
+ * All use 160x43 monochrome LCD displays
+ * G510/G510s also support RGB backlight control */
 static const struct lib_hidraw_id hidraw_ids[] = {
-    /* G15 */
+    /* G15 (Original) - Monochrome LCD only */
     {{BUS_USB, 0x046d, 0xc222}},
-    /* G15 v2 */
+    /* G15 v2 - Monochrome LCD only */
     {{BUS_USB, 0x046d, 0xc227}},
-    /* G510 without a headset plugged in */
+    /* G510 without headset - Monochrome LCD + RGB backlight */
     {{BUS_USB, 0x046d, 0xc22d},
      {0x05,
       0x0c,
@@ -91,7 +107,8 @@ static const struct lib_hidraw_id hidraw_ids[] = {
       0x01,
       0x95,
       0x07}},
-    /* G510 with headset plugged in / with extra USB audio interface */
+    /* G510 with headset - Monochrome LCD + RGB backlight
+     * G510s also uses this USB ID */
     {{BUS_USB, 0x046d, 0xc22e},
      {0x05,
       0x0c,
@@ -158,9 +175,23 @@ MODULE_EXPORT int g15_init(Driver *drvthis)
 		return -1;
 	}
 
-	/* Check if device supports RGB backlight (G510 devices) */
-	/* TODO: Implement proper device detection based on USB product ID */
-	p->has_rgb_backlight = 1; /* Assume RGB support for now */
+	/* Check if device supports RGB backlight (G510/G510s only) */
+	unsigned short product_id = lib_hidraw_get_product_id(p->hidraw_handle);
+	if (product_id == 0xc22d || product_id == 0xc22e) {
+		/* G510 (0xc22d) and G510 with headset (0xc22e) - both support RGB */
+		p->has_rgb_backlight = 1;
+		report(RPT_INFO,
+		       "%s: Detected G510/G510s device (USB ID: 046d:%04x) - RGB backlight enabled",
+		       drvthis->name,
+		       product_id);
+	} else {
+		/* G15 models (0xc222, 0xc227) - no RGB support */
+		p->has_rgb_backlight = 0;
+		report(RPT_INFO,
+		       "%s: Detected G15 device (USB ID: 046d:%04x) - RGB backlight disabled",
+		       drvthis->name,
+		       product_id);
+	}
 
 	/* Check master backlight disable setting */
 	int backlight_disabled = drvthis->config_get_bool(drvthis->name, "BacklightDisabled", 0, 0);
@@ -627,7 +658,6 @@ static int g15_set_rgb_hid_reports(Driver *drvthis, int red, int green, int blue
 /* RGB backlight control via LED subsystem (persistent implementation) */
 static int g15_set_rgb_led_subsystem(Driver *drvthis, int red, int green, int blue)
 {
-	PrivateData *p = drvthis->private_data;
 	char color_hex[8];
 	int result = 0;
 
