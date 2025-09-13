@@ -2,30 +2,11 @@
 
 ## Device Compatibility Check
 
-**Before installation, verify your device is supported:**
-
-### ✅ **Supported Logitech Keyboards:**
-
-- **G15 (Original)** - USB ID `046d:c222` - Monochrome LCD only
-- **G15 v2** - USB ID `046d:c227` - Monochrome LCD only
-- **G510** - USB ID `046d:c22d` / `046d:c22e` - Monochrome LCD + RGB backlight
-- **G510s** - Uses G510 USB IDs - **Primary configuration target**
-
-### ❌ **NOT Supported:**
-
-- **G19** - Color LCD (320x240) requires different driver architecture
-- **G13** - Different LCD specifications and USB protocol
-
-### 🔍 **Check Your Device:**
-
-```
-lsusb | grep -i logitech
-# Look for USB IDs: 046d:c222, 046d:c227, 046d:c22d, or 046d:c22e
-```
+**Before installation, verify your device is supported.** See [README.md](README.md#supported-devices) for the complete device compatibility list and USB IDs.
 
 ## Quick Build for Supported Devices
 
-First read the [README](README.md) if you haven't already.
+First read the [README.md](README.md) if you haven't already.
 
 In order to compile/install LCDproc, you'll need the following programs:
 
@@ -49,51 +30,28 @@ In order to compile/install LCDproc, you'll need the following programs:
 - libg15 and libg15render (>= 1.1.1) for use with the g15 driver,
   see http://www.g15tools.com/
 
-**Note:** Code quality tools (formatting and static analysis) require:
-
-- `clang` (compiler + clang-format + clang-tidy) for comprehensive toolchain
-- `npm` for Markdown/JSON/Shell formatting (includes Node.js)
-
-#
+**Note:** For development workflow see [CONTRIBUTING.md](CONTRIBUTING.md) and [tests/README.md](tests/README.md).
 
 ### Install Required Dependencies:
 
-Build:
+**Essential Dependencies:**
 
-```
-sudo pacman -S clang gcc make autoconf automake
-```
+```bash
+# Core build tools
+sudo pacman -S clang make autoconf automake
 
-**Note:** Both `clang` and `gcc` are recommended since:
-
-- **Clang**: Primary compiler for this project (toolchain consistency)
-- **GCC**: Required for building AUR dependencies (libg15, libg15render)
-
-G15 Device:
-
-```
+# G15 hardware support
 sudo pacman -S libg15 libg15render libusb libftdi-compat
-```
 
-G-Key Macro System (G15/G510/G510s only):
-
-```
+# G-Key macro system
 sudo pacman -S ydotool
-```
-
-**Note:** G-Key configurations in this implementation are optimized for **G510s**. Other supported devices may have different key layouts and may require configuration adjustments.
-
-Code formatting and static analysis:
-
-```
-sudo pacman -S clang npm bear
 ```
 
 ## Installation
 
 ### Install from PKGBUILD (Recommended)
 
-```
+```bash
 # Clone this repository
 git clone https://github.com/n0vedad/lcdproc-g15.git
 cd lcdproc-g15
@@ -102,120 +60,62 @@ cd lcdproc-g15
 makepkg -si
 ```
 
-**Note:** PKGBUILD installation runs in **non-interactive mode** - code formatting setup is automatically skipped. After installation, developers can optionally enable formatting with:
-
-```
-# Enable code formatting for development
-./setup-hooks.sh install
-```
-
 ### Manual Build
 
-If you prefer to build manually:
+#### **Standard Build Process**
 
-```
-./autogen.sh
-./configure --prefix=/usr --sbindir=/usr/bin --sysconfdir=/etc --enable-libusb --enable-lcdproc-menus --enable-stat-smbfs --enable-drivers=g15,linux_input
-make
-make install (if you're root)
-```
-
-**Interactive Code Formatting Setup:** `autogen.sh` runs in **interactive mode** and will ask if you want to enable automatic code formatting. This requires:
-
-If you skip formatting setup or dependencies are missing, the build will continue normally. You can enable formatting later with `./setup-hooks.sh install`.
-
-### Clean Build
-
-If you need to rebuild or reset the build environment:
-
-```
-# Clean compiled files only (normal rebuild)
-make clean
+```bash
+# Simple one-command build (recommended)
 make
 
-# Complete reset (after configure/autotools changes)
-make distclean
-```
+# Or manual step-by-step:
+make setup-autotools
 
-and run same steps from above. For reconfigure code formatting please see [CODE FORMATTING](#code-formatting)
-
-#
-
-If you want to know more read from here:
-
-### Preparing a Git distro
-
-If you retrieved these files from the Git, you will first need to run:
-
-```
-./autogen.sh
-```
-
-### Configuration
-
-The simplest way of doing it is with:
-
-```
-./configure --prefix=/usr --sbindir=/usr/bin --sysconfdir=/etc --enable-libusb --enable-lcdproc-menus --enable-stat-smbfs --enable-drivers=g15,linux_input
-```
-
-### Configure Options Explained
-
-The usual configure commands to uses this G15-specific build:
-
-```
+# Standard configuration (production use)
 ./configure \
-    --prefix=/usr \                         # Install base directory
-    --sbindir=/usr/bin \                    # Server binaries to /usr/bin (not /usr/sbin)
-    --sysconfdir=/etc \                     # Configuration files to /etc
-    --enable-libusb \                       # Enable libusb support for G15 device communication
-    --enable-lcdproc-menus \                # Enable menu support in lcdproc client
-    --enable-stat-smbfs \                   # Enable Samba filesystem statistics
-    --enable-debug                          # Enable Debug if needed
-    --enable-drivers=g15,linux_input,debug  # Build available drivers
-```
+  --prefix=/usr \                # Install base directory
+--sbindir=/usr/bin \             # Server binaries to /usr/bin (not /usr/sbin)
+--sysconfdir=/etc \              # Configuration files to /etc
+--enable-libusb \                # Enable libusb support for G15 device communication
+--enable-lcdproc-menus \         # Enable menu support in lcdproc client
+--enable-stat-smbfs \            # Enable Samba filesystem statistics
+--enable-drivers=g15,linux_input # Build G15 and input drivers
 
-For more options like setting backlight colors and RGB methods please refer to the specific config file (lcdexec.conf, lcdproc.conf, LCDd.conf). See [RGB Backlight Configuration](#rgb-backlight-configuration) below.
-
-But it may not do what you want, so please take a few seconds to type:
-
-```
-./configure --help
-```
-
-### Compilation
-
-Run make to build the server and all clients
-
-```
+# Build
 make
 ```
 
 If you only want to compile the clients, you can omit to compile the
 server:
 
-```
+```bash
 make clients
 ```
 
 Similarly, if you only want to compile the server, you can omit to
 compile the clients:
 
-```
+```bash
 make server
 ```
 
-Depending on your system, LCDproc will build in a few seconds to a
-few minutes. It's not very big.
+#### **Installation**
 
-If you want to, you can install it (if you're root) by typing:
-
-```
-make install
+```bash
+make install # (if you're root)
 ```
 
-This will install the binaries and the man pages in the directory you
-specified in configure.
+### Clean Build
+
+If you need to rebuild or reset the build environment:
+
+```bash
+# Clean compiled files only (normal rebuild)
+make clean
+
+# Complete reset (after configure/autotools changes)
+make distclean
+```
 
 ## Uninstall
 
@@ -223,7 +123,7 @@ specified in configure.
 
 If you installed via `makepkg -si`:
 
-```
+```bash
 # Remove the package (keeps configuration files)
 sudo pacman -R lcdproc-g15
 
@@ -235,7 +135,7 @@ sudo pacman -Rns lcdproc-g15
 
 If you installed via `make install`:
 
-```
+```bash
 # Uninstall (from the build directory)
 cd lcdproc-g15
 sudo make uninstall
@@ -243,109 +143,27 @@ sudo make uninstall
 
 **Note:** `make uninstall` only works if you still have the original build directory with the same configure options.
 
-# INPUT/OUTPUT
+# G-KEY MACRO SYSTEM
 
-Only one Display/output device (g15.so) and input device (linux_input.so) is supported in this fork.
-
-For LCDd (the server) to use the device, it needs to load a driver. The
-drivers are so called 'shared modules', that usually have an extension
-of `.so`. The drivers to be loaded should be specified in the config file
-(by one or more `Driver=` lines), or on the command line. The command line
-should only be used to override things in the config file. The drivers
-should be in a directory that is indicated by the `DriverPath=` line in
-the configfile.
-
-# RUNNING LCDPROC
-
-## Prerequisites for G-Key Macro System
-
-**⚠️ Device-Specific Notice:**
-This G-Key macro implementation is specifically configured for the **Logitech G510s**. If you have a different supported device (G15/G15v2/G510), key mappings and macro behaviors may differ and require manual adjustment.
+## Prerequisites for G-Key macro system
 
 ### Setup ydotool daemon (Wayland compatibility)
 
 The installation process automatically installs, enables and starts ydotoold.service as a system service. No manual configuration required.
 
-```
+```bash
 # Verify it's running (should be automatic)
 systemctl status ydotoold.service
 ```
 
-**Note:** The ydotoold.service is automatically installed as a system service to `/usr/lib/systemd/system/` and started during installation. G-Key macros work immediately after installation.
-
 ### Root Privileges for Input Recording
 
-The G-Key macro system requires root privileges to access `/dev/input/event*` devices for real-time input recording. You have two options:
+The G-Key macro system requires root privileges to access `/dev/input/event*` devices for real-time input recording. Besides to run with sudo privileges you have to add your current user to input group:
 
-#### Option 1: Run with sudo (Recommended for testing)
-
-```
-sudo lcdproc -f -c /etc/lcdproc.conf
-```
-
-#### Option 2: Add user to input group (Permanent solution)
-
-```
-# Add your user to the input group
+```bash
+# Add your user to the input group, log out and back in or restart
 sudo usermod -a -G input $USER
-
-# Log out and back in, then verify group membership
-groups | grep input
-
-# Now you can run without sudo
-lcdproc -f -c /etc/lcdproc.conf
 ```
-
-## Systemd Service Management
-
-After installation, manage the services with systemd:
-
-```
-# Start LCDd server (required)
-sudo systemctl start lcdd.service
-sudo systemctl enable lcdd.service
-
-# Start system monitor client (required)
-sudo systemctl start lcdproc.service
-sudo systemctl enable lcdproc.service
-
-# Start ydotool daemon (required for G-Key macros)
-sudo systemctl start ydotoold.service
-sudo systemctl enable ydotoold.service
-```
-
-## Running Manually
-
-### Starting The Server
-
-If you're in the LCDproc source directory, and have just built it, run:
-
-```
-server/LCDd -c path/to/config/file
-```
-
-For security reasons, LCDd by default only accepts connections from
-localhost (`127.0.0.1`), it will not accept connections from other computers on
-your network / the Internet. You can change this behaviour in the
-configuration file.
-
-### Starting The Client(s)
-
-Then, you'll need some clients. LCDproc comes with a few, of which the
-`lcdproc` client is the main client:
-
-```
-clients/lcdproc/lcdproc -f  C M T L
-```
-
-This will run the LCDproc client, with the [C]pu, [M]emory,
-[T]ime, and [L]oad screens. The option `-f` causes it not to daemonize,
-but run in the foreground.
-
-By default, the client tries to connect to a server located on localhost
-and listening to port 13666. To change this, use the -s and -p options.
-
-## G-KEY MACRO SYSTEM
 
 Once both LCDd server and lcdproc client are running with proper permissions:
 
@@ -369,161 +187,71 @@ Once both LCDd server and lcdproc client are running with proper permissions:
 ### Macro Storage
 
 - Macros are automatically saved to `~/.config/lcdproc/g15_macros.json`
-- The system preserves timing between actions based on your recording speed
-- Fast typing is consolidated into efficient `type:` commands
 - Pauses and special keys are preserved as separate actions
-
-### Example Workflow
-
-```
-# Start the system
-sudo lcdproc -f -c /etc/lcdproc.conf
-
-# In the terminal, you'll see:
-# "KEY EVENT RECEIVED: MR" when you press MR
-# "G-Key Macro: Recording started for G1 in mode M1"
-# "G-Key Macro: Recorded key press: h" for each key
-# "G-Key Macro: Recording stopped" when done
-```
-
-The macro system captures real keyboard and mouse input events directly from the Linux input subsystem, providing precise timing and comprehensive input recording for professional macro automation.
-
-# CODE FORMATTING
-
-## Automatic vs Manual Setup
-
-You can choose about two installation methods - whatever fits your need!
-
-#### 1. **PKGBUILD Installation** (Non-Interactive)
-
-```
-makepkg -si
-```
-
-- **Automatically skips** formatting setup
-- **No user interaction** required
-- **Minimal dependencies** - only installs runtime requirements
-- **Optional dependencies** available for developers: `clang` and `npm`
-
-#### 2. **Manual Build** (Interactive)
-
-```
-./autogen.sh
-```
-
-- **Asks interactively** about code formatting
-- **Checks dependencies** and provides installation instructions
-- **Graceful fallback** if dependencies are missing
-- **Build continues** regardless of formatting choice
-
-### Post-Installation Setup
-
-After any installation method, developers can enable code formatting:
-
-```
-# Install formatting and static analysis dependencies
-sudo pacman -S clang npm bear
-
-# Enable git hooks for automatic formatting
-./setup-hooks.sh install
-
-# Check status
-./setup-hooks.sh status
-
-# Format code manually
-make format
-
-# Check format status
-make format-check
-
-# Run static analysis
-make lint
-
-# Auto-fix static analysis issues
-make lint-fix
-
-# Check for static analysis issues (no fixes)
-make lint-check
-```
-
-## Static Analysis
-
-This project uses **clang-tidy** for comprehensive static analysis of C code:
-
-### Features
-
-- **Security Analysis**: Buffer overflows, use-after-free, concurrency issues
-- **Performance**: Inefficient operations, unnecessary allocations
-- **Modernization**: Suggests modern C patterns and best practices
-- **Hardware-specific**: Optimized for system-level and embedded code
-
-### Usage
-
-```
-# Run complete static analysis
-make lint
-
-# Auto-fix issues where possible
-make lint-fix
-
-# Check issues without making changes
-make lint-check
-```
-
-### Configuration
-
-Static analysis rules are configured in `.clang-tidy` with focus on:
-
-- System programming patterns (USB, threading, memory management)
-- Security-critical code paths
-- Performance optimizations for real-time applications
-
-### Dependencies
-
-- **bear**: Generates compile database (`compile_commands.json`) for accurate header resolution
-- **clang-tidy**: Performs the actual static analysis
-- The compile database is automatically generated when needed by `make lint`
 
 # RGB BACKLIGHT CONFIGURATION
 
 ## Overview
 
-The keyboard supports RGB backlight control through two different methods, each with distinct characteristics:
-
-### RGB Control Methods
+The keyboard supports RGB backlight control through two different methods:
 
 #### 1. **HID Reports Method** (Temporary)
 
-- **Configuration**: `RGBMethod=hid_reports` in `/etc/LCDd.conf`
+- **Configuration**: `RGBMethod=hid_reports` in `/etc/LCDd.conf` writes to `/sys/class/leds/g15::kbd_backlight/`
 - **Behavior**: RGB colors are written directly to keyboard RAM
 - **Persistence**: **Non-persistent** - colors are lost on reboot/power cycle
 - **Hardware Override**: Hardware buttons can easily override software colors
-- **Use Case**: Temporary color effects, testing, or when you want full hardware control
 
 #### 2. **LED Subsystem Method** (Persistent) - **Default**
 
-- **Configuration**: `RGBMethod=led_subsystem` in `/etc/LCDd.conf`
+- **Configuration**: `RGBMethod=led_subsystem` in `/etc/LCDd.conf` writes to `/sys/class/leds/g15::power_on_backlight_val/`
 - **Behavior**: RGB colors are written to keyboard firmware/EEPROM
 - **Persistence**: **Persistent** - colors survive reboots and OS changes
 - **Hardware Override**: Hardware settings are synchronized with software
-- **Use Case**: Permanent color configuration, cross-OS consistency
 
-## Configuration
+# RUNNING LCDPROC
 
-Edit `/etc/LCDd.conf` in the `[g15]` section and restart either your computer or just controlling services.
+## Running Manually
 
-## Technical Details
+### Starting The Server
 
-### HID Reports Implementation
+If you're in the LCDproc source directory, and have just built it, run:
 
-- Uses USB HID feature reports directly to keyboard hardware zones
-- Writes to both RGB Zone 0 and Zone 1 for full keyboard coverage
-- Immediate effect but temporary storage in keyboard RAM
-- Compatible with original G15tools behavior
+```bash
+server/LCDd -c /etc/LCDd.conf
+```
 
-### LED Subsystem Implementation
+For security reasons, LCDd by default only accepts connections from localhost (`127.0.0.1`), it will not accept connections from other computers on your network / the Internet and the client tries to connect to a server located on localhost listening to port 13666. Fore more options use the `--help` flag.
 
-- Uses Linux LED subsystem: `/sys/class/leds/g15::*/`
-- Writes to both current (`kbd_backlight`) and persistent (`power_on_backlight_val`) settings
-- Hardware firmware stores colors in non-volatile memory
-- Ensures consistency between software and hardware button controls
+You can change this behaviour in the configuration files.
+
+### Starting The Client(s)
+
+Then, you'll need some clients. LCDproc comes with a few, of which the `lcdproc` client is the main client:
+
+```bash
+clients/lcdproc/lcdproc -f C M T L
+```
+
+This will run the LCDproc client, for example with the [C]pu, [M]emory, [T]ime, and [L]oad screens.
+The option `-f` causes it not to daemonize, but run in the foreground. Fore more options use the `--help` flag.
+
+## Running automatically
+
+### Systemd Service Management
+
+After installation, manage the services with systemd:
+
+```bash
+# Start LCDd server (required)
+sudo systemctl start lcdd.service
+sudo systemctl enable lcdd.service
+
+# Start system monitor client (required)
+sudo systemctl start lcdproc.service
+sudo systemctl enable lcdproc.service
+
+# Start ydotool daemon (required for G-Key macros)
+sudo systemctl start ydotoold.service
+sudo systemctl enable ydotoold.service
+```

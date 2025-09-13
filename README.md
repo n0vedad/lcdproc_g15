@@ -33,46 +33,44 @@ Various clients are available that display things like CPU load, system load, me
 
 The client and server communicate via TCP connection, allowing remote monitoring capabilities.
 
-## Installation
+## Quick Start
 
-Refer to [INSTALL](INSTALL.md) (included with this archive) for installation
-instructions (including how to connect an LCD to your system) and Prerequesites.
+```bash
+# Install dependencies
+sudo pacman -S clang make autoconf automake libg15 libg15render libusb libftdi-compat ydotool
+
+# Build and compile in one command
+make
+
+# Install (optional)
+sudo make install
+```
+
+Refer to [INSTALL.md](INSTALL.md) for detailed installation instructions, prerequisites and configuration
 
 ## Changes
 
 This fork has been stripped down to include only the G15 driver and essential components.
 
-## G-Key Macro System
+## G-Key macro system
 
-This fork includes an advanced G-Key macro recording and playback system with the following capabilities:
-
-- **Keyboard and mouse event parsing** with Linux input subsystem integration
-- **Intelligent device detection** - automatically identifies and opens keyboard/mouse devices
-- **Wayland compatibility** through ydotool integration
-- **Real-time keyboard input capture** - records actual keystrokes as you type
-- **Mouse event recording** - captures clicks and relative mouse movements
-- **Multi-mode support** - separate macro sets for M1/M2/M3 modes
-- **Persistent storage** - macros saved in JSON format at `~/.config/lcdproc/g15_macros.json`
+This fork includes an advanced G-Key macro recording and playback system. See [INSTALL.md](INSTALL.md#g-key-macro-system)
 
 ## RGB Backlight Control
 
-Advanced RGB backlight management with dual control methods:
-
-- **LED Subsystem Method** (default) - **Persistent** RGB colors stored in hardware firmware
-- **HID Reports Method** - **Temporary** RGB colors for immediate effects
-- **Configuration-driven** - Choose method via `RGBMethod` setting in `/etc/LCDd.conf`
-- **Hardware synchronization** - LED subsystem method syncs with hardware buttons
-- **Cross-OS compatibility** - Persistent colors survive OS changes and reboots
+Advanced RGB backlight management with dual control methods. See [INSTALL.md](INSTALL.md#rgb-backlight-configuration)
 
 ## Code Quality & Analysis
 
-This project uses a **Clang-based toolchain** for consistent development experience:
+This project uses a **Clang-based toolchain** for consistent development experience.
 
-- **Clang Compiler** - Default compiler for toolchain consistency and better diagnostics
-- **Code Formatting** - Automatic formatting with clang-format and prettier
-- **Static Analysis** - Security and performance analysis with clang-tidy
+For development setup see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-For more information please refer to [CODE FORMATTING](INSTALL.md#code-formatting) and [STATIC ANALYSIS](INSTALL.md#static-analysis)
+## 🧪 Testing & Debugging
+
+This implementation includes comprehensive unit tests and debugging tools for device handling, G-Key macro system and RGB functionality.
+
+See [`tests/README.md`](tests/README.md) for detailed testing documentation.
 
 ## FAQ Section
 

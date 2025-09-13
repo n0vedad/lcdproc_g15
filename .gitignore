@@ -17,6 +17,9 @@ missing
 ar-lib
 stamp-h1
 mkinstalldirs
+tests/Makefile.am
+configure.ac.backup
+Makefile.am.backup
 
 # C build artifacts
 *.o
@@ -29,6 +32,7 @@ mkinstalldirs
 clients/lcdproc/lcdproc
 clients/lcdexec/lcdexec
 server/LCDd
+tests/test_g15
 
 # Arch Linux packaging
 pkg/
@@ -44,6 +48,7 @@ core
 *.core
 *.debug
 gdb.txt
+compile_commands.json
 
 # Temporary/backup files
 *~
@@ -91,5 +96,6 @@ Desktop.ini
 # NodeJS
 node_modules
 
-# Test System
+# Test Suite
 *.log
+*.trs

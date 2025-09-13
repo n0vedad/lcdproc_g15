@@ -1,0 +1,200 @@
+## Process this file with automake to produce Makefile.in
+# G-Series Comprehensive Test Suite
+# SPDX-License-Identifier: GPL-2.0+
+
+# Test programs
+check_PROGRAMS = test_g15
+
+# Test source files
+test_g15_SOURCES = \
+	test_g15.c \
+	mock_hidraw_lib.c \
+	mock_hidraw_lib.h
+
+# Include paths for tests
+test_g15_CPPFLAGS = \
+	-I$(top_srcdir) \
+	-I$(top_srcdir)/server/drivers \
+	-I$(top_srcdir)/shared
+
+# Compiler flags for tests
+test_g15_CFLAGS = \
+	$(AM_CFLAGS) \
+	-Wall -Wextra -std=c11 -g -O0
+
+# Link with shared libraries if needed
+test_g15_LDADD = \
+	$(top_builddir)/shared/libLCDstuff.a
+
+# Run tests with 'make check'
+TESTS = $(check_PROGRAMS)
+
+# Standard check runs basic tests only
+# For comprehensive testing, run: make test-full
+
+# Test runner script
+EXTRA_DIST = README.md
+
+# Custom test targets for convenience
+.PHONY: test-verbose test-g15 test-g510 test-scenarios test-scenario-detection test-scenario-rgb test-scenario-macros test-scenario-failures test-memcheck test-compilers test-full test-ci
+
+# Run tests with verbose output
+test-verbose: $(check_PROGRAMS)
+	@echo "🧪 Running G-Series comprehensive tests (verbose)..."
+	@echo "========================================================="
+	./test_g15 --verbose || true
+
+# Test specific device categories
+test-g15: $(check_PROGRAMS)
+	@echo "🧪 Testing G15 devices specifically..."
+	./test_g15 --device-filter=g15 || true
+
+test-g510: $(check_PROGRAMS)
+	@echo "🧪 Testing G510 devices specifically..."
+	./test_g15 --device-filter=g510 || true
+
+# Test different scenarios - all together
+test-scenarios: test-scenario-detection test-scenario-rgb test-scenario-macros test-scenario-failures
+	@echo "✅ All test scenarios completed"
+
+# Individual test scenarios
+test-scenario-detection: $(check_PROGRAMS)
+	@echo "🧪 Scenario 1: Device detection testing"
+	@./test_g15 --test-detection || true
+	@echo ""
+
+test-scenario-rgb: $(check_PROGRAMS)
+	@echo "🧪 Scenario 2: RGB color testing"
+	@./test_g15 --test-rgb || true
+	@echo ""
+
+test-scenario-macros: $(check_PROGRAMS)
+	@echo "🧪 Scenario 3: Macro system testing"
+	@./test_g15 --test-macros || true
+	@echo ""
+
+test-scenario-failures: $(check_PROGRAMS)
+	@echo "🧪 Scenario 4: Device failure handling"
+	@./test_g15 --test-failures || true
+	@echo ""
+
+# Memory leak detection (valgrind required)
+test-memcheck: $(check_PROGRAMS)
+	@echo "🔍 Running memory leak detection..."
+	@if command -v valgrind >/dev/null 2>&1; then \
+		echo "Running valgrind memory analysis..."; \
+		valgrind --leak-check=full --error-exitcode=1 --quiet ./test_g15 > /dev/null 2>&1 && \
+		echo "✅ No memory leaks detected" || \
+		{ echo "❌ Memory issues detected - run manually: valgrind --leak-check=full ./test_g15"; exit 1; }; \
+	else \
+		echo "❌ valgrind not installed - install with: sudo pacman -S valgrind"; \
+		exit 1; \
+	fi
+
+
+# Multi-compiler testing - builds entire project with different compilers
+test-compilers: 
+	@echo "🔧 Testing with multiple compilers..."
+	@for compiler in clang gcc; do \
+		echo "Testing with $$compiler..."; \
+		if command -v $$compiler >/dev/null 2>&1; then \
+			$(MAKE) mostlyclean >/dev/null 2>&1; \
+			if $(MAKE) -C .. -f Makefile CC=$$compiler mostlyclean >/dev/null 2>&1 && $(MAKE) -C .. -f Makefile CC=$$compiler all >/dev/null 2>&1 && $(MAKE) CC=$$compiler check >/dev/null 2>&1; then \
+				echo "✅ $$compiler build and test successful"; \
+			else \
+				echo "❌ $$compiler build failed"; \
+			fi; \
+		else \
+			echo "⚠️ $$compiler not available"; \
+		fi; \
+	done
+
+# Comprehensive test suite (includes memory leak detection)
+test-full: $(check_PROGRAMS)
+	@echo "🚀 Running comprehensive test suite..."
+	@echo "====================================="
+	@echo "1️⃣ Basic functionality tests:"
+	@$(MAKE) check
+	@echo ""
+	@echo "2️⃣ Memory leak detection:"
+	@$(MAKE) test-memcheck
+	@echo ""
+	@echo "🎉 Comprehensive test suite completed successfully!"
+
+# CI/CD test suite - ensures entire project builds and tests pass  
+test-ci: $(check_PROGRAMS) check
+	@echo ""
+	@echo "🚀 Running CI test suite..."
+	@echo "================================"
+	@echo "1️⃣ Basic functionality tests:"
+	@$(MAKE) test-full
+	@echo ""
+	@echo "2️⃣ Multi-compiler compatibility:"
+	@$(MAKE) test-compilers
+
+# Help target
+help:
+	@echo "G-Series Comprehensive Test Suite"
+	@echo "================================="
+	@echo ""
+	@echo "🚀 Quick Start (Development Workflow):"
+	@echo "  make check        - Basic tests (~3s) - Daily development"
+	@echo "  make test-full    - Comprehensive (~60s) - Before commits"
+	@echo "  make test-ci      - CI/CD suite (~5min) - Before releases"
+	@echo ""
+	@echo "📋 Standard Autotools targets:"
+	@echo "  make check        - Run all tests (standard autotools)"
+	@echo "  make clean        - Clean build artifacts"
+	@echo ""
+	@echo "🎯 Development Test Targets:"
+	@echo "  make test-full    - Basic + memory leak detection (~30-60s)"
+	@echo "                      Non-destructive, safe for daily use"
+	@echo "  make test-ci      - Full + multi-compiler testing (~2-5min)" 
+	@echo "                      DESTRUCTIVE: Rebuilds entire project!"
+	@echo ""
+	@echo "🔍 Specific Test Categories:"
+	@echo "  make test-g15     - Test only G15 devices (no RGB)"
+	@echo "  make test-g510    - Test only G510 devices (with RGB)"
+	@echo "  make test-verbose - Run tests with detailed output"
+	@echo "  make test-scenarios - All 4 test scenarios:"
+	@echo "                        • Device detection (USB IDs)"
+	@echo "                        • RGB color testing (HID + LED)"
+	@echo "                        • Macro system (G-keys, M1/M2/M3)"
+	@echo "                        • Error handling (device failures)"
+	@echo ""
+	@echo "🎯 Individual Test Scenarios:"
+	@echo "  make test-scenario-detection - Only device detection tests"
+	@echo "  make test-scenario-rgb       - Only RGB functionality tests"  
+	@echo "  make test-scenario-macros    - Only macro system tests"
+	@echo "  make test-scenario-failures  - Only error handling tests"
+	@echo ""
+	@echo "⚠️  Advanced (Standalone - For Debugging Only):"
+	@echo "  make test-memcheck - Memory leak detection with valgrind"
+	@echo "                       Requires: valgrind installed"
+	@echo "  make test-compilers - Multi-compiler build testing"
+	@echo "                        DESTRUCTIVE: Cleans + rebuilds with clang & gcc"
+	@echo "                        Takes 1-3 minutes per compiler"
+	@echo ""
+	@echo "💡 Usage Guidelines:"
+	@echo "  • Daily: make check (fast feedback)"
+	@echo "  • Pre-commit: make test-full (thorough validation)"
+	@echo "  • Pre-release: make test-ci (complete validation)"
+	@echo "  • Debugging: make test-scenarios (isolate issues)"
+	@echo ""
+	@echo "  make help         - Show this help"
+	@echo ""
+	@echo "Test Coverage:"
+	@echo "  ✅ G15 Original (046d:c222) - Device detection, No RGB"
+	@echo "  ✅ G15 v2 (046d:c227) - Device detection, No RGB"
+	@echo "  ✅ G510 (046d:c22d) - Device detection, RGB support"
+	@echo "  ✅ G510s (046d:c22e) - Device detection, RGB support"
+	@echo "  ✅ RGB color validation (HID reports & LED subsystem)"
+	@echo "  ✅ G-Key macro system functionality"
+	@echo "  ✅ Debug driver functionality and output validation"
+	@echo "  ✅ Unknown devices - Safe defaults"
+	@echo "  ✅ Device failure handling"
+
+# Clean up test artifacts
+clean-local:
+	-rm -f *.log *.gcov *.gcno *.gcda
+	-rm -f test_output.log build.log

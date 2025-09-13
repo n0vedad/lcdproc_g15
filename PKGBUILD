@@ -9,9 +9,13 @@ arch=('x86_64')
 url="https://lcdproc.org/"
 license=('GPL')
 depends=('libg15' 'libg15render' 'libusb' 'libftdi-compat' 'ydotool')
-makedepends=('clang' 'gcc' 'make' 'autoconf' 'automake')
-optdepends=('npm: for prettier code formatting'
-            'bear: for generating compile database (static analysis)')
+makedepends=('clang' 'make' 'autoconf' 'automake')
+optdepends=('gcc: alternative supported compiler (multi-compiler-test)'
+            'npm: for prettier code formatting'
+            'bear: for generating compile database (static analysis)'
+            'valgrind: for memory leak detection in tests'
+            'act: for testing GitHub workflows locally'
+            'python-evdev: for reading raw input events from /dev/input/event*')
 install=lcdproc-g15.install
 backup=(
     'etc/LCDd.conf'
@@ -23,21 +27,10 @@ sha512sums=()
 
 prepare() {
     cd "$startdir"
-    # Set flag to skip interactive formatting setup during package build
-    export PKGBUILD_MODE=1
-    sh ./autogen.sh
 }
 
 build() {
     cd "$startdir"
-    ./configure \
-        --prefix=/usr \
-        --sbindir=/usr/bin \
-        --sysconfdir=/etc \
-        --enable-libusb \
-        --enable-lcdproc-menus \
-        --enable-stat-smbfs \
-        --enable-drivers=g15,linux_input,debug
     make
 }
 

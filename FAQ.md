@@ -2,34 +2,22 @@
 
 ## Device Compatibility
 
-**Q: Which Logitech keyboards are supported?**  
-A: **Fully supported:** G15 (Original), G15 v2, G510, G510s with 160x43 monochrome LCD displays. **NOT supported:** G19 (color LCD), G13 (different protocol).
+**Q: Which devices are supported?**  
+A: See the complete device compatibility list in [README.md](README.md#supported-devices) with USB IDs and feature details.
 
-**Q: How do I check if my keyboard is supported?**  
-A: Run `lsusb | grep -i logitech` and look for USB IDs: `046d:c222` (G15), `046d:c227` (G15 v2), `046d:c22d/046d:c22e` (G510/G510s).
-
-**Q: Why isn't the G19 supported?**  
-A: The G19 has a 320x240 **color** LCD that requires completely different driver architecture compared to the 160x43 **monochrome** displays on supported devices.
-
-**Q: Is this configuration optimized for a specific device?**  
-A: Yes! This implementation is specifically optimized for the **Logitech G510s**. Other supported devices may require configuration adjustments for key mappings and RGB settings.
-
-**Q: Do all supported devices have RGB backlights?**  
-A: No. Only **G510/G510s** models support RGB backlights. **G15 models** have monochrome displays without RGB capability. The driver automatically detects your device and enables RGB features only when supported.
+**Q: Is this optimized for a specific device?**  
+A: Yes, specifically optimized for the **Logitech G510s**. Other supported devices may require configuration adjustments.
 
 ## Installation & Build
 
 **Q: Why does makepkg skip the interactive setup?**  
 A: Package builds run in isolated environments without terminal access. Interactive prompts would cause the build to fail.
 
-**Q: What's the difference between PKGBUILD and manual installation?**  
-A: PKGBUILD installation (`makepkg -si`) is **non-interactive** and automatically skips code formatting setup. Manual build (`./autogen.sh`) runs **interactively** and asks about code formatting preferences.
-
 **Q: Which installation method should I use?**  
-A: Use **PKGBUILD** (`makepkg -si`) for regular users. Use **manual build** for developers who want code formatting setup.
+A: See [INSTALL.md](INSTALL.md) for detailed installation instructions. Use PKGBUILD for regular users, manual build for development.
 
-**Q: What dependencies do I need for G-Series support?**  
-A: Essential: `libg15`, `libg15render`, `libusb`, `libftdi-compat`. For G-Key macros: `ydotool`. For development: `clang`, `npm`.
+**Q: What dependencies do I need?**  
+A: See [INSTALL.md](INSTALL.md#install-required-dependencies) for complete dependency information.
 
 **Q: Can I build without all dependencies?**  
 A: Yes! The build system gracefully handles missing optional dependencies like `clang` and `npm` - the project will build successfully without them.
@@ -43,10 +31,10 @@ A: Yes! Use `make format` to format code manually anytime.
 A: The build will continue normally. Formatting is completely optional for building the project.
 
 **Q: How do I enable code formatting after installation?**  
-A: Install dependencies (`sudo pacman -S clang npm`) then run `./setup-hooks.sh install`. This will automatically install prettier dependencies and git hooks.
+A: Install dependencies (`sudo pacman -S clang npm`) then run `make setup-hooks-install`. This will automatically install prettier dependencies and git hooks.
 
 **Q: How do I check if code formatting is active?**  
-A: Run `./setup-hooks.sh status` or `make format-check`.
+A: Run `make setup-hooks-status` or `make format-check`.
 
 **Q: How do I run static analysis on the code?**  
 A: Use `make lint` to run clang-tidy static analysis. Use `make lint-fix` to auto-fix issues where possible, or `make lint-check` for analysis without changes.
@@ -54,7 +42,7 @@ A: Use `make lint` to run clang-tidy static analysis. Use `make lint-fix` to aut
 **Q: What static analysis tools are used?**  
 A: clang-tidy for comprehensive C code analysis including security, performance, and modernization checks. Configuration is in `.clang-tidy`.
 
-## G-Key Macro System
+## G-Key macro system
 
 **Q: Why do I need root privileges for macros?**  
 A: The macro system requires access to `/dev/input/event*` devices for real-time input recording. Add your user to the `input` group: `sudo usermod -a -G input $USER` (requires logout/login).
@@ -79,20 +67,14 @@ A: Keyboard input, mouse clicks, mouse movements, and timing between actions. Fa
 **Q: What RGB control methods are available?**  
 A: Two methods: `hid_reports` (temporary) and `led_subsystem` (persistent). Configure via `RGBMethod` in `/etc/LCDd.conf`.
 
-**Q: What's the difference between HID reports and LED subsystem?**  
-A: **HID reports** (`RGBMethod=hid_reports`): Temporary RGB colors, lost on reboot/power cycle. **LED subsystem** (`RGBMethod=led_subsystem`): Persistent RGB colors stored in hardware, survive reboots and OS changes.
-
 **Q: Which RGB method should I choose?**  
-A: Use `led_subsystem` (default) for persistent colors that survive reboots. Use `hid_reports` for temporary colors or if you want manual hardware control.
-
-**Q: Can hardware buttons override software RGB settings?**  
-A: With `hid_reports`: Yes, hardware buttons can easily override software colors. With `led_subsystem`: Hardware settings are synchronized with software settings.
-
-**Q: Do RGB settings affect G15 devices?**  
-A: No. RGB commands are automatically disabled for G15 devices (USB IDs `046d:c222`, `046d:c227`) since they don't have RGB hardware. Only G510/G510s devices receive RGB commands.
+A: Use `led_subsystem` (default) for persistent colors. Use `hid_reports` for temporary colors. See [INSTALL.md](INSTALL.md#rgb-backlight-configuration) for technical details.
 
 **Q: How do I change RGB colors?**  
 A: Set `BacklightRed`, `BacklightGreen`, `BacklightBlue` values (0-255) in `/etc/LCDd.conf`, then restart `lcdd.service`.
+
+**Q: How can I test device detection without physical hardware?**  
+A: Run the included unit tests: `make check` (basic) or `cd tests && make test-full` (comprehensive). The test system simulates all supported devices (G15/G510/G510s) and validates RGB functionality. See [`tests/README.md`](tests/README.md) for details.
 
 ## System Services
 
