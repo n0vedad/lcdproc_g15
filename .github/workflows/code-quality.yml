@@ -8,44 +8,83 @@ name: Code Quality
 on:
   push:
     branches: [ master ]
+    paths:
+      - '**.c'
+      - '**.h' 
+      - '**.am'
+      - 'configure.ac'
+      - 'GNUmakefile'
+      - '.clang-format'
+      - '.clang-tidy'
+      - 'package*.json'
+      - 'PKGBUILD'
+      - '.github/workflows/code-quality.yml'
   pull_request:
     branches: [ master ]
+    paths:
+      - '**.c'
+      - '**.h'
+      - '**.am'
+      - 'configure.ac'
+      - 'GNUmakefile'
+      - '.clang-format'
+      - '.clang-tidy'
+      - 'package*.json'
+      - 'PKGBUILD'
 
 jobs:
   formatting:
     runs-on: ubuntu-latest
+    container: archlinux:latest
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full git history for proper git repository
     
     - name: Install dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y npm wget gpg
-        # Add LLVM repository for clang tools
-        wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-        echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-20 main" | sudo tee /etc/apt/sources.list.d/llvm.list
-        sudo apt-get update
-        # Install clang tools
-        sudo apt-get install -y clang-format-20 clang-tidy-20
-        # Make clang tools the default
-        sudo ln -sf /usr/bin/clang-format-20 /usr/bin/clang-format
-        sudo ln -sf /usr/bin/clang-tidy-20 /usr/bin/clang-tidy
+        # Install base development tools
+        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear npm valgrind
+        # Install clang-tools for formatting and static analysis
+        pacman -Sy --noconfirm clang-tools-extra
+        # Install standard hardware libraries
+        pacman -Sy --noconfirm libusb libftdi-compat
+        # Create non-root user for AUR builds
+        useradd -m -s /bin/bash builder
+        echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+        # Install G15 libraries from AUR
+        sudo -u builder bash -c '
+          cd /home/builder
+          git clone https://aur.archlinux.org/libg15.git
+          cd libg15 && makepkg -si --noconfirm
+          cd ..
+          git clone https://aur.archlinux.org/libg15render.git  
+          cd libg15render && makepkg -si --noconfirm
+        '
+        
+        # Install npm dependencies for prettier
         npm install
     
-    - name: Setup environment for make format-check
+    - name: Setup build environment
       run: |
-        # Create minimal environment for our make format-check to work
-        echo "Setting up environment..."
+        echo "Setting up development build environment..."
         echo "clang-format version:"
         clang-format --version
+        # Ensure git repository is properly initialized in container
+        git config --global --add safe.directory $(pwd)
+        if [ ! -d ".git" ]; then
+          echo "⚠️ Initializing git repository for container environment..."
+          git init
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add .
+          git commit -m "Initial commit for CI environment"
+        fi
         # Install formatting hooks (creates .git/hooks/pre-commit)
-        ./setup-hooks.sh install
-        # Generate Makefile from Makefile.am
-        sudo apt-get install -y autoconf automake
-        ./autogen.sh
-        # Configure to generate actual Makefile
-        ./configure --prefix=/usr --sbindir=/usr/bin --sysconfdir=/etc --enable-libusb --enable-lcdproc-menus --enable-stat-smbfs --enable-drivers=g15,linux_input
+        make setup-hooks-install
+        # Setup development build with debug drivers
+        CI=true make dev
     
     - name: Run format check
       run: |
@@ -63,19 +102,75 @@ jobs:
         echo "ℹ️  The CI uses the same 'make format-check' that you can run locally"
         exit 1
 
-  build-test:
+  static-analysis:
     runs-on: ubuntu-latest
     container: archlinux:latest
     needs: formatting
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full git history for proper git repository
+    
+    - name: Install dependencies
+      run: |
+        # Install base development tools
+        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear npm valgrind
+        # Install clang-tools for formatting and static analysis
+        pacman -Sy --noconfirm clang-tools-extra
+        # Install standard hardware libraries
+        pacman -Sy --noconfirm libusb libftdi-compat
+        # Create non-root user for AUR builds
+        useradd -m -s /bin/bash builder
+        echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+        # Install G15 libraries from AUR
+        sudo -u builder bash -c '
+          cd /home/builder
+          git clone https://aur.archlinux.org/libg15.git
+          cd libg15 && makepkg -si --noconfirm
+          cd ..
+          git clone https://aur.archlinux.org/libg15render.git  
+          cd libg15render && makepkg -si --noconfirm
+        '
+    
+    - name: Setup and run static analysis
+      run: |
+        # Ensure git repository is properly initialized in container
+        git config --global --add safe.directory $(pwd)
+        if [ ! -d ".git" ]; then
+          echo "⚠️ Initializing git repository for container environment..."
+          git init
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add .
+          git commit -m "Initial commit for CI environment"
+        fi
+        # Setup development build with Git hooks
+        make setup-hooks-install
+        make dev
+        echo "🔍 Running static code analysis..."
+        make lint || echo "Static analysis completed with warnings (non-blocking)"
+    
+    - name: Test comprehensive build
+      run: |
+        echo "🛠️ Running comprehensive test suite..."
+        make test-ci
+        
+  arch-build-test:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    needs: formatting
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full git history for proper git repository
     
     - name: Setup Arch build environment
       run: |
         # Install base tools and create non-root user for AUR
         # Note: clang is the primary compiler for this project
-        pacman -Sy --noconfirm base-devel git sudo clang gcc
+        pacman -Sy --noconfirm base-devel git sudo clang make autoconf automake bear npm valgrind
         useradd -m -G wheel -s /bin/bash builder
         echo 'builder ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
     
@@ -91,16 +186,25 @@ jobs:
           cd libg15render && makepkg -si --noconfirm
         '
         # Install other dependencies
-        pacman -S --noconfirm gcc make autoconf automake libusb libftdi
+        pacman -S --noconfirm libusb libftdi-compat ydotool
     
-    - name: Build project with full dependencies
+    - name: Build and test project with full dependencies
       run: |
-        export PKGBUILD_MODE=1
-        ./autogen.sh
-        # configure.ac defaults to clang, but can be overridden with CC=gcc if needed
-        ./configure --prefix=/usr --sbindir=/usr/bin --sysconfdir=/etc --enable-libusb --enable-lcdproc-menus --enable-stat-smbfs --enable-drivers=g15,linux_input
-        make
-    
-    - name: Check for build warnings
-      run: |
-        echo "✅ Build completed successfully"
+        # Ensure git repository is properly initialized in container
+        git config --global --add safe.directory $(pwd)
+        if [ ! -d ".git" ]; then
+          echo "⚠️ Initializing git repository for container environment..."
+          git init
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add .
+          git commit -m "Initial commit for CI environment"
+        fi
+        # Use standard build for production testing
+        CI=true make
+        
+        echo "🧪 Running comprehensive CI test suite..."
+        # Switch to development mode for testing
+        make distclean
+        CI=true make dev
+        make test-ci

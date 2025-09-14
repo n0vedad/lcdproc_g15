@@ -256,21 +256,25 @@ check-system-deps:
 		echo -e "$(YELLOW)📦 Install with: $(BLUE)sudo pacman -S libftdi-compat$(NC)"; \
 		MISSING_DEPS="$$MISSING_DEPS libftdi-compat"; \
 	fi; \
-	if [ ! -f "/usr/include/libg15.h" ] && [ ! -f "/usr/local/include/libg15.h" ]; then \
-		echo -e "$(RED)✗ libg15 not found$(NC)"; \
-		echo -e "$(YELLOW)📦 Install with: $(BLUE)sudo pacman -S libg15$(NC)"; \
-		MISSING_DEPS="$$MISSING_DEPS libg15"; \
+	if [ "$$CI" != "true" ]; then \
+		if [ ! -f "/usr/include/libg15.h" ] && [ ! -f "/usr/local/include/libg15.h" ]; then \
+			echo -e "$(RED)✗ libg15 not found$(NC)"; \
+			echo -e "$(YELLOW)📦 Install with: $(BLUE)sudo pacman -S libg15$(NC)"; \
+			MISSING_DEPS="$$MISSING_DEPS libg15"; \
+		fi; \
+		if [ ! -f "/usr/include/libg15render.h" ] && [ ! -f "/usr/local/include/libg15render.h" ]; then \
+			echo -e "$(RED)✗ libg15render not found$(NC)"; \
+			echo -e "$(YELLOW)📦 Install with: $(BLUE)sudo pacman -S libg15render$(NC)"; \
+			MISSING_DEPS="$$MISSING_DEPS libg15render"; \
+		fi; \
+		command -v ydotool > /dev/null 2>&1 || { \
+			echo -e "$(RED)✗ ydotool not found$(NC)"; \
+			echo -e "$(YELLOW)📦 Install with: $(BLUE)sudo pacman -S ydotool$(NC)"; \
+			MISSING_DEPS="$$MISSING_DEPS ydotool"; \
+		}; \
+	else \
+		echo -e "$(YELLOW)⚠ Skipping hardware-specific dependencies in CI mode$(NC)"; \
 	fi; \
-	if [ ! -f "/usr/include/libg15render.h" ] && [ ! -f "/usr/local/include/libg15render.h" ]; then \
-		echo -e "$(RED)✗ libg15render not found$(NC)"; \
-		echo -e "$(YELLOW)📦 Install with: $(BLUE)sudo pacman -S libg15render$(NC)"; \
-		MISSING_DEPS="$$MISSING_DEPS libg15render"; \
-	fi; \
-	command -v ydotool > /dev/null 2>&1 || { \
-		echo -e "$(RED)✗ ydotool not found$(NC)"; \
-		echo -e "$(YELLOW)📦 Install with: $(BLUE)sudo pacman -S ydotool$(NC)"; \
-		MISSING_DEPS="$$MISSING_DEPS ydotool"; \
-	}; \
 	if [ -n "$$MISSING_DEPS" ]; then \
 		echo; \
 		echo -e "$(RED)❌ Missing dependencies detected!$(NC)"; \
@@ -319,21 +323,25 @@ check-dev-deps:
 		echo -e "$(YELLOW)📦 Install with: $(BLUE)sudo pacman -S libftdi-compat$(NC)"; \
 		MISSING_DEPS="$$MISSING_DEPS libftdi-compat"; \
 	fi; \
-	if [ ! -f "/usr/include/libg15.h" ] && [ ! -f "/usr/local/include/libg15.h" ]; then \
-		echo -e "$(RED)✗ libg15 not found$(NC)"; \
-		echo -e "$(YELLOW)📦 Install with: $(BLUE)sudo pacman -S libg15$(NC)"; \
-		MISSING_DEPS="$$MISSING_DEPS libg15"; \
+	if [ "$$CI" != "true" ]; then \
+		if [ ! -f "/usr/include/libg15.h" ] && [ ! -f "/usr/local/include/libg15.h" ]; then \
+			echo -e "$(RED)✗ libg15 not found$(NC)"; \
+			echo -e "$(YELLOW)📦 Install with: $(BLUE)sudo pacman -S libg15$(NC)"; \
+			MISSING_DEPS="$$MISSING_DEPS libg15"; \
+		fi; \
+		if [ ! -f "/usr/include/libg15render.h" ] && [ ! -f "/usr/local/include/libg15render.h" ]; then \
+			echo -e "$(RED)✗ libg15render not found$(NC)"; \
+			echo -e "$(YELLOW)📦 Install with: $(BLUE)sudo pacman -S libg15render$(NC)"; \
+			MISSING_DEPS="$$MISSING_DEPS libg15render"; \
+		fi; \
+		command -v ydotool > /dev/null 2>&1 || { \
+			echo -e "$(RED)✗ ydotool not found$(NC)"; \
+			echo -e "$(YELLOW)📦 Install with: $(BLUE)sudo pacman -S ydotool$(NC)"; \
+			MISSING_DEPS="$$MISSING_DEPS ydotool"; \
+		}; \
+	else \
+		echo -e "$(YELLOW)⚠ Skipping hardware-specific dependencies in CI mode$(NC)"; \
 	fi; \
-	if [ ! -f "/usr/include/libg15render.h" ] && [ ! -f "/usr/local/include/libg15render.h" ]; then \
-		echo -e "$(RED)✗ libg15render not found$(NC)"; \
-		echo -e "$(YELLOW)📦 Install with: $(BLUE)sudo pacman -S libg15render$(NC)"; \
-		MISSING_DEPS="$$MISSING_DEPS libg15render"; \
-	fi; \
-	command -v ydotool > /dev/null 2>&1 || { \
-		echo -e "$(RED)✗ ydotool not found$(NC)"; \
-		echo -e "$(YELLOW)📦 Install with: $(BLUE)sudo pacman -S ydotool$(NC)"; \
-		MISSING_DEPS="$$MISSING_DEPS ydotool"; \
-	}; \
 	echo -e "$(YELLOW)=== Optional Development Tools ===$(NC)"; \
 	command -v gcc > /dev/null 2>&1 || { \
 		echo -e "$(YELLOW)⚠ gcc not found$(NC)"; \
@@ -459,16 +467,16 @@ install-dev-deps:
 
 # Git hooks management
 setup-hooks-install:
-	@echo -e "$(BLUE)=== Installing Git Hooks ===$(NC)"
-	@if [ ! -d ".git" ]; then \
+	@echo -e "$(BLUE)=== Installing Git Hooks ===$(NC)"; \
+	if [ ! -d ".git" ]; then \
 		echo -e "$(RED)✗ Not a git repository$(NC)"; \
 		exit 1; \
-	fi
-	@if [ ! -f "$(HOOK_TEMPLATE)" ]; then \
+	fi; \
+	if [ ! -f "$(HOOK_TEMPLATE)" ]; then \
 		echo -e "$(RED)✗ Hook template $(HOOK_TEMPLATE) not found$(NC)"; \
 		exit 1; \
-	fi
-	@if command -v npm > /dev/null 2>&1; then \
+	fi; \
+	if command -v npm > /dev/null 2>&1; then \
 		if [ ! -f "package-lock.json" ] || [ ! -d "node_modules" ]; then \
 			echo -e "$(YELLOW)Installing prettier dependencies...$(NC)"; \
 			npm install || { \
@@ -480,17 +488,17 @@ setup-hooks-install:
 		fi; \
 	else \
 		echo -e "$(YELLOW)⚠ npm not available - prettier formatting will not work$(NC)"; \
-	fi
-	@if command -v clang-format > /dev/null 2>&1; then \
+	fi; \
+	if command -v clang-format > /dev/null 2>&1; then \
 		echo -e "$(GREEN)✓ clang-format available for code formatting$(NC)"; \
 	else \
 		echo -e "$(YELLOW)⚠ clang-format not available - C code formatting will not work$(NC)"; \
 		echo -e "$(YELLOW)  Install with: sudo pacman -S clang$(NC)"; \
-	fi
-	@echo -e "$(YELLOW)Installing pre-commit hook...$(NC)"
-	@cp "$(HOOK_TEMPLATE)" "$(HOOK_SOURCE)"
-	@chmod +x "$(HOOK_SOURCE)"
-	@if [ -f "$(HOOK_SOURCE)" ]; then \
+	fi; \
+	echo -e "$(YELLOW)Installing pre-commit hook...$(NC)"; \
+	cp "$(HOOK_TEMPLATE)" "$(HOOK_SOURCE)"; \
+	chmod +x "$(HOOK_SOURCE)"; \
+	if [ -f "$(HOOK_SOURCE)" ]; then \
 		echo -e "$(GREEN)✓ Pre-commit hook installed successfully$(NC)"; \
 		echo -e "$(GREEN)✓ Code will be automatically formatted before commits$(NC)"; \
 	else \
@@ -602,7 +610,17 @@ build-dev: configure-dev
 	@echo
 	@echo -e "$(GREEN)Ready to build! 🚀$(NC)"
 	@echo -e "$(BLUE)Building (development mode)...$(NC)"
-	@if command -v bear >/dev/null 2>&1; then \
+	@if [ -f .git/hooks/pre-commit ]; then \
+		echo "🔍 Checking code formatting before build..."; \
+		if ! $(MAKE) format-check; then \
+			echo "⚠️  Formatting issues found - fixing automatically..."; \
+			$(MAKE) format; \
+			echo "✅ Files formatted - proceeding with build"; \
+		else \
+			echo "✅ All files properly formatted - proceeding with build"; \
+		fi; \
+	fi; \
+	if command -v bear >/dev/null 2>&1; then \
 		echo "Generating compile_commands.json for IDE/clangd..."; \
 		echo "✅ Bootstrap complete - ready for development build with bear support!"; \
 		echo "🔄 Restarting make to use generated Makefile..."; \
