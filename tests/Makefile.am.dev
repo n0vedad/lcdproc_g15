@@ -36,7 +36,7 @@ TESTS = $(check_PROGRAMS)
 EXTRA_DIST = README.md
 
 # Custom test targets for convenience
-.PHONY: test-verbose test-g15 test-g510 test-scenarios test-scenario-detection test-scenario-rgb test-scenario-macros test-scenario-failures test-memcheck test-compilers test-full test-ci
+.PHONY: test-verbose test-g15 test-g510 test-scenarios test-scenario-detection test-scenario-rgb test-scenario-macros test-scenario-failures test-memcheck test-coverage test-compilers test-full test-ci
 
 # Run tests with verbose output
 test-verbose: $(check_PROGRAMS)
@@ -88,6 +88,48 @@ test-memcheck: $(check_PROGRAMS)
 		{ echo "❌ Memory issues detected - run manually: valgrind --leak-check=full ./test_g15"; exit 1; }; \
 	else \
 		echo "❌ valgrind not installed - install with: sudo pacman -S valgrind"; \
+		exit 1; \
+	fi
+
+# Test coverage analysis (requires llvm and gcovr)
+test-coverage:
+	@echo "📊 Running test coverage analysis..."
+	@echo "===================================="
+	@# Check dependencies
+	@if ! command -v llvm-cov >/dev/null 2>&1; then \
+		echo "❌ llvm-cov not found - install with: sudo pacman -S llvm"; \
+		exit 1; \
+	fi; \
+	if ! command -v gcovr >/dev/null 2>&1; then \
+		echo "❌ gcovr not found - install with: sudo pacman -S gcovr"; \
+		exit 1; \
+	fi
+	@# Clean previous coverage data
+	@echo "🧹 Cleaning previous coverage data..."
+	@rm -f *.gcov *.gcno *.gcda coverage.xml coverage.html coverage.info
+	@# Build with coverage flags
+	@echo "🔧 Building with coverage flags..."
+	@$(MAKE) clean >/dev/null 2>&1
+	@$(MAKE) CC=clang CFLAGS="-Wall -Wextra -std=c11 -g -O0 --coverage" test_g15
+	@# Run tests to generate coverage data
+	@echo "🧪 Running tests to generate coverage data..."
+	@./test_g15 >/dev/null 2>&1 || true
+	@# Generate coverage report
+	@echo "📈 Generating coverage report..."
+	@llvm-cov gcov *.gcno >/dev/null 2>&1 || echo "⚠️ Some coverage files may not have been generated"
+	@if ls *.gcov >/dev/null 2>&1; then \
+		gcovr --gcov-executable="llvm-cov gcov" --xml coverage.xml --html coverage.html . 2>/dev/null || echo "⚠️ gcovr failed, continuing..."; \
+		if [ -f coverage.xml ]; then \
+			echo "📋 Coverage Summary:"; \
+			gcovr --gcov-executable="llvm-cov gcov" . 2>/dev/null || echo "⚠️ Could not generate summary"; \
+		fi; \
+		echo "📊 Individual File Coverage:"; \
+		find . -name "*.gcov" -exec echo "File: {}" \; -exec head -3 {} \; 2>/dev/null || echo "No detailed coverage files found"; \
+		echo ""; \
+		echo "✅ Coverage analysis complete!"; \
+		echo "📄 Coverage files: *.gcov, coverage.xml, coverage.html"; \
+	else \
+		echo "❌ No coverage data generated - check build flags"; \
 		exit 1; \
 	fi
 
@@ -172,6 +214,9 @@ help:
 	@echo "⚠️  Advanced (Standalone - For Debugging Only):"
 	@echo "  make test-memcheck - Memory leak detection with valgrind"
 	@echo "                       Requires: valgrind installed"
+	@echo "  make test-coverage - Code coverage analysis with gcovr"
+	@echo "                       Requires: llvm gcovr installed"
+	@echo "                       Generates: *.gcov coverage.xml coverage.html files"
 	@echo "  make test-compilers - Multi-compiler build testing"
 	@echo "                        DESTRUCTIVE: Cleans + rebuilds with clang & gcc"
 	@echo "                        Takes 1-3 minutes per compiler"
@@ -197,5 +242,5 @@ help:
 
 # Clean up test artifacts
 clean-local:
-	-rm -f *.log *.gcov *.gcno *.gcda
+	-rm -f *.log *.gcov *.gcno *.gcda coverage.xml coverage.html coverage.info
 	-rm -f test_output.log build.log

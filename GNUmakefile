@@ -570,9 +570,11 @@ setup-autotools-dev: check-autotools-dev
 	@# Add tests to SUBDIRS in root Makefile.am 
 	@cp Makefile.am Makefile.am.backup
 	@sed 's/SUBDIRS = shared clients server services \./SUBDIRS = shared clients server services tests ./' Makefile.am.backup > Makefile.am
-	@# Add tests/Makefile to configure.ac 
+	@# Check if tests/Makefile is already in configure.ac 
 	@cp configure.ac configure.ac.backup
-	@sed 's/services\/Makefile/services\/Makefile\n\ttests\/Makefile/' configure.ac.backup > configure.ac
+	@if ! grep -q "tests/Makefile" configure.ac; then \
+		sed 's/services\/Makefile/services\/Makefile\n\ttests\/Makefile/' configure.ac.backup > configure.ac; \
+	fi
 	@echo -e "$(GREEN)✓ Added tests to build system$(NC)"
 	@echo -e "$(YELLOW)Running aclocal ...$(NC)"
 	@$(ACLOCAL) && echo -e "$(GREEN)✓ aclocal completed$(NC)" || { echo -e "$(RED)✗ aclocal failed$(NC)"; exit 1; }
@@ -713,7 +715,7 @@ help:
 	@echo -e "$(YELLOW)ℹ️  Project not configured yet. Run 'make' or 'make dev' to begin setup.$(NC)"
 
 # Development-only test features - require make dev
-test-verbose test-g15 test-g510 test-scenarios test-scenario-detection test-scenario-rgb test-scenario-macros test-scenario-failures test-memcheck test-compilers test-full test-ci:
+test-verbose test-g15 test-g510 test-scenarios test-scenario-detection test-scenario-rgb test-scenario-macros test-scenario-failures test-memcheck test-coverage test-compilers test-full test-ci:
 	@if [ ! -f Makefile ]; then \
 		echo -e "$(RED)❌ Project not configured yet$(NC)"; \
 		echo -e "$(YELLOW)💡 Run 'make dev' first to set up development environment$(NC)"; \

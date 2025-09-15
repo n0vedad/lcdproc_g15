@@ -100,3 +100,11 @@ node_modules
 *.log
 *.trs
 test-driver
+
+# Coverage analysis files
+*.gcov
+*.gcno
+*.gcda
+coverage.xml
+coverage.html
+coverage.info
