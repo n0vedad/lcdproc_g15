@@ -12,7 +12,11 @@
 #include <string.h>
 
 /* Mock the report system to avoid dependencies */
-void report(int level, const char *format, ...) { /* Suppress output during tests */ }
+void report(int level, const char *format, ...)
+{
+	(void)level;
+	(void)format; /* Suppress output during tests */
+}
 
 /* Include mock hidraw implementation */
 #include "mock_hidraw_lib.h"
@@ -72,14 +76,7 @@ void setup_test_driver(void)
 	test_driver.private_data = &test_private_data;
 	test_driver.name = "g15_test";
 
-	/* Mock hidraw IDs (simplified) */
-	static const struct lib_hidraw_id hidraw_ids[] = {
-	    {{BUS_USB, 0x046d, 0xc222}}, /* G15 Original */
-	    {{BUS_USB, 0x046d, 0xc227}}, /* G15 v2 */
-	    {{BUS_USB, 0x046d, 0xc22d}}, /* G510 */
-	    {{BUS_USB, 0x046d, 0xc22e}}, /* G510s */
-	    {{}}			 /* Terminator */
-	};
+	/* Mock hidraw IDs (simplified) - removed unused variable */
 
 	mock_reset_state();
 }
@@ -98,7 +95,8 @@ int g15_init_device_detection(Driver *drvthis)
 	PrivateData *p = drvthis->private_data;
 
 	/* Simulate opening hidraw device */
-	static const struct lib_hidraw_id hidraw_ids[] = {{{BUS_USB, 0x046d, 0xc222}}, {{}}};
+	static const struct lib_hidraw_id hidraw_ids[] = {{{BUS_USB, 0x046d, 0xc222}, {0}},
+							  {{0, 0, 0}, {0}}};
 	p->hidraw_handle = lib_hidraw_open(hidraw_ids);
 	if (!p->hidraw_handle) {
 		return -1;
@@ -350,7 +348,7 @@ void test_mock_error_conditions()
 
 	/* Test device open with failure flag */
 	mock_set_device_failure(1);
-	struct lib_hidraw_id test_ids[] = {{{BUS_USB, 0x046d, 0xc222}}, {{}}};
+	struct lib_hidraw_id test_ids[] = {{{BUS_USB, 0x046d, 0xc222}, {0}}, {{0, 0, 0}, {0}}};
 	struct lib_hidraw_handle *handle = lib_hidraw_open(test_ids);
 
 	assert(handle == NULL);	    /* Should fail due to mock_set_device_failure */
@@ -496,6 +494,7 @@ static int debug_flushes_called = 0;
 /* Mock debug driver functions */
 int debug_init(Driver *drvthis)
 {
+	(void)drvthis; /* Suppress unused parameter warning */
 	memset(&debug_data, 0, sizeof(debug_data));
 	debug_data.width = 20;
 	debug_data.height = 4;
@@ -517,6 +516,7 @@ int debug_init(Driver *drvthis)
 
 void debug_close(Driver *drvthis)
 {
+	(void)drvthis; /* Suppress unused parameter warning */
 	if (debug_data.framebuf) {
 		free(debug_data.framebuf);
 		debug_data.framebuf = NULL;
@@ -524,21 +524,35 @@ void debug_close(Driver *drvthis)
 	debug_driver_initialized = 0;
 }
 
-int debug_width(Driver *drvthis) { return debug_data.width; }
+int debug_width(Driver *drvthis)
+{
+	(void)drvthis; /* Suppress unused parameter warning */
+	return debug_data.width;
+}
 
-int debug_height(Driver *drvthis) { return debug_data.height; }
+int debug_height(Driver *drvthis)
+{
+	(void)drvthis; /* Suppress unused parameter warning */
+	return debug_data.height;
+}
 
 void debug_clear(Driver *drvthis)
 {
+	(void)drvthis; /* Suppress unused parameter warning */
 	if (debug_data.framebuf) {
 		memset(debug_data.framebuf, ' ', debug_data.width * debug_data.height);
 	}
 }
 
-void debug_flush(Driver *drvthis) { debug_flushes_called++; }
+void debug_flush(Driver *drvthis)
+{
+	(void)drvthis; /* Suppress unused parameter warning */
+	debug_flushes_called++;
+}
 
 void debug_string(Driver *drvthis, int x, int y, const char string[])
 {
+	(void)drvthis; /* Suppress unused parameter warning */
 	if (!debug_data.framebuf || !string)
 		return;
 	if (x < 1 || y < 1 || x > debug_data.width || y > debug_data.height)
@@ -559,6 +573,7 @@ void debug_string(Driver *drvthis, int x, int y, const char string[])
 
 int debug_chr(Driver *drvthis, int x, int y, char c)
 {
+	(void)drvthis; /* Suppress unused parameter warning */
 	if (!debug_data.framebuf)
 		return -1;
 	if (x < 1 || y < 1 || x > debug_data.width || y > debug_data.height)
@@ -1071,20 +1086,20 @@ int main(int argc, char *argv[])
 	if (verbose_mode)
 		printf("📍 Running coverage improvement tests...\n");
 
-	/* Test print_usage function (uncovered line 716-726) */
+	/* Test print_usage function */
 	tests_run++;
 	print_usage("test_g15");
 	tests_passed++;
 
-	/* Test failed test scenario (uncovered line 700) */
+	/* Test failed test scenario */
 	tests_run++;
-	int original_passed = tests_passed;
-	tests_passed--; /* Temporarily create a failure to test error path */
+	/* Test the failure path with dummy values */
+	printf("\n📋 Testing failure summary display with simulated erros:\n");
+	print_test_summary(2, 1); /* This tests the "Some tests failed!" path */
+	tests_passed++;		  /* Count this coverage test as passed */
 
+	/* Print final actual test summary */
 	print_test_summary(tests_run, tests_passed);
-
-	/* Restore for final result */
-	tests_passed = original_passed + 1; /* Restore + count this test */
 
 	return (tests_passed == tests_run) ? 0 : 1;
 }

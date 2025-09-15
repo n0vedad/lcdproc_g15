@@ -51,7 +51,7 @@ jobs:
     - name: Install dependencies
       run: |
         # Install base tools and hardware libraries
-        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear npm valgrind
+        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear npm
         # Install standard hardware libraries
         pacman -Sy --noconfirm libusb libftdi-compat
         # Create non-root user for AUR builds
@@ -95,7 +95,7 @@ jobs:
         
     - name: Skip memory leak detection  
       run: |
-        echo "⚠️  Memory leak detection skipped - needs investigation"
+        echo "⚠️  Memory leak detection skipped"
         echo "Memory issues detected even in Arch container environment"
         
     - name: Validate RGB behavior
@@ -124,7 +124,7 @@ jobs:
     - name: Install dependencies
       run: |
         # Install base development tools  
-        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear npm valgrind
+        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear npm
         # Install standard hardware libraries
         pacman -Sy --noconfirm libusb libftdi-compat
         # Create non-root user for AUR builds

@@ -68,6 +68,7 @@ struct lib_hidraw_handle *lib_hidraw_open(const struct lib_hidraw_id *ids)
 
 void lib_hidraw_send_output_report(struct lib_hidraw_handle *handle, unsigned char *data, int count)
 {
+	(void)data; /* Suppress unused parameter warning */
 	if (!handle || handle->fd == -1) {
 		return;
 	}

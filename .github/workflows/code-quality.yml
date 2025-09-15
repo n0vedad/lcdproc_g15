@@ -45,7 +45,7 @@ jobs:
     - name: Install dependencies
       run: |
         # Install base development tools
-        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear npm valgrind
+        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear npm
         # Install clang-tools for formatting and static analysis
         pacman -Sy --noconfirm clang-tools-extra
         # Install standard hardware libraries
@@ -115,7 +115,7 @@ jobs:
     - name: Install dependencies
       run: |
         # Install base development tools
-        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear npm valgrind
+        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear npm
         # Install clang-tools for formatting and static analysis
         pacman -Sy --noconfirm clang-tools-extra
         # Install standard hardware libraries
@@ -170,7 +170,7 @@ jobs:
       run: |
         # Install base tools and create non-root user for AUR
         # Note: clang is the primary compiler for this project
-        pacman -Sy --noconfirm base-devel git sudo clang make autoconf automake bear npm valgrind
+        pacman -Sy --noconfirm base-devel git sudo clang make autoconf automake bear npm
         useradd -m -G wheel -s /bin/bash builder
         echo 'builder ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
     
