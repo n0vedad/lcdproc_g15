@@ -14,6 +14,7 @@ optdepends=('gcc: alternative supported compiler (multi-compiler-test)'
             'npm: for prettier code formatting'
             'bear: for generating compile database (static analysis)'
             'valgrind: for memory leak detection in tests'
+            'gcovr: for code coverage analysis and reporting'
             'act: for testing GitHub workflows locally'
             'python-evdev: for reading raw input events from /dev/input/event*')
 install=lcdproc-g15.install

@@ -15,15 +15,16 @@ For development work, you'll need these additional tools beyond the runtime requ
 - `valgrind` for detecting memory leaks
 - `act` for testing GitHub workflow locally (optional)
 - `python-evdev` for for reading raw input events from /dev/input/event\*
+- `gcovr` for code coverage analysis and reporting
 
 ```bash
-# Install formatting and static analysis dependencies
-sudo pacman -S clang-format clang-tidy gcc npm bear valgrind act
+# Install all optional dependencies
+sudo pacman -S clang-format clang-tidy gcc npm bear valgrind act python-evdev gcovr
 ```
 
 ### Build for Development
 
-Use the development build for complete setup and IDE support:
+Use the development build for complete setup with test support:
 
 ```bash
 # Complete development setup in one command (recommended)
@@ -31,7 +32,7 @@ make dev
 
 # Or manual step-by-step setup:
 make setup-autotools
-make setup-hooks-install
+make setup-hooks-install (for local git hooks)
 
 # Development configuration (includes debug driver)
 ./configure \
@@ -58,12 +59,7 @@ But it may not do what you want, so please take a few seconds to type:
 
 Now for debugging you just need to uncomment the debug driver at `/etc/LCDd.conf`:
 
-```ini
-# Enable debug driver
-Driver=debug
-```
-
-## Driver Properties
+## Debug Driver Properties
 
 | Property         | Value     | Description                       |
 | ---------------- | --------- | --------------------------------- |
@@ -84,21 +80,6 @@ The debug driver is used in automated testing to:
 
 See `tests/` directory for debug driver test integration.
 
-## Code Formatting
-
-- **C/C++**: clang-format with project-specific configuration
-- **Markdown/JSON/Shell**: prettier for consistent formatting
-
-### Usage
-
-```bash
-# Format code manually
-make format
-
-# Check format status
-make format-check
-```
-
 ### Git Hooks
 
 Two automated workflows can run on every commit/push:
@@ -106,54 +87,21 @@ Two automated workflows can run on every commit/push:
 - **Code Quality**: Formatting, linting, static analysis for all code changes
 - **Device Tests**: Hardware simulation tests for driver/test changes only
 
+They are implemented two-way, local (via `make setup-hooks-install`) and via GitHub workflows.
+
 Please see [tests/README.md](tests/README.md) for more details.
-
-## Static Analysis
-
-This project uses **clang-tidy** for comprehensive static analysis of C code.
-
-### Configuration
-
-Static analysis rules are configured in `.clang-tidy` with focus on:
-
-- System programming patterns (USB, threading, memory management)
-- Security-critical code paths
-- Performance optimizations for real-time applications
-- The compile database is automatically generated when needed by `make lint` or `make dev`
-
-### Usage
-
-```bash
-# Run complete static analysis
-make lint
-
-# Auto-fix issues where possible
-make lint-fix
-```
 
 ## Testing
 
 ### Running Tests
 
-The project includes a comprehensive mock testing system and Python debug scripts for real hardware analysis. Please refer to [tests/README.md](tests/README.md) for more details.
-
-## INPUT/OUTPUT
-
-Only one Display/output device (g15.so) and input device (linux_input.so) is supported in this fork.
-
-For LCDd (the server) to use the device, it needs to load a driver. The
-drivers are so called 'shared modules', that usually have an extension
-of `.so`. The drivers to be loaded should be specified in the config file
-(by one or more `Driver=` lines), or on the command line. The command line
-should only be used to override things in the config file. The drivers
-should be in a directory that is indicated by the `DriverPath=` line in
-the configfile.
+The project includes a comprehensive mock testing system and Python debug scripts for real hardware analysis. Further it includes code formatting & static analysis and test coverage reports. Please refer to [tests/README.md](tests/README.md) for available tests and more.
 
 ## Submitting Changes
 
-### Before Submitting
+### Minimal Steps Before Submitting
 
-1. Ensure all tests pass: `cd tests && make test-full`
+1. Ensure all tests pass: `make test-full`
 2. Verify code formatting: `make format-check`
 3. Run static analysis: `make lint`
 4. Test GitHub workflow locally (optional): `act push`

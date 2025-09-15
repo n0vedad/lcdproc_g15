@@ -45,21 +45,12 @@ distclean-local:
 
 .PHONY: $(SUBDIRS) install-server install-clients format format-check format-before-build help test-full test-ci
 
-# Format code before any compilation starts
-all-recursive: format-before-build
+# Format code before any compilation starts - handled by GNUmakefile
+# all-recursive: format-before-build (disabled - GNUmakefile handles this)
 
 format-before-build:
-	@if [ -f .git/hooks/pre-commit ]; then \
-		echo "🔍 Checking code formatting before build..."; \
-		$(MAKE) format-check; \
-		if [ $$? -ne 0 ]; then \
-			echo "⚠️  Formatting issues found - fixing automatically..."; \
-			$(MAKE) format; \
-			echo "✅ Files formatted - proceeding with build"; \
-		else \
-			echo "✅ All files properly formatted - proceeding with build"; \
-		fi; \
-	fi
+	@# Code formatting is now handled exclusively by GNUmakefile
+	@# This prevents double execution during 'make dev'
 
 $(SUBDIRS):
 	$(MAKE) -C $@
@@ -204,55 +195,12 @@ lint-fix:
 
 ## Build convenience targets
 
-
 # Setup and build targets with automatic configuration
 
 # Note: setup-standard, setup-dev, and dev targets are handled by GNUmakefile
 # The generated Makefile only handles the standard build process
 
-
 # Standard autotools targets work automatically through SUBDIRS
 # test-full, test-ci etc. are handled by GNUmakefile for development-only features
-
-## Help target
-help:
-	@echo "LCDproc G15 - Available Make Targets"
-	@echo "===================================="
-	@echo ""
-	@echo "🔨 Build Commands (with automatic setup):"
-	@echo "  make            - Complete setup + standard build (autogen.sh + configure + build)"
-	@echo "  make all        - Same as 'make'"
-	@echo "  make dev        - Complete setup + development build (autogen.sh --dev + configure + build)"
-	@echo ""
-	@echo "🔧 Manual Setup (advanced users):"
-	@echo "  make setup-standard - Run autogen.sh + configure (standard)"
-	@echo "  make setup-dev      - Run autogen.sh --dev + configure (development)"
-	@echo ""
-	@echo "🧪 Testing:"
-	@echo "  make check                - Run basic tests (fast, ~3s)"
-	@echo "  make test-full           - Full test suite (basic + memory leaks)"
-	@echo "  make test-ci             - CI/CD suite (full + multi-compiler)"
-	@echo ""
-	@echo "📦 Installation:"
-	@echo "  make install    - Install to system (requires root)"
-	@echo ""
-	@echo "🎨 Code Quality:"
-	@echo "  make format     - Auto-format code (C + Markdown/JSON)"
-	@echo "  make format-check - Check if code is properly formatted"
-	@echo "  make lint       - Run static code analysis (clang-tidy)"
-	@echo "  make lint-fix   - Auto-fix static analysis issues"
-	@echo ""
-	@echo "🧹 Cleanup:"
-	@echo "  make clean      - Remove build artifacts"
-	@echo "  make distclean  - Complete cleanup (reset to clean state)"
-	@echo ""
-	@echo "💡 Quick Start:"
-	@echo "  make            - Build project (setup must be done via GNUmakefile first)"
-	@echo "  For initial setup: use 'make' or 'make dev' from clean state"
-	@echo ""
-	@echo "📖 More Info:"
-	@echo "  See INSTALL.md for detailed build instructions"
-	@echo "  See README.md for project overview and testing"
-	@echo "  cd tests && make help - Show all testing options"
 
 ## EOF

@@ -66,11 +66,17 @@ This project uses a **Clang-based toolchain** for consistent development experie
 
 For development setup see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## 🧪 Testing & Debugging
+## Testing & Debugging
 
 This implementation includes comprehensive unit tests and debugging tools for device handling, G-Key macro system and RGB functionality.
 
-See [`tests/README.md`](tests/README.md) for detailed testing documentation.
+See [tests/README.md](tests/README.md) for detailed testing documentation.
+
+## Code Coverage
+
+**Current Coverage:** ~90% (635/702 lines)
+
+For detailed coverage setup and analysis, see [tests/README.md](tests/README.md#coverage-analysis) section below.
 
 ## FAQ Section
 

@@ -36,7 +36,7 @@ TESTS = $(check_PROGRAMS)
 EXTRA_DIST = README.md
 
 # Custom test targets for convenience
-.PHONY: test-verbose test-g15 test-g510 test-scenarios test-scenario-detection test-scenario-rgb test-scenario-macros test-scenario-failures test-memcheck test-coverage test-compilers test-full test-ci
+.PHONY: test-verbose test-g15 test-g510 test-scenarios test-scenario-detection test-scenario-rgb test-scenario-macros test-scenario-failures test-memcheck test-coverage test-compilers test-full
 
 # Run tests with verbose output
 test-verbose: $(check_PROGRAMS)
@@ -175,70 +175,8 @@ test-ci: $(check_PROGRAMS) check
 	@echo "2️⃣ Multi-compiler compatibility:"
 	@$(MAKE) test-compilers
 
-# Help target
-help:
-	@echo "G-Series Comprehensive Test Suite"
-	@echo "================================="
-	@echo ""
-	@echo "🚀 Quick Start (Development Workflow):"
-	@echo "  make check        - Basic tests (~3s) - Daily development"
-	@echo "  make test-full    - Comprehensive (~60s) - Before commits"
-	@echo "  make test-ci      - CI/CD suite (~5min) - Before releases"
-	@echo ""
-	@echo "📋 Standard Autotools targets:"
-	@echo "  make check        - Run all tests (standard autotools)"
-	@echo "  make clean        - Clean build artifacts"
-	@echo ""
-	@echo "🎯 Development Test Targets:"
-	@echo "  make test-full    - Basic + memory leak detection (~30-60s)"
-	@echo "                      Non-destructive, safe for daily use"
-	@echo "  make test-ci      - Full + multi-compiler testing (~2-5min)" 
-	@echo "                      DESTRUCTIVE: Rebuilds entire project!"
-	@echo ""
-	@echo "🔍 Specific Test Categories:"
-	@echo "  make test-g15     - Test only G15 devices (no RGB)"
-	@echo "  make test-g510    - Test only G510 devices (with RGB)"
-	@echo "  make test-verbose - Run tests with detailed output"
-	@echo "  make test-scenarios - All 4 test scenarios:"
-	@echo "                        • Device detection (USB IDs)"
-	@echo "                        • RGB color testing (HID + LED)"
-	@echo "                        • Macro system (G-keys, M1/M2/M3)"
-	@echo "                        • Error handling (device failures)"
-	@echo ""
-	@echo "🎯 Individual Test Scenarios:"
-	@echo "  make test-scenario-detection - Only device detection tests"
-	@echo "  make test-scenario-rgb       - Only RGB functionality tests"  
-	@echo "  make test-scenario-macros    - Only macro system tests"
-	@echo "  make test-scenario-failures  - Only error handling tests"
-	@echo ""
-	@echo "⚠️  Advanced (Standalone - For Debugging Only):"
-	@echo "  make test-memcheck - Memory leak detection with valgrind"
-	@echo "                       Requires: valgrind installed"
-	@echo "  make test-coverage - Code coverage analysis with gcovr"
-	@echo "                       Requires: llvm gcovr installed"
-	@echo "                       Generates: *.gcov coverage.xml coverage.html files"
-	@echo "  make test-compilers - Multi-compiler build testing"
-	@echo "                        DESTRUCTIVE: Cleans + rebuilds with clang & gcc"
-	@echo "                        Takes 1-3 minutes per compiler"
-	@echo ""
-	@echo "💡 Usage Guidelines:"
-	@echo "  • Daily: make check (fast feedback)"
-	@echo "  • Pre-commit: make test-full (thorough validation)"
-	@echo "  • Pre-release: make test-ci (complete validation)"
-	@echo "  • Debugging: make test-scenarios (isolate issues)"
-	@echo ""
-	@echo "  make help         - Show this help"
-	@echo ""
-	@echo "Test Coverage:"
-	@echo "  ✅ G15 Original (046d:c222) - Device detection, No RGB"
-	@echo "  ✅ G15 v2 (046d:c227) - Device detection, No RGB"
-	@echo "  ✅ G510 (046d:c22d) - Device detection, RGB support"
-	@echo "  ✅ G510s (046d:c22e) - Device detection, RGB support"
-	@echo "  ✅ RGB color validation (HID reports & LED subsystem)"
-	@echo "  ✅ G-Key macro system functionality"
-	@echo "  ✅ Debug driver functionality and output validation"
-	@echo "  ✅ Unknown devices - Safe defaults"
-	@echo "  ✅ Device failure handling"
+# All targets are now managed via root Makefile help
+# Use 'make help' from project root for complete command list
 
 # Clean up test artifacts
 clean-local:

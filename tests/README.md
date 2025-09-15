@@ -1,8 +1,8 @@
-# G-Series Device Detection Tests
+# G-Series Device Tests
 
-This directory contains unit tests for device detection and RGB functionality across different Logitech G-Series keyboard models.
+This directory contains a comprehensive mock testing system and Python debug scripts for real hardware analysis. Further it includes code formatting & static analysis and test coverage reports.
 
-## 🧪 Test System Overview
+## Test System Overview
 
 ### **Mock System**
 
@@ -10,7 +10,7 @@ The test system uses a mock hidraw interface that simulates different USB device
 
 ```c
 struct mock_device_info test_devices[] = {
-    {0x046d, 0xc222, "Logitech G15 (Original)", 0, 0},    // No RGB
+    {0x046d, 0xc222, "Logitech G15 (Original)", 0, 0},   // No RGB
     {0x046d, 0xc227, "Logitech G15 v2", 0, 0},           // No RGB
     {0x046d, 0xc22d, "Logitech G510", 1, 0},             // RGB support
     {0x046d, 0xc22e, "Logitech G510s", 1, 0},            // RGB support
@@ -18,11 +18,7 @@ struct mock_device_info test_devices[] = {
 };
 ```
 
-## 📊 Test Matrix & Coverage
-
-### **Test Combinations**
-
-- **4 device types** × **2 compilers** = **8 test combinations**
+## Test Matrix & Coverage
 
 Type `make help` for further informations.
 
@@ -43,15 +39,13 @@ Type `make help` for further informations.
 - ✅ **Debug driver**: Virtual display functionality
 - ✅ **Error handling**: Device failures, connection issues, memory management
 
-## 🚀 Running Tests
+## Running Tests
 
 ### **Local Execution**
 
 #### **Development Workflow (Recommended)**
 
 ```bash
-cd tests
-
 # Daily development (fast feedback)
 make check # Basic tests (~3 seconds)
 
@@ -91,9 +85,52 @@ make format       # Format all C code with clang-format + prettier
 make format-check # Check if formatting is needed (non-destructive)
 make lint         # Run clang-tidy static analysis
 make lint-fix     # Run clang-tidy with automatic fixes
+
+# Test Coverage Analysis
+make test-coverage # Generate detailed test coverage analysis report
 ```
 
-## 🔄 Git Hooks
+## Code Formatting
+
+- **C/C++**: clang-format with project-specific configuration
+- **Markdown/JSON/Shell**: prettier for consistent formatting
+
+Rules are specified at `.clang-format` and `.prettierrc/.prettierignore`.
+
+## Static Analysis
+
+This project uses **clang-tidy** for comprehensive static analysis of C code.
+
+### Configuration
+
+Static analysis rules are configured in `.clang-tidy` with focus on:
+
+- System programming patterns (USB, threading, memory management)
+- Security-critical code paths
+- Performance optimizations for real-time applications
+- The compile database is automatically generated when needed by `make lint` or `make dev`
+
+## Coverage Analysis
+
+**Coverage Output Files:**
+
+- `coverage.html` - Interactive HTML report with line-by-line coverage
+- `coverage.xml` - Machine-readable XML format (Cobertura)
+- `*.gcov` - Individual file coverage reports
+- `*.gcno` / `*.gcda` - GCC coverage data files
+
+### **Coverage Details**
+
+- **mock_hidraw_lib.c**: 89% (67/75 lines)
+- **test_g15.c**: 90% (568/627 lines)
+
+**Uncovered Code (10%):**
+
+- Memory allocation failures (`calloc()` returns `NULL`)
+- Debug driver stub functions with unused parameters
+- Error handling paths that are difficult to simulate
+
+## Git Hooks
 
 ### **Two Different Workflows**
 
@@ -113,7 +150,7 @@ make lint-fix     # Run clang-tidy with automatic fixes
 
 Tests use mock hidraw devices to simulate different G15 keyboards without requiring actual hardware. Each test validates device detection, RGB capability detection, and core functionality across all supported device types and compilers.
 
-### **Debug Scripts for Real Hardware**
+## Debug Scripts for Real Hardware
 
 The `tests/debug/` directory contains Python scripts for debugging real G15/G510 keyboards:
 
