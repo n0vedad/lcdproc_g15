@@ -2,28 +2,64 @@
 # G-Series Comprehensive Test Suite
 # SPDX-License-Identifier: GPL-2.0+
 
-# Test programs
-check_PROGRAMS = test_g15
+# Test programs (executable tests only)
+check_PROGRAMS = test_unit_g15 test_integration_g15
+
+# Additional programs built for testing (not run as tests)
+noinst_PROGRAMS = mock_g15
 
 # Test source files
-test_g15_SOURCES = \
-	test_g15.c \
+test_unit_g15_SOURCES = \
+	test_unit_g15.c \
+	mock_hidraw_lib.c \
+	mock_hidraw_lib.h
+
+# Integration test sources
+test_integration_g15_SOURCES = \
+	test_integration_g15.c
+
+mock_g15_SOURCES = \
+	mock_g15.c \
 	mock_hidraw_lib.c \
 	mock_hidraw_lib.h
 
 # Include paths for tests
-test_g15_CPPFLAGS = \
+test_unit_g15_CPPFLAGS = \
+	-I$(top_srcdir) \
+	-I$(top_srcdir)/server/drivers \
+	-I$(top_srcdir)/shared
+
+test_integration_g15_CPPFLAGS = \
+	-I$(top_srcdir) \
+	-I$(top_srcdir)/server \
+	-I$(top_srcdir)/shared
+
+mock_g15_CPPFLAGS = \
 	-I$(top_srcdir) \
 	-I$(top_srcdir)/server/drivers \
 	-I$(top_srcdir)/shared
 
 # Compiler flags for tests
-test_g15_CFLAGS = \
+test_unit_g15_CFLAGS = \
+	$(AM_CFLAGS) \
+	-Wall -Wextra -std=c11 -g -O0
+
+test_integration_g15_CFLAGS = \
+	$(AM_CFLAGS) \
+	-Wall -Wextra -std=c11 -g -O0
+
+mock_g15_CFLAGS = \
 	$(AM_CFLAGS) \
 	-Wall -Wextra -std=c11 -g -O0
 
 # Link with shared libraries if needed
-test_g15_LDADD = \
+test_unit_g15_LDADD = \
+	$(top_builddir)/shared/libLCDstuff.a
+
+test_integration_g15_LDADD = \
+	$(top_builddir)/shared/libLCDstuff.a
+
+mock_g15_LDADD = \
 	$(top_builddir)/shared/libLCDstuff.a
 
 # Run tests with 'make check'
@@ -36,22 +72,22 @@ TESTS = $(check_PROGRAMS)
 EXTRA_DIST = README.md
 
 # Custom test targets for convenience
-.PHONY: test-verbose test-g15 test-g510 test-scenarios test-scenario-detection test-scenario-rgb test-scenario-macros test-scenario-failures test-memcheck test-coverage test-compilers test-full
+.PHONY: test-verbose test-g15 test-g510 test-scenarios test-scenario-detection test-scenario-rgb test-scenario-macros test-scenario-failures test-memcheck test-coverage test-compilers test-full test-integration test-mock test-server test-clients test-e2e
 
 # Run tests with verbose output
 test-verbose: $(check_PROGRAMS)
 	@echo "🧪 Running G-Series comprehensive tests (verbose)..."
 	@echo "========================================================="
-	./test_g15 --verbose || true
+	./test_unit_g15 --verbose || true
 
 # Test specific device categories
 test-g15: $(check_PROGRAMS)
 	@echo "🧪 Testing G15 devices specifically..."
-	./test_g15 --device-filter=g15 || true
+	./test_unit_g15 --device-filter=g15 || true
 
 test-g510: $(check_PROGRAMS)
 	@echo "🧪 Testing G510 devices specifically..."
-	./test_g15 --device-filter=g510 || true
+	./test_unit_g15 --device-filter=g510 || true
 
 # Test different scenarios - all together
 test-scenarios: test-scenario-detection test-scenario-rgb test-scenario-macros test-scenario-failures
@@ -60,22 +96,22 @@ test-scenarios: test-scenario-detection test-scenario-rgb test-scenario-macros t
 # Individual test scenarios
 test-scenario-detection: $(check_PROGRAMS)
 	@echo "🧪 Scenario 1: Device detection testing"
-	@./test_g15 --test-detection || true
+	@./test_unit_g15 --test-detection || true
 	@echo ""
 
 test-scenario-rgb: $(check_PROGRAMS)
 	@echo "🧪 Scenario 2: RGB color testing"
-	@./test_g15 --test-rgb || true
+	@./test_unit_g15 --test-rgb || true
 	@echo ""
 
 test-scenario-macros: $(check_PROGRAMS)
 	@echo "🧪 Scenario 3: Macro system testing"
-	@./test_g15 --test-macros || true
+	@./test_unit_g15 --test-macros || true
 	@echo ""
 
 test-scenario-failures: $(check_PROGRAMS)
 	@echo "🧪 Scenario 4: Device failure handling"
-	@./test_g15 --test-failures || true
+	@./test_unit_g15 --test-failures || true
 	@echo ""
 
 # Memory leak detection (valgrind required)
@@ -83,9 +119,9 @@ test-memcheck: $(check_PROGRAMS)
 	@echo "🔍 Running memory leak detection..."
 	@if command -v valgrind >/dev/null 2>&1; then \
 		echo "Running valgrind memory analysis..."; \
-		valgrind --leak-check=full --error-exitcode=1 --quiet ./test_g15 > /dev/null 2>&1 && \
+		valgrind --leak-check=full --error-exitcode=1 --quiet ./test_unit_g15 > /dev/null 2>&1 && \
 		echo "✅ No memory leaks detected" || \
-		{ echo "❌ Memory issues detected - run manually: valgrind --leak-check=full ./test_g15"; exit 1; }; \
+		{ echo "❌ Memory issues detected - run manually: valgrind --leak-check=full ./test_unit_g15"; exit 1; }; \
 	else \
 		echo "❌ valgrind not installed - install with: sudo pacman -S valgrind"; \
 		exit 1; \
@@ -110,10 +146,10 @@ test-coverage:
 	@# Build with coverage flags
 	@echo "🔧 Building with coverage flags..."
 	@$(MAKE) clean >/dev/null 2>&1
-	@$(MAKE) CC=clang CFLAGS="-Wall -Wextra -std=c11 -g -O0 --coverage" test_g15
+	@$(MAKE) CC=clang CFLAGS="-Wall -Wextra -std=c11 -g -O0 --coverage" test_unit_g15
 	@# Run tests to generate coverage data
 	@echo "🧪 Running tests to generate coverage data..."
-	@./test_g15 >/dev/null 2>&1 || true
+	@./test_unit_g15 >/dev/null 2>&1 || true
 	@# Generate coverage report
 	@echo "📈 Generating coverage report..."
 	@llvm-cov gcov *.gcno >/dev/null 2>&1 || echo "⚠️ Some coverage files may not have been generated"
@@ -178,6 +214,49 @@ test-ci: $(check_PROGRAMS) check
 	@echo ""
 	@echo "2️⃣ Multi-compiler compatibility:"
 	@$(MAKE) test-compilers
+
+# Integration test targets
+test-integration: test_integration_g15 mock_g15
+	@echo "🧪 Running integration test suite..."
+	@echo "===================================="
+	@echo "1️⃣ Starting G15 hardware mock server..."
+	@./mock_g15 &
+	@MOCK_PID=$$!; \
+	sleep 2; \
+	echo "2️⃣ Running integration tests..."; \
+	./test_integration_g15; \
+	TEST_RESULT=$$?; \
+	echo "3️⃣ Shutting down mock server..."; \
+	kill $$MOCK_PID 2>/dev/null || true; \
+	wait $$MOCK_PID 2>/dev/null || true; \
+	if [ $$TEST_RESULT -eq 0 ]; then \
+		echo "🎉 Integration tests completed successfully!"; \
+	else \
+		echo "❌ Integration tests failed!"; \
+		exit 1; \
+	fi
+
+# Run only the mock server for debugging
+test-mock: mock_g15
+	@echo "🎮 Starting G15 integration mock server..."
+	@echo "Press Ctrl+C to stop"
+	@./mock_g15
+
+# Test only server components
+test-server: test_integration_g15
+	@echo "🚀 Testing LCDd server functionality..."
+	@./test_integration_g15 --server-only || echo "Server tests completed"
+
+# Test only client components  
+test-clients: test_integration_g15
+	@echo "📱 Testing client functionality..."
+	@./test_integration_g15 --clients-only || echo "Client tests completed"
+
+# End-to-end integration tests
+test-e2e: test-integration
+	@echo "🔄 Running end-to-end integration tests..."
+	@echo "Full server + client + mock hardware workflow"
+	@$(MAKE) test-integration
 
 # All targets are now managed via root Makefile help
 # Use 'make help' from project root for complete command list

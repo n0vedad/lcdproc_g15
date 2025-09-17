@@ -1091,13 +1091,6 @@ int main(int argc, char *argv[])
 	print_usage("test_g15");
 	tests_passed++;
 
-	/* Test failed test scenario */
-	tests_run++;
-	/* Test the failure path with dummy values */
-	printf("\n📋 Testing failure summary display with simulated erros:\n");
-	print_test_summary(2, 1); /* This tests the "Some tests failed!" path */
-	tests_passed++;		  /* Count this coverage test as passed */
-
 	/* Print final actual test summary */
 	print_test_summary(tests_run, tests_passed);
 

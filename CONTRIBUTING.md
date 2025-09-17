@@ -95,7 +95,7 @@ Please see [tests/README.md](tests/README.md) for more details.
 
 ### Running Tests
 
-The project includes a comprehensive mock testing system and Python debug scripts for real hardware analysis. Further it includes code formatting & static analysis and test coverage reports. Please refer to [tests/README.md](tests/README.md) for available tests and more.
+The project includes a comprehensive testing system with unit- and integration tests and Python debug scripts for real hardware analysis. Further it includes code formatting & static analysis and test coverage reports. Please refer to [tests/README.md](tests/README.md) for available tests and more.
 
 ## Submitting Changes
 

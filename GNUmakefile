@@ -650,7 +650,7 @@ clean:
 		fi; \
 	else \
 		has_artifacts=0; \
-		if [ -f tests/test_g15 ] || ls tests/*.o >/dev/null 2>&1 || ls tests/*.log >/dev/null 2>&1 || ls tests/*.trs >/dev/null 2>&1; then \
+		if [ -f tests/test_unit_g15 ] || [ -f tests/test_integration_g15 ] || [ -f tests/mock_g15 ] || ls tests/*.o >/dev/null 2>&1 || ls tests/*.log >/dev/null 2>&1 || ls tests/*.trs >/dev/null 2>&1; then \
 			has_artifacts=1; \
 		fi; \
 		has_patches=$$(find . -name "*.orig" -o -name "*.rej" | head -1); \
@@ -658,7 +658,7 @@ clean:
 			echo -e "$(BLUE)=== Cleaning Bootstrap Mode ===$(NC)"; \
 			if [ $$has_artifacts -eq 1 ]; then \
 				echo -e "$(YELLOW)Cleaning test artifacts...$(NC)"; \
-				rm -f tests/test_g15 tests/*.o tests/*.log tests/*.trs tests/test-suite.log; \
+				rm -f tests/test_unit_g15 tests/test_integration_g15 tests/mock_g15 tests/*.o tests/*.log tests/*.trs tests/test-suite.log; \
 				echo -e "$(GREEN)✓ Test artifacts cleaned$(NC)"; \
 			fi; \
 			if [ -n "$$has_patches" ]; then \
@@ -707,6 +707,11 @@ help:
 	@echo -e "$(BLUE)🚀 Advanced Testing:$(NC)"
 	@echo "  make test-ci            - Complete CI/CD test suite"
 	@echo "                            Includes: test-full + multi-compiler testing"
+	@echo "  make test-integration   - End-to-end integration tests"
+	@echo "                            Includes: LCDd server + client + mock hardware"
+	@echo "  make test-server        - Test only LCDd server functionality"
+	@echo "  make test-clients       - Test only client functionality"
+	@echo "  make test-e2e           - Full end-to-end workflow testing"
 	@echo ""
 	@echo -e "$(BLUE)⚠️  Advanced (Standalone - For Debugging Only):$(NC)"
 	@echo "  make test-memcheck      - Memory leak detection with valgrind"
@@ -736,7 +741,7 @@ help:
 	@echo -e "$(YELLOW)ℹ️  Project not configured yet. Run 'make' or 'make dev' to begin setup.$(NC)"
 
 # Development-only test features - require make dev
-test-verbose test-g15 test-g510 test-scenarios test-scenario-detection test-scenario-rgb test-scenario-macros test-scenario-failures test-memcheck test-coverage test-compilers test-full test-ci:
+test-verbose test-g15 test-g510 test-scenarios test-scenario-detection test-scenario-rgb test-scenario-macros test-scenario-failures test-memcheck test-coverage test-compilers test-full test-ci test-integration test-mock test-server test-clients test-e2e:
 	@if [ ! -f Makefile ]; then \
 		echo -e "$(RED)❌ Project not configured yet$(NC)"; \
 		echo -e "$(YELLOW)💡 Run 'make dev' first to set up development environment$(NC)"; \

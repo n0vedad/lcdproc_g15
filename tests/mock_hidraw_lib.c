@@ -29,6 +29,10 @@ static int device_open_should_fail = 0;
 static int rgb_commands_sent = 0;
 static int feature_reports_sent = 0;
 
+/* Global mock variables for integration tests */
+int mock_g15_device_state = 1;	    /* Device available */
+int mock_g15_rgb_command_count = 0; /* RGB commands count */
+
 /* Find device info by product ID */
 static struct mock_device_info *find_device_info(unsigned short product_id)
 {

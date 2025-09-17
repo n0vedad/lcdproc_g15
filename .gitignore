@@ -32,7 +32,9 @@ Makefile.am.backup
 clients/lcdproc/lcdproc
 clients/lcdexec/lcdexec
 server/LCDd
-tests/test_g15
+tests/test_unit_g15
+tests/test_integration_g15
+tests/mock_g15
 
 # Arch Linux packaging
 pkg/

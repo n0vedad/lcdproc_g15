@@ -1,12 +1,17 @@
 # G-Series Device Tests
 
-This directory contains a comprehensive mock testing system and Python debug scripts for real hardware analysis. Further it includes code formatting & static analysis and test coverage reports.
+This directory contains comprehensive unit tests, integration tests, mock systems, and Python debug scripts for G15/G510 keyboards. It includes code formatting, static analysis, and test coverage reports.
 
 ## Test System Overview
 
-### **Mock System**
+The test suite consists of two complementary systems:
 
-The test system uses a mock hidraw interface that simulates different USB devices:
+1. **Unit Tests** (`test_unit_g15`) - Mock-based component testing
+2. **Integration Tests** (`test_integration_g15`) - End-to-end system testing
+
+### **Unit Test System (Mock-Based)**
+
+The unit test system uses a mock hidraw interface that simulates different USB devices:
 
 ```c
 struct mock_device_info test_devices[] = {
@@ -17,6 +22,22 @@ struct mock_device_info test_devices[] = {
     {0x046d, 0xc221, "Unknown Logitech Device", 0, 0},   // Unknown
 };
 ```
+
+### **Integration Test System**
+
+The integration test system validates end-to-end functionality: LCDd server startup, TCP protocol communication, client connections, and multi-driver support.
+
+Unlike unit tests that use mocks, integration tests run real LCDd processes with actual drivers:
+
+```
+LCDd Server (debug/g15/input) ←→ TCP Protocol ←→ lcdproc Client
+```
+
+**Supported Drivers:**
+
+- **debug** - 20x4 virtual display (safe, default)
+- **g15** - Real G15/G510 hardware (requires keyboard)
+- **linux_input** - Generic input driver
 
 ## Test Matrix & Coverage
 
@@ -47,10 +68,10 @@ Type `make help` for further informations.
 
 ```bash
 # Daily development (fast feedback)
-make check # Basic tests (~3 seconds)
+make check # Basic unit tests (~3 seconds)
 
 # Before commits (thorough validation)
-make test-full # Basic + memory leak detection (~30-60 seconds)
+make test-full # Unit tests + memory leak detection (~30-60 seconds)
 # Non-destructive, safe for daily use
 
 # Before releases (complete validation)
@@ -58,7 +79,25 @@ make test-ci # Full + multi-compiler testing (~2-5 minutes)
 # ⚠️ DESTRUCTIVE: Rebuilds entire project!
 ```
 
-#### **Specific Testing Categories**
+#### **Integration Testing**
+
+```bash
+# Basic integration tests (debug driver)
+make test-integration # Safe virtual testing
+
+# Hardware-specific tests (requires hardware)
+make test-integration-g15   # G15/G510 hardware required
+make test-integration-input # Linux input driver
+make test-integration-all   # All drivers comprehensive
+
+# Component testing
+make test-mock    # Mock server standalone
+make test-server  # LCDd server only
+make test-clients # Client functionality only
+make test-e2e     # End-to-end workflow
+```
+
+#### **Unit Test Categories**
 
 ```bash
 # Device-specific testing
@@ -68,7 +107,7 @@ make test-g510 # Test only G510 devices (with RGB support)
 # Test scenarios (for debugging)
 make test-scenarios # All 4 specialized tests combined
 
-# Individual test scenarios (NEW!)
+# Individual test scenarios
 make test-scenario-detection # Only device detection (USB device IDs)
 make test-scenario-rgb       # Only RGB color testing (HID + LED)
 make test-scenario-macros    # Only macro system (18 G-keys, M1/M2/M3)
@@ -79,15 +118,6 @@ make test-verbose   # Run tests with detailed output
 make test-memcheck  # Memory leak detection only (requires valgrind)
 make test-compilers # Multi-compiler build testing only
 # ⚠️ DESTRUCTIVE: Rebuilds with clang + gcc
-
-# Code Quality & Formatting (requires 'make dev')
-make format       # Format all C code with clang-format + prettier
-make format-check # Check if formatting is needed (non-destructive)
-make lint         # Run clang-tidy static analysis
-make lint-fix     # Run clang-tidy with automatic fixes
-
-# Test Coverage Analysis
-make test-coverage # Generate detailed test coverage analysis report
 ```
 
 ## Code Formatting
@@ -110,6 +140,14 @@ Static analysis rules are configured in `.clang-tidy` with focus on:
 - Performance optimizations for real-time applications
 - The compile database is automatically generated when needed by `make lint` or `make dev`
 
+```bash
+# Code Quality & Formatting (requires 'make dev')
+make format       # Format all C code with clang-format + prettier
+make format-check # Check if formatting is needed (non-destructive)
+make lint         # Run clang-tidy static analysis
+make lint-fix     # Run clang-tidy with automatic fixes
+```
+
 ## Coverage Analysis
 
 **Coverage Output Files:**
@@ -129,6 +167,11 @@ Static analysis rules are configured in `.clang-tidy` with focus on:
 - Memory allocation failures (`calloc()` returns `NULL`)
 - Debug driver stub functions with unused parameters
 - Error handling paths that are difficult to simulate
+
+```bash
+# Test Coverage Analysis
+make test-coverage # Generate detailed test coverage analysis report
+```
 
 ## Git Hooks
 

@@ -68,7 +68,7 @@ For development setup see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Testing & Debugging
 
-This implementation includes comprehensive unit tests and debugging tools for device handling, G-Key macro system and RGB functionality.
+This implementation includes comprehensive unit tests, integration tests and debugging tools for device handling, G-Key macro system and RGB functionality.
 
 See [tests/README.md](tests/README.md) for detailed testing documentation.
 
