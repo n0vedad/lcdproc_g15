@@ -45,6 +45,8 @@ typedef struct g15_private_data {
 	unsigned char rgb_red;
 	unsigned char rgb_green;
 	unsigned char rgb_blue;
+	/* RGB method selection */
+	int rgb_method_hid; /* 1 for HID reports, 0 for LED subsystem */
 } PrivateData;
 
 #define G15_OFFSET 32

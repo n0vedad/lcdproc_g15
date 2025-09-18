@@ -306,20 +306,21 @@ void get_time_string(char *buff, time_t last_online)
 	act_time = time(NULL);
 
 	if (last_online == 0) { /* never was online */
-		strcpy(buff, "never");
+		strncpy(buff, "never", 6);
 		return;
 	}
 
 	/* Transform Unix time format to UTC time format */
-	strcpy(timebuff, ctime(&last_online));
+	strncpy(timebuff, ctime(&last_online), sizeof(timebuff) - 1);
+	timebuff[sizeof(timebuff) - 1] = '\0';
 
 	/* 86400 = 24 * 60 * 60. Is it more than 24 hours? */
 	if ((act_time - last_online) > 86400) {
 		timebuff[10] = '\0';
-		strcpy(buff, &timebuff[4]);
+		strncpy(buff, &timebuff[4], 7);
 	} else {
 		timebuff[19] = '\0';
-		strcpy(buff, &timebuff[11]);
+		strncpy(buff, &timebuff[11], 9);
 	}
 }
 

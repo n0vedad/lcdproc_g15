@@ -180,3 +180,18 @@ void lib_hidraw_close(struct lib_hidraw_handle *handle)
 		close(handle->fd);
 	free(handle);
 }
+
+unsigned short lib_hidraw_get_product_id(struct lib_hidraw_handle *handle)
+{
+	struct hidraw_devinfo devinfo;
+	int err;
+
+	if (!handle || handle->fd == -1)
+		return 0;
+
+	err = ioctl(handle->fd, HIDIOCGRAWINFO, &devinfo);
+	if (err == -1)
+		return 0;
+
+	return devinfo.product;
+}

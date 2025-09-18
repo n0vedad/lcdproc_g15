@@ -273,8 +273,11 @@ int main(int argc, char **argv)
 	}
 	if (config_get_bool(progname, "ShowHostname", 0, TRUE)) {
 		hostname = malloc(strlen(unamebuf.nodename) + 2);
-		hostname[0] = ' ';
-		strcpy(hostname + 1, unamebuf.nodename);
+		if (hostname != NULL) {
+			hostname[0] = ' ';
+			strncpy(hostname + 1, unamebuf.nodename, strlen(unamebuf.nodename));
+			hostname[strlen(unamebuf.nodename) + 1] = '\0';
+		}
 	}
 
 	/* Set default reporting options */

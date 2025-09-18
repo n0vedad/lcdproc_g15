@@ -1,6 +1,8 @@
 #ifndef LCD_DEBUG_H
 #define LCD_DEBUG_H
 
+#include "lcd.h"
+
 MODULE_EXPORT int debug_init(Driver *drvthis);
 MODULE_EXPORT void debug_close(Driver *drvthis);
 MODULE_EXPORT int debug_width(Driver *drvthis);
