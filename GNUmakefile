@@ -559,7 +559,7 @@ configure-dev: setup-autotools-dev
 	fi
 	@echo
 	@echo -e "$(YELLOW)Running configure (development)...$(NC)"
-	@./configure --enable-debug --enable-drivers=g15,linux_input,debug
+	@./configure --prefix=/usr --sbindir=/usr/bin --sysconfdir=/etc --enable-libusb --enable-lcdproc-menus --enable-stat-smbfs --enable-debug --enable-drivers=g15,linux_input,debug
 
 # Separate autotools setup for development (includes tests)
 setup-autotools-dev: check-autotools-dev
