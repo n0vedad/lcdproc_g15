@@ -433,6 +433,36 @@ void drivers_backlight(int state)
 }
 
 /**
+ * Set macro LED status on all drivers.
+ * Call set_macro_leds() function of all drivers that have this function defined.
+ * \param m1       M1 LED state (0=off, 1=on)
+ * \param m2       M2 LED state (0=off, 1=on)
+ * \param m3       M3 LED state (0=off, 1=on)
+ * \param mr       MR LED state (0=off, 1=on)
+ * \return         0 on success, -1 on error
+ */
+int drivers_set_macro_leds(int m1, int m2, int m3, int mr)
+{
+	Driver *drv;
+	int result = -1; /* Default to error */
+
+	debug(RPT_DEBUG, "%s(m1=%d, m2=%d, m3=%d, mr=%d)", __FUNCTION__, m1, m2, m3, mr);
+
+	ForAllDrivers(drv)
+	{
+
+		if (drv->set_macro_leds) {
+			int drv_result = drv->set_macro_leds(drv, m1, m2, m3, mr);
+			if (drv_result == 0) {
+				result = 0; /* At least one driver succeeded */
+			}
+		}
+	}
+
+	return result;
+}
+
+/**
  * Set output on all drivers.
  * Call ouptput() function of all drivers that have an ouptput() function defined.
  * \param state    New ouptut status.

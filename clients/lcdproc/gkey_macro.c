@@ -26,6 +26,7 @@
 	((array)[(bit) / (8 * sizeof(long))] & (1UL << ((bit) % (8 * sizeof(long)))))
 #include "main.h"
 #include "shared/report.h"
+#include "shared/sockets.h"
 
 /* Simple macro storage structure */
 typedef struct {
@@ -111,6 +112,9 @@ int gkey_macro_init(void)
 	/* Load existing macros */
 	load_macros();
 
+	/* Set initial LED state */
+	gkey_macro_update_leds();
+
 	report(RPT_INFO, "G-Key Macro: Initialized (Mode: %s)", macro_state.current_mode);
 	return 0;
 }
@@ -141,12 +145,14 @@ void gkey_macro_handle_key(const char *key_name)
 			report(RPT_INFO,
 			       "G-Key Macro: Recording mode active - press a G-key to "
 			       "start recording");
+			gkey_macro_update_leds(); /* Update LEDs when recording starts */
 		}
 	} else if (strncmp(key_name, "M", 1) == 0 && strlen(key_name) == 2) {
 		/* Mode switch: M1, M2, M3 */
 		strncpy(macro_state.current_mode, key_name, sizeof(macro_state.current_mode) - 1);
 		macro_state.current_mode[sizeof(macro_state.current_mode) - 1] = '\0';
 		report(RPT_INFO, "G-Key Macro: Switched to mode %s", macro_state.current_mode);
+		gkey_macro_update_leds(); /* Update LEDs when mode changes */
 	} else if (strncmp(key_name, "G", 1) == 0 && strlen(key_name) > 1) {
 		/* G-key press: G1-G18 */
 		if (macro_state.recording) {
@@ -168,6 +174,33 @@ void gkey_macro_process(void)
 const char *gkey_macro_get_mode(void) { return macro_state.current_mode; }
 
 int gkey_macro_is_recording(void) { return macro_state.recording; }
+
+void gkey_macro_update_leds(void)
+{
+	/* This function communicates LED status to the LCD driver
+	 * via socket command to LCDd server */
+
+	/* Determine which mode LEDs should be on */
+	int m1 = (strcmp(macro_state.current_mode, "M1") == 0) ? 1 : 0;
+	int m2 = (strcmp(macro_state.current_mode, "M2") == 0) ? 1 : 0;
+	int m3 = (strcmp(macro_state.current_mode, "M3") == 0) ? 1 : 0;
+	int mr = macro_state.recording ? 1 : 0;
+
+	/* Send macro LED command to LCDd server */
+	char command[64];
+	snprintf(command, sizeof(command), "macro_leds %d %d %d %d\n", m1, m2, m3, mr);
+
+	if (sock_send_string(sock, command) < 0) {
+		report(RPT_ERR, "G-Key Macro: Failed to send LED command to server");
+	} else {
+		report(RPT_DEBUG,
+		       "G-Key Macro LED update: M1=%s M2=%s M3=%s MR=%s",
+		       m1 ? "ON" : "OFF",
+		       m2 ? "ON" : "OFF",
+		       m3 ? "ON" : "OFF",
+		       mr ? "ON" : "OFF");
+	}
+}
 
 static int get_mode_index(const char *mode)
 {
@@ -397,6 +430,7 @@ static void start_recording(const char *g_key)
 	} else {
 		report(RPT_ERR, "G-Key Macro: Failed to start recording for %s", g_key);
 		macro_state.recording = 0;
+		gkey_macro_update_leds(); /* Update LEDs when recording fails */
 	}
 }
 
@@ -407,6 +441,7 @@ static void stop_recording(void)
 	}
 
 	macro_state.recording = 0;
+	gkey_macro_update_leds(); /* Update LEDs when recording stops */
 
 	/* Stop input recording if active */
 	if (macro_state.recorder.recording) {

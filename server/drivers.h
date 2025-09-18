@@ -58,6 +58,8 @@ void drivers_cursor(int x, int y, int state);
 
 void drivers_backlight(int brightness);
 
+int drivers_set_macro_leds(int m1, int m2, int m3, int mr);
+
 void drivers_output(int state);
 
 const char *drivers_get_key(void);

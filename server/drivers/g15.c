@@ -161,6 +161,7 @@ MODULE_EXPORT int g15_init(Driver *drvthis)
 
 	/* Initialize the PrivateData structure */
 	p->backlight_state = BACKLIGHT_ON;
+	p->macro_leds = 0;
 
 	/* Read RGB method configuration */
 	const char *rgb_method_str =
@@ -249,6 +250,11 @@ MODULE_EXPORT int g15_init(Driver *drvthis)
 	/* Set initial RGB backlight colors */
 	if (p->has_rgb_backlight && p->backlight_state == BACKLIGHT_ON) {
 		g15_set_rgb_backlight(drvthis, p->rgb_red, p->rgb_green, p->rgb_blue);
+	}
+
+	/* Set initial macro LED state (M1 active by default) */
+	if (p->has_rgb_backlight) {
+		g15_set_macro_leds(drvthis, 1, 0, 0, 0); /* M1 on, others off */
 	}
 
 	return 0;
@@ -574,13 +580,6 @@ MODULE_EXPORT void g15_backlight(Driver *drvthis, int on)
 {
 	PrivateData *p = drvthis->private_data;
 
-	/* DEBUG: Log every call to this function */
-	report(RPT_DEBUG,
-	       "%s: g15_backlight() called with on=%d (current state=%d)",
-	       drvthis->name,
-	       on,
-	       p->backlight_state);
-
 	if (p->backlight_state == on)
 		return;
 
@@ -741,6 +740,78 @@ MODULE_EXPORT int g15_set_rgb_backlight(Driver *drvthis, int red, int green, int
 	}
 
 	return result;
+}
+
+// Set Macro LED status (G510 only)
+MODULE_EXPORT int g15_set_macro_leds(Driver *drvthis, int m1, int m2, int m3, int mr)
+{
+	PrivateData *p = drvthis->private_data;
+	unsigned char led_report[G510_MACRO_LED_REPORT_SIZE];
+	unsigned char led_mask = 0;
+
+	report(RPT_NOTICE,
+	       "%s: g15_set_macro_leds called with m1=%d m2=%d m3=%d mr=%d",
+	       drvthis->name,
+	       m1,
+	       m2,
+	       m3,
+	       mr);
+
+	if (!p) {
+		report(RPT_ERR, "%s: PrivateData is NULL", drvthis->name);
+		return -1;
+	}
+
+	if (!p->hidraw_handle) {
+		report(
+		    RPT_ERR, "%s: Device not initialized (hidraw_handle is NULL)", drvthis->name);
+		return -1;
+	}
+
+	/* Build LED bitmask */
+	if (m1)
+		led_mask |= G510_LED_M1;
+	if (m2)
+		led_mask |= G510_LED_M2;
+	if (m3)
+		led_mask |= G510_LED_M3;
+	if (mr)
+		led_mask |= G510_LED_MR;
+
+	/* Store current LED state */
+	p->macro_leds = led_mask;
+
+	/* Send LED control report */
+	led_report[0] = G510_FEATURE_MACRO_LEDS;
+	led_report[1] = led_mask;
+
+	report(RPT_NOTICE, "%s: Setting macro LEDs with mask 0x%02x", drvthis->name, led_mask);
+	report(RPT_NOTICE,
+	       "%s: Sending HID feature report: %02x %02x (size=2)",
+	       drvthis->name,
+	       led_report[0],
+	       led_report[1]);
+
+	if (lib_hidraw_send_feature_report(p->hidraw_handle, led_report, 2) < 0) {
+		report(
+		    RPT_ERR,
+		    "%s: Failed to set macro LEDs - lib_hidraw_send_feature_report returned error",
+		    drvthis->name);
+		return -1;
+	}
+
+	report(RPT_NOTICE, "%s: Macro LEDs set successfully", drvthis->name);
+
+	report(RPT_DEBUG,
+	       "%s: Set macro LEDs: M1=%s M2=%s M3=%s MR=%s (mask=0x%02x)",
+	       drvthis->name,
+	       m1 ? "ON" : "OFF",
+	       m2 ? "ON" : "OFF",
+	       m3 ? "ON" : "OFF",
+	       mr ? "ON" : "OFF",
+	       led_mask);
+
+	return 0;
 }
 
 MODULE_EXPORT void g15_num(Driver *drvthis, int x, int num)

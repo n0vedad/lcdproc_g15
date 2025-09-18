@@ -267,6 +267,42 @@ int backlight_func(Client *c, int argc, char **argv)
 }
 
 /**
+ * Sets the status of macro LEDs (G510 only).
+ *
+ *\verbatim
+ * Usage: macro_leds <m1> <m2> <m3> <mr>
+ *        where each parameter is 0 (off) or 1 (on)
+ *\endverbatim
+ */
+int macro_leds_func(Client *c, int argc, char **argv)
+{
+	if (c->state != ACTIVE)
+		return 1;
+
+	if (argc != 5) {
+		sock_send_error(c->sock, "Usage: macro_leds <m1> <m2> <m3> <mr>\n");
+		return 0;
+	}
+
+	debug(RPT_DEBUG, "macro_leds(%s %s %s %s)", argv[1], argv[2], argv[3], argv[4]);
+
+	/* Parse LED states */
+	int m1 = (strcmp("1", argv[1]) == 0) ? 1 : 0;
+	int m2 = (strcmp("1", argv[2]) == 0) ? 1 : 0;
+	int m3 = (strcmp("1", argv[3]) == 0) ? 1 : 0;
+	int mr = (strcmp("1", argv[4]) == 0) ? 1 : 0;
+
+	/* Call driver function */
+	if (drivers_set_macro_leds(m1, m2, m3, mr) == 0) {
+		sock_send_string(c->sock, "success\n");
+	} else {
+		sock_send_error(c->sock, "Failed to set macro LEDs\n");
+	}
+
+	return 0;
+}
+
+/**
  * Sends back information about the loaded drivers.
  *
  *\verbatim

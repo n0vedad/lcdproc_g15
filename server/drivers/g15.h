@@ -47,6 +47,8 @@ typedef struct g15_private_data {
 	unsigned char rgb_blue;
 	/* RGB method selection */
 	int rgb_method_hid; /* 1 for HID reports, 0 for LED subsystem */
+	/* Macro LED status */
+	unsigned char macro_leds; /* Bitmask for M1, M2, M3, MR LEDs */
 } PrivateData;
 
 #define G15_OFFSET 32
@@ -83,6 +85,16 @@ typedef struct g15_private_data {
 #define G510_FEATURE_RGB_ZONE1 0x06
 #define G510_RGB_REPORT_SIZE 4
 
+/* G510 Macro LED control */
+#define G510_FEATURE_MACRO_LEDS 0x04
+#define G510_MACRO_LED_REPORT_SIZE 2
+
+/* Macro LED bitmasks */
+#define G510_LED_M1 0x80
+#define G510_LED_M2 0x40
+#define G510_LED_M3 0x20
+#define G510_LED_MR 0x10
+
 extern short g15_bignum_data[11][G15_BIGNUM_LEN];
 
 MODULE_EXPORT int g15_init(Driver *drvthis);
@@ -101,6 +113,7 @@ MODULE_EXPORT void g15_vbar(Driver *drvthis, int x, int y, int len, int promille
 MODULE_EXPORT const char *g15_get_key(Driver *drvthis);
 MODULE_EXPORT void g15_backlight(Driver *drvthis, int on);
 MODULE_EXPORT int g15_set_rgb_backlight(Driver *drvthis, int red, int green, int blue);
+MODULE_EXPORT int g15_set_macro_leds(Driver *drvthis, int m1, int m2, int m3, int mr);
 MODULE_EXPORT void g15_num(Driver *drvthis, int x, int num);
 
 #endif /*G15_H_*/

@@ -2,7 +2,7 @@
 # Based on original LCDproc by various contributors
 
 pkgname=lcdproc-g15
-pkgver=0.0.3
+pkgver=0.0.4
 pkgrel=1
 pkgdesc="LCDproc for Logitech G15/G510/G510s keyboards - optimized for G510s with RGB backlight and macro support"
 arch=('x86_64')

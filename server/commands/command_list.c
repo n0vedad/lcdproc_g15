@@ -45,6 +45,7 @@ static client_function commands[] = {
     {"menu_set_main", menu_set_main_func},
     /* Misc stuff...*/
     {"backlight", backlight_func},
+    {"macro_leds", macro_leds_func},
     {"output", output_func},
     {"noop", noop_func},
     {"info", info_func},

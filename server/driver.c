@@ -68,6 +68,7 @@ DriverSymbols driver_symbols[] = {{"api_version", offsetof(Driver, api_version),
 				  {"set_brightness", offsetof(Driver, set_brightness), 0},
 				  {"backlight", offsetof(Driver, backlight), 0},
 				  {"output", offsetof(Driver, output), 0},
+				  {"set_macro_leds", offsetof(Driver, set_macro_leds), 0},
 				  {"get_key", offsetof(Driver, get_key), 0},
 				  {"get_info", offsetof(Driver, get_info), 0},
 				  {NULL, 0, 0}};

@@ -178,6 +178,7 @@ typedef struct lcd_logical_driver {
 	int (*get_brightness)(struct lcd_logical_driver *drvthis, int state);
 	void (*set_brightness)(struct lcd_logical_driver *drvthis, int state, int promille);
 	void (*backlight)(struct lcd_logical_driver *drvthis, int on);
+	int (*set_macro_leds)(struct lcd_logical_driver *drvthis, int m1, int m2, int m3, int mr);
 	void (*output)(struct lcd_logical_driver *drvthis, int state);
 
 	/* informational functions */

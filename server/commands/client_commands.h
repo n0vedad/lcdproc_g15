@@ -20,5 +20,6 @@ int client_set_func(Client *c, int argc, char **argv);
 int client_add_key_func(Client *c, int argc, char **argv);
 int client_del_key_func(Client *c, int argc, char **argv);
 int backlight_func(Client *c, int argc, char **argv);
+int macro_leds_func(Client *c, int argc, char **argv);
 
 #endif

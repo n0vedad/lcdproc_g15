@@ -38,6 +38,12 @@ const char *gkey_macro_get_mode(void);
 int gkey_macro_is_recording(void);
 
 /**
+ * Update macro LED status on the keyboard
+ * Should be called when mode changes or recording status changes
+ */
+void gkey_macro_update_leds(void);
+
+/**
  * Start input event recording from /dev/input/event* devices
  * \param target_gkey  G-key to record macro for
  */
