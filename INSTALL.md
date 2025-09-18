@@ -291,13 +291,13 @@ The keyboard supports RGB backlight control through two different methods:
 
 ### Starting The Server
 
-If you're in the LCDproc source directory, and have just built it, run:
+If you've installed the program successfully just run
 
 ```bash
-server/LCDd -c /etc/LCDd.conf
+sudo /usr/bin/LCDd -f -c /etc/LCDd.conf
 ```
 
-For security reasons, LCDd by default only accepts connections from localhost (`127.0.0.1`), it will not accept connections from other computers on your network / the Internet and the client tries to connect to a server located on localhost listening to port 13666. Fore more options use the `--help` flag.
+For security reasons, LCDd by default only accepts connections from localhost (`127.0.0.1`), it will not accept connections from other computers on your network / the Internet and the client tries to connect to a server located on localhost listening to port 13666.
 
 You can change this behaviour in the configuration files.
 
@@ -306,10 +306,9 @@ You can change this behaviour in the configuration files.
 Then, you'll need some clients. LCDproc comes with a few, of which the `lcdproc` client is the main client:
 
 ```bash
-clients/lcdproc/lcdproc -f C M T L
+/usr/bin/lcdproc -f -c /etc/lcdproc.conf
 ```
 
-This will run the LCDproc client, for example with the [C]pu, [M]emory, [T]ime, and [L]oad screens.
 The option `-f` causes it not to daemonize, but run in the foreground. Fore more options use the `--help` flag.
 
 ## Running automatically
