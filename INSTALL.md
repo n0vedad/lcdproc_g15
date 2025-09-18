@@ -1,3 +1,79 @@
+# REPOSITORY STRUCTURE
+
+## Directory Overview
+
+This section explains the purpose of each directory and file in the repository:
+
+### Core Directories
+
+- **`clients/`** - Client applications that connect to LCDd
+  - `clients/lcdproc/` - Main system monitor client (CPU, memory, disk usage)
+  - `clients/lcdexec/` - Execute commands based on LCD menu selections
+
+- **`server/`** - The LCDd daemon and hardware drivers
+  - `server/drivers/g15.c` - G15/G510 keyboard hardware driver
+  - `server/drivers/hidraw_lib.*` - HID device communication library
+  - `server/drivers/debug.c` - Debug driver for testing without hardware
+  - `LCDd.c` - Main daemon entry point
+
+- **`services/`** - Systemd service files for automatic startup
+  - `lcdd.service` - LCDd daemon service
+  - `lcdproc.service` - System monitor client service
+  - `ydotoold.service` - Input automation daemon for G-Key macros
+
+- **`shared/`** - Common libraries used by both server and clients
+  - Networking, configuration parsing, string utilities
+
+- **`tests/`** - Test suite for hardware drivers and integration
+  - `test_unit_g15.c` - Unit tests for G15 driver functionality
+  - `test_integration_g15.c` - Integration tests with mock hardware
+  - `tests/test_*.c` - Unit and integration tests
+  - `tests/mock_*.c` - Hardware simulation for CI testing
+  - `tests/debug/` - Python debugging tools for hardware testing
+
+### Configuration Files
+
+- **`LCDd.conf`** - Main server configuration
+  - Driver settings, hardware parameters, RGB backlight configuration
+- **`lcdproc.conf`** - Client configuration
+  - Screen layouts, update intervals, display preferences
+
+### Build System
+
+- **`configure.ac`** - Autotools configuration script
+- **`acinclude.m4`** - Autotools macro definitions and custom checks
+- **`Makefile.am`** - Automake template for build rules
+- **`GNUmakefile`** - Enhanced GNU Make wrapper with development features
+- **`PKGBUILD`** - Arch Linux package build script
+- **`lcdproc-g15.install`** - Arch Linux package install/remove script
+
+### Development Tools
+
+- **`.clang-format`** - Code formatting rules (enforced in CI)
+- **`.clang-tidy`** - Static analysis configuration
+- **`package.json`** - Node.js dependencies for Prettier (formatting)
+- **`package-lock.json`** - Locked Node.js dependency versions
+- **`.prettierrc`** - Prettier configuration for formatting
+- **`.prettierignore`** - Files excluded from Prettier formatting
+
+### Git Configuration
+
+- **`.gitignore`** - Files and directories excluded from version control
+- **`.gitattributes`** - Git attributes for line endings and file handling
+- **`hooks-pre-commit.template`** - Template for pre-commit hook setup
+- **`.github/workflows/`** - GitHub Actions CI/CD pipelines
+  - `code-quality.yml` - Code formatting, static analysis, comprehensive testing
+  - `device-tests.yml` - Hardware simulation and device compatibility tests
+
+### Documentation
+
+- **`README.md`** - Project overview, supported devices, quick start guide
+- **`INSTALL.md`** - Detailed installation and configuration instructions
+- **`CONTRIBUTING.md`** - Development workflow, coding standards, testing guidelines
+- **`FAQ.md`** - Frequently asked questions and troubleshooting
+- **`tests/README.md`** - Detailed testing documentation and usage guide
+- **`COPYING`** - GPL v2 license full text
+
 # PREREQUISITES
 
 ## Device Compatibility Check
