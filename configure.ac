@@ -1,7 +1,7 @@
 # -*- mode: m4; -*-
 dnl Process this file with autoconf 2.61 (or higher) to produce a configure script.
 AC_PREREQ(2.61)
-AC_INIT([lcdproc], [0.0.2], [https://github.com/lcdproc/lcdproc/issues/])
+AC_INIT([lcdproc], [0.0.3], [https://github.com/lcdproc/lcdproc/issues/])
 AC_CONFIG_SRCDIR([clients/lcdproc/batt.c])
 AM_INIT_AUTOMAKE
 
@@ -51,7 +51,8 @@ dnl (the spaces before $CFLAGS and -O are significant)
 fi
 
 dnl Checks for programs used in building
-AC_PROG_CC
+dnl Prefer Clang for toolchain consistency with clang-format/clang-tidy
+AC_PROG_CC([clang gcc cc])
 AC_PROG_CPP
 AC_PROG_INSTALL
 AC_PROG_RANLIB
@@ -481,5 +482,6 @@ AC_CONFIG_FILES([Makefile
 	clients/Makefile
 	clients/lcdproc/Makefile
 	clients/lcdexec/Makefile
-	services/Makefile])
+	services/Makefile
+])
 AC_OUTPUT

@@ -1,0 +1,24 @@
+# clang-tidy configuration for lcdproc-g15
+# Static analysis for C code quality and security
+
+# Minimal critical security checks only
+Checks: >
+  bugprone-buffer-overrun,
+  bugprone-use-after-free,
+  bugprone-sizeof-expression,
+  clang-analyzer-security.insecureAPI.strcpy,
+  clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
+  clang-analyzer-core.NonNullParamChecker,
+  clang-analyzer-core.NullDereference
+
+# Header filter - analyze our code, not system headers  
+HeaderFilterRegex: '(clients|server|shared)/.*\.(h|hpp)$'
+
+# Analysis modes for system-level code
+FormatStyle: file
+
+# Warnings as errors for critical security issues only
+WarningsAsErrors: >
+  bugprone-use-after-free,
+  bugprone-buffer-overrun,
+  clang-analyzer-security.insecureAPI.strcpy
