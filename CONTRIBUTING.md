@@ -123,8 +123,9 @@ Follow conventional commit format:
 - Include test results if applicable
 - Ensure CI/CD checks pass
 
-## Getting Help
+## Development Resources
 
+- [TODO.md](TODO.md) - Known issues and future improvements
 - Check existing issues in the repository
 - Review the [FAQ.md](FAQ.md) for common questions
 - Reference the [INSTALL.md](INSTALL.md) for setup issues
