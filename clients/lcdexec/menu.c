@@ -126,10 +126,10 @@ MenuEntry *menu_read(MenuEntry *parent, const char *name)
 				me->data.slider.minval = config_get_int(name, "MinValue", 0, 0);
 				me->data.slider.maxval = config_get_int(name, "MaxValue", 0, 1000);
 
-				sprintf(buf, "%d", me->data.slider.minval);
+				snprintf(buf, sizeof(buf), "%d", me->data.slider.minval);
 				me->data.slider.mintext =
 				    strdup(config_get_string(name, "MinText", 0, buf));
-				sprintf(buf, "%d", me->data.slider.maxval);
+				snprintf(buf, sizeof(buf), "%d", me->data.slider.maxval);
 				me->data.slider.maxtext =
 				    strdup(config_get_string(name, "MaxText", 0, buf));
 
@@ -191,12 +191,12 @@ MenuEntry *menu_read(MenuEntry *parent, const char *name)
 				me->data.checkbox.map[2] = (tmp != NULL) ? strdup(tmp) : NULL;
 			} else {
 				report(RPT_DEBUG, "illegal parameter type");
-				// menu_free(me);
+				menu_free(me);
 				return NULL;
 			}
 		} else {
 			report(RPT_DEBUG, "unknown menu entry type");
-			// menu_free(me);
+			menu_free(me);
 			return NULL;
 		}
 
@@ -228,7 +228,7 @@ MenuEntry *menu_read(MenuEntry *parent, const char *name)
 			me->next = NULL;
 			me->children = NULL;
 			me->numChildren = 0;
-			me->type = MT_ARG_ACTION | MT_AUTOMATIC;
+			me->type = MT_ARG_ACTION_AUTO;
 
 			return me;
 		}
@@ -254,7 +254,7 @@ int menu_sock_send(MenuEntry *me, MenuEntry *parent, int sock)
 
 		// set parent_id depending on the parent given
 		if ((parent != NULL) && (parent->id != 0))
-			sprintf(parent_id, "%d", parent->id);
+			snprintf(parent_id, sizeof(parent_id), "%d", parent->id);
 		else
 			parent_id[0] = 0;
 
@@ -334,33 +334,55 @@ int menu_sock_send(MenuEntry *me, MenuEntry *parent, int sock)
 
 			// join all strings with TAB as separator
 			for (i = 0; me->data.ring.strings[i] != NULL; i++) {
+				size_t current_len = (tmp != NULL) ? strlen(tmp) : 0;
 				size_t new_len =
-				    strlen(tmp) + 1 + strlen(me->data.ring.strings[i]) + 1;
-				tmp = realloc(tmp, new_len);
-				if (tmp != NULL) {
+				    current_len + 1 + strlen(me->data.ring.strings[i]) + 1;
+				char *new_tmp = realloc(tmp, new_len);
+				if (new_tmp != NULL) {
+					tmp = new_tmp;
 					if (tmp[0] != '\0')
 						strncat(tmp, "\t", new_len - strlen(tmp) - 1);
 					strncat(tmp,
 						me->data.ring.strings[i],
 						new_len - strlen(tmp) - 1);
+				} else {
+					// realloc failed, clean up and break
+					free(tmp);
+					tmp = NULL;
+					break;
 				}
 			}
 
-			if (sock_printf(sock,
-					"menu_add_item \"%s\" \"%d\" ring -text \"%s\""
-					" -value %d -strings \"%s\"\n",
-					parent_id,
-					me->id,
-					me->displayname,
-					me->data.ring.value,
-					tmp) < 0)
-				return -1;
-		}
+			if (tmp != NULL) {
+				if (sock_printf(sock,
+						"menu_add_item \"%s\" \"%d\" ring -text \"%s\""
+						" -value %d -strings \"%s\"\n",
+						parent_id,
+						me->id,
+						me->displayname,
+						me->data.ring.value,
+						tmp) < 0) {
+					free(tmp);
+					return -1;
+				}
+				free(tmp);
+			} else {
+				// Fallback if memory allocation failed
+				if (sock_printf(sock,
+						"menu_add_item \"%s\" \"%d\" ring -text \"%s\""
+						" -value %d -strings \"\"\n",
+						parent_id,
+						me->id,
+						me->displayname,
+						me->data.ring.value) < 0)
+					return -1;
+			}
 
 			if (menu_set_quit(me, sock) < 0)
 				return -1;
 
 			break;
+		}
 		case MT_ARG_NUMERIC:
 			if (sock_printf(sock,
 					"menu_add_item \"%s\" \"%d\" numeric -text \"%s\""
@@ -426,7 +448,7 @@ int menu_sock_send(MenuEntry *me, MenuEntry *parent, int sock)
 				return -1;
 
 			break;
-		case MT_ARG_ACTION | MT_AUTOMATIC:
+		case MT_ARG_ACTION_AUTO:
 			if (sock_printf(sock,
 					"menu_add_item \"%s\" \"%d\" action \"%s\"\n",
 					parent_id,

@@ -27,11 +27,11 @@
 #include "shared/report.h"
 #include "shared/sockets.h"
 
-#include "client.h"
+#include "../client.h"
+#include "../drivers.h"
+#include "../input.h"
+#include "../render.h"
 #include "client_commands.h"
-#include "drivers.h"
-#include "input.h"
-#include "render.h"
 
 /**
  * Debugging only..  prints out a list of arguments it receives
@@ -131,7 +131,7 @@ int client_set_func(Client *c, int argc, char **argv)
 		/* Handle the "name" option */
 		if (strcmp(p, "name") == 0) {
 			i++;
-			if (argv[i] == '\0') {
+			if (argv[i] == NULL) {
 				sock_printf_error(c->sock, "internal error: no parameter #%d\n", i);
 				continue;
 			}

@@ -43,7 +43,7 @@ char *sprintf_memory(char *dst, double value, double roundlimit)
 		if (value <= 9.9994999999)
 			format = "%.3f%s";
 
-		sprintf(dst, format, value, unit);
+		snprintf(dst, 12, format, value, unit);
 	}
 	return dst;
 }
@@ -59,7 +59,7 @@ char *sprintf_percent(char *dst, double percent)
 		if (percent > 99.9)
 			strncpy(dst, "100%", 5);
 		else
-			sprintf(dst, "%.1f%%", (percent >= 0) ? percent : 0);
+			snprintf(dst, 12, "%.1f%%", (percent >= 0) ? percent : 0);
 	}
 	return dst;
 }

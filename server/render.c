@@ -721,9 +721,11 @@ int server_msg(const char *text, int expire)
 	}
 
 	/* Store new message */
-	server_msg_text = malloc(strlen(text) + 3);
-	strcpy(server_msg_text, "| ");
-	strcat(server_msg_text, text);
+	size_t msg_size = strlen(text) + 3;
+	server_msg_text = malloc(msg_size);
+	strncpy(server_msg_text, "| ", msg_size - 1);
+	server_msg_text[msg_size - 1] = '\0';
+	strncat(server_msg_text, text, msg_size - strlen(server_msg_text) - 1);
 
 	server_msg_expire = expire;
 

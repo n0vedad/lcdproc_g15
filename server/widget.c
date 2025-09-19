@@ -96,10 +96,12 @@ Widget *widget_create(char *id, WidgetType type, Screen *screen)
 
 	if (type == WID_FRAME) {
 		/* create a screen for the frame widget */
-		char frame_name[sizeof("frame_") + strlen(id)];
+		size_t frame_name_size = sizeof("frame_") + strlen(id);
+		char frame_name[frame_name_size];
 
-		strcpy(frame_name, "frame_");
-		strcat(frame_name, id);
+		strncpy(frame_name, "frame_", frame_name_size - 1);
+		frame_name[frame_name_size - 1] = '\0';
+		strncat(frame_name, id, frame_name_size - strlen(frame_name) - 1);
 
 		w->frame_screen = screen_create(frame_name, screen->client);
 	}

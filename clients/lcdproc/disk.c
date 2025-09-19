@@ -150,10 +150,12 @@ int disk_screen(int rep, int display, int *flags_ptr)
 		// but I'm inclined to leave it like this to keep the printf formatting more
 		// legible.
 		if (strlen(mnt[i].mpoint) > dev_wid)
-			sprintf(
-			    dev, "-%s", (mnt[i].mpoint) + (strlen(mnt[i].mpoint) - (dev_wid - 1)));
+			snprintf(dev,
+				 sizeof(dev),
+				 "-%s",
+				 (mnt[i].mpoint) + (strlen(mnt[i].mpoint) - (dev_wid - 1)));
 		else
-			sprintf(dev, "%s", mnt[i].mpoint);
+			snprintf(dev, sizeof(dev), "%s", mnt[i].mpoint);
 
 		full = !mnt[i].blocks ? gauge_scale
 				      : gauge_scale * (u_int64_t)(mnt[i].blocks - mnt[i].bfree) /
@@ -168,9 +170,10 @@ int disk_screen(int rep, int display, int *flags_ptr)
 			sock_printf(sock, "widget_add D h%i hbar -in f\n", i_widget);
 		}
 		if (lcd_wid >= 20) { /* 20+x columns */
-			sprintf(tmp, "%-*s %6s E%*sF", dev_wid, dev, cap, gauge_wid, "");
+			snprintf(
+			    tmp, sizeof(tmp), "%-*s %6s E%*sF", dev_wid, dev, cap, gauge_wid, "");
 		} else { /* < 20 columns */
-			sprintf(tmp, "%-*s E%*sF", dev_wid, dev, gauge_wid, "");
+			snprintf(tmp, sizeof(tmp), "%-*s E%*sF", dev_wid, dev, gauge_wid, "");
 		}
 		sock_printf(sock, "widget_set D s%i 1 %i {%s}\n", i_widget, i_widget + 1, tmp);
 		sock_printf(

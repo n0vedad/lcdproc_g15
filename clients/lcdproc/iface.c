@@ -51,7 +51,7 @@ static int iface_process_configfile(void)
 	for (iface_count = 0; iface_count < MAX_INTERFACES; iface_count++) {
 		char iface_label[12];
 
-		sprintf(iface_label, "Interface%i", iface_count);
+		snprintf(iface_label, sizeof(iface_label), "Interface%i", iface_count);
 		debug(RPT_DEBUG, "Label %s count %i", iface_label, iface_count);
 		iface[iface_count].name = strdup(config_get_string("Iface", iface_label, 0, ""));
 		if (iface[iface_count].name == NULL) {
@@ -60,7 +60,7 @@ static int iface_process_configfile(void)
 		}
 		if (*iface[iface_count].name == '\0')
 			break;
-		sprintf(iface_label, "Alias%i", iface_count);
+		snprintf(iface_label, sizeof(iface_label), "Alias%i", iface_count);
 		iface[iface_count].alias =
 		    strdup(config_get_string("Iface", iface_label, 0, iface[iface_count].name));
 		if (iface[iface_count].alias == NULL)
@@ -254,9 +254,9 @@ void format_value(char *buff, double value, char *unit)
 	 * - otherwise format with 3 precision
 	 */
 	if (mag[0] == 0)
-		sprintf(buff, "%8ld %s", (long)value, unit);
+		snprintf(buff, 20, "%8ld %s", (long)value, unit);
 	else
-		sprintf(buff, "%7.3f %s%s", value, mag, unit);
+		snprintf(buff, 20, "%7.3f %s%s", value, mag, unit);
 }
 
 /**
@@ -285,11 +285,11 @@ void format_value_multi_interface(char *buff, double value, char *unit)
 	 * - decimal value with magnitude otherwise
 	 */
 	if (mag[0] == 0)
-		sprintf(buff, "%4ld", (long)value);
+		snprintf(buff, 20, "%4ld", (long)value);
 	else if (value < 10)
-		sprintf(buff, "%3.1f%s", value, mag);
+		snprintf(buff, 20, "%3.1f%s", value, mag);
 	else
-		sprintf(buff, "%3.0f%s", value, mag);
+		snprintf(buff, 20, "%3.0f%s", value, mag);
 }
 
 /**
@@ -344,7 +344,8 @@ void actualize_speed_screen(IfaceInfo *iface, unsigned int interval, int index)
 			/* Calculate and actualize download speed */
 			if (strstr(unit_label, "pkt")) {
 				rc_speed = (iface->rc_pkt - iface->rc_pkt_old) / interval;
-				sprintf(speed, "%8ld %s", (long)rc_speed, unit_label);
+				snprintf(
+				    speed, sizeof(speed), "%8ld %s", (long)rc_speed, unit_label);
 			} else {
 				rc_speed = (iface->rc_byte - iface->rc_byte_old) / interval;
 				format_value(speed, rc_speed, unit_label);
@@ -354,7 +355,8 @@ void actualize_speed_screen(IfaceInfo *iface, unsigned int interval, int index)
 			/* Calculate and actualize upload speed */
 			if (strstr(unit_label, "pkt")) {
 				tr_speed = (iface->tr_pkt - iface->tr_pkt_old) / interval;
-				sprintf(speed, "%8ld %s", (long)tr_speed, unit_label);
+				snprintf(
+				    speed, sizeof(speed), "%8ld %s", (long)tr_speed, unit_label);
 			} else {
 				tr_speed = (iface->tr_byte - iface->tr_byte_old) / interval;
 				format_value(speed, tr_speed, unit_label);
@@ -363,7 +365,11 @@ void actualize_speed_screen(IfaceInfo *iface, unsigned int interval, int index)
 
 			/* Calculate and actualize total speed */
 			if (strstr(unit_label, "pkt")) {
-				sprintf(speed, "%7ld %s", (long)(rc_speed + tr_speed), unit_label);
+				snprintf(speed,
+					 sizeof(speed),
+					 "%7ld %s",
+					 (long)(rc_speed + tr_speed),
+					 unit_label);
 			} else {
 				format_value(speed, rc_speed + tr_speed, unit_label);
 			}

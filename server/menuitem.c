@@ -663,7 +663,9 @@ void menuitem_reset_alpha(MenuItem *item)
 		item->data.alpha.edit_pos = 0;
 		item->data.alpha.edit_offs = 0;
 		memset(item->data.alpha.edit_str, '\0', item->data.alpha.maxlength + 1);
-		strcpy(item->data.alpha.edit_str, item->data.alpha.value);
+		strncpy(
+		    item->data.alpha.edit_str, item->data.alpha.value, item->data.alpha.maxlength);
+		item->data.alpha.edit_str[item->data.alpha.maxlength] = '\0';
 	}
 }
 
@@ -686,13 +688,17 @@ void menuitem_reset_ip(MenuItem *item)
 		int num = (int)strtol(start, (char **)NULL, ipinfo->base);
 
 		snprintf(tmpstr, 5, ipinfo->format, num);
-		strcat(item->data.ip.edit_str, tmpstr);
+		strncat(item->data.ip.edit_str,
+			tmpstr,
+			item->data.ip.maxlength - strlen(item->data.ip.edit_str) - 1);
 		end = strchr(start, ipinfo->sep);
 		start = (end != NULL) ? (end + 1) : NULL;
 		if (start != NULL) {
 			tmpstr[0] = ipinfo->sep;
 			tmpstr[1] = '\0';
-			strcat(item->data.ip.edit_str, tmpstr);
+			strncat(item->data.ip.edit_str,
+				tmpstr,
+				item->data.ip.maxlength - strlen(item->data.ip.edit_str) - 1);
 		}
 	}
 }
@@ -1002,7 +1008,10 @@ void menuitem_update_screen_numeric(MenuItem *item, Screen *s)
 		return;
 
 	w = screen_find_widget(s, "value");
-	strcpy(w->text, item->data.numeric.edit_str + item->data.numeric.edit_offs);
+	strncpy(w->text,
+		item->data.numeric.edit_str + item->data.numeric.edit_offs,
+		MAX_NUMERIC_LEN - 1);
+	w->text[MAX_NUMERIC_LEN - 1] = '\0';
 
 	s->cursor = CURSOR_DEFAULT_ON;
 	s->cursor_x = w->x + item->data.numeric.edit_pos - item->data.numeric.edit_offs;
@@ -1031,7 +1040,10 @@ void menuitem_update_screen_alpha(MenuItem *item, Screen *s)
 
 	w = screen_find_widget(s, "value");
 	if (item->data.alpha.password_char == '\0') {
-		strcpy(w->text, item->data.alpha.edit_str + item->data.alpha.edit_offs);
+		strncpy(w->text,
+			item->data.alpha.edit_str + item->data.alpha.edit_offs,
+			item->data.alpha.maxlength);
+		w->text[item->data.alpha.maxlength] = '\0';
 	} else {
 		int len = strlen(item->data.alpha.edit_str) - item->data.alpha.edit_offs;
 
@@ -1065,8 +1077,12 @@ void menuitem_update_screen_ip(MenuItem *item, Screen *s)
 		return;
 
 	w = screen_find_widget(s, "value");
-	if (w != NULL)
-		strcpy(w->text, item->data.ip.edit_str + item->data.ip.edit_offs);
+	if (w != NULL) {
+		strncpy(w->text,
+			item->data.ip.edit_str + item->data.ip.edit_offs,
+			item->data.ip.maxlength);
+		w->text[item->data.ip.maxlength] = '\0';
+	}
 
 	s->cursor = CURSOR_DEFAULT_ON;
 	s->cursor_x = w->x + item->data.ip.edit_pos - item->data.ip.edit_offs;
@@ -1345,15 +1361,18 @@ menuitem_process_input_alpha(MenuItem *item, MenuToken token, const char *key, u
 		int pos = item->data.alpha.edit_pos;
 
 		/* Create list of allowed chars */
-		chars = realloc(chars, 26 + 26 + 10 + strlen(item->data.alpha.allowed_extra) + 1);
+		size_t chars_size = 26 + 26 + 10 + strlen(item->data.alpha.allowed_extra) + 1;
+		chars = realloc(chars, chars_size);
 		chars[0] = '\0'; /* clear string */
 		if (item->data.alpha.allow_caps)
-			strcat(chars, "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+			strncat(
+			    chars, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", chars_size - strlen(chars) - 1);
 		if (item->data.alpha.allow_noncaps)
-			strcat(chars, "abcdefghijklmnopqrstuvwxyz");
+			strncat(
+			    chars, "abcdefghijklmnopqrstuvwxyz", chars_size - strlen(chars) - 1);
 		if (item->data.alpha.allow_numbers)
-			strcat(chars, "0123456789");
-		strcat(chars, item->data.alpha.allowed_extra);
+			strncat(chars, "0123456789", chars_size - strlen(chars) - 1);
+		strncat(chars, item->data.alpha.allowed_extra, chars_size - strlen(chars) - 1);
 
 		/* Clear the error */
 		item->data.alpha.error_code = 0;
@@ -1381,7 +1400,10 @@ menuitem_process_input_alpha(MenuItem *item, MenuToken token, const char *key, u
 				}
 
 				/* Store value */
-				strcpy(item->data.alpha.value, item->data.alpha.edit_str);
+				strncpy(item->data.alpha.value,
+					item->data.alpha.edit_str,
+					item->data.alpha.maxlength);
+				item->data.alpha.value[item->data.alpha.maxlength] = '\0';
 
 				/* Inform client */
 				if (item->event_func)
@@ -1543,7 +1565,8 @@ menuitem_process_input_ip(MenuItem *item, MenuToken token, const char *key, unsi
 			}
 
 			// store value
-			strcpy(item->data.ip.value, tmp);
+			strncpy(item->data.ip.value, tmp, item->data.ip.maxlength);
+			item->data.ip.value[item->data.ip.maxlength] = '\0';
 
 			// Inform client
 			if (item->event_func)

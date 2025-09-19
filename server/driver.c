@@ -26,11 +26,10 @@
 #include "shared/configfile.h"
 #include "shared/report.h"
 
+#include "./drivers.h"
+#include "./widget.h"
 #include "driver.h"
-#include "drivers.h"
 #include "drivers/lcd.h"
-#include "widget.h"
-/* lcd.h is used for the driver API definition */
 
 /** property / method symbols in a Driver structure */
 typedef struct driver_symbols {

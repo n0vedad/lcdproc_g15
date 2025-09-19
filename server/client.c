@@ -62,6 +62,7 @@ Client *client_create(int sock)
 
 	if (!c->screenlist) {
 		report(RPT_ERR, "%s: Error allocating", __FUNCTION__);
+		free(c);
 		return NULL;
 	}
 	return c;
