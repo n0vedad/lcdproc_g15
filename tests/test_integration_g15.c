@@ -379,11 +379,13 @@ static void test_lcdd_server_startup(void)
 		args[3] = "-f"; /* Foreground */
 		args[4] = NULL;
 
-		/* Temporarily allow output for debugging */
-		/* int devnull = open("/dev/null", O_WRONLY);
-		dup2(devnull, STDOUT_FILENO);
-		dup2(devnull, STDERR_FILENO);
-		close(devnull); */
+		/* Redirect stdout/stderr to suppress server output during tests */
+		int devnull = open("/dev/null", O_WRONLY);
+		if (devnull >= 0) {
+			dup2(devnull, STDOUT_FILENO);
+			dup2(devnull, STDERR_FILENO);
+			close(devnull);
+		}
 
 		execv("../server/LCDd", args);
 		exit(1); /* Should not reach here */

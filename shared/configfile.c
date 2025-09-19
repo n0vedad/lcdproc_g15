@@ -555,14 +555,6 @@ static int process_config(ConfigSection **current_section, const char *source_de
 				}
 				state = ST_SECTIONLABEL_DONE;
 				break;
-				//  case '\r':
-				//  case '\t':
-				//  case ' ':
-				//	/* no spaces allowed in section labels WHY? */
-				//	report(RPT_WARNING, "Invalid character in section label on
-				// line %d of %s: %s", 			line_nr, source_descr,
-				// sectionname); 	error = 1; 	state =
-				// ST_INVALID_SECTIONLABEL;	/* resync required */ 	break;
 			default:
 				/* append char to section label */
 				if (sectionname_pos < MAXSECTIONLABELLENGTH) {
@@ -606,14 +598,6 @@ static int process_config(ConfigSection **current_section, const char *source_de
 				value[0] = '\0';
 				value_pos = 0;
 				break;
-				//  case '"':
-				//  case '[':
-				//  case ']':
-				//	/* character invalid in key names WHY ? */
-				//	report(RPT_WARNING, "Invalid character in key name on line
-				//%d of %s: %s", 			line_nr, source_descr,
-				// keyname); 	error = 1; 	state = ST_INVALID_KEYNAME;	/*
-				// resync required */ 	break;
 			default:
 				/* append char to key name */
 				if (keyname_pos < MAXKEYNAMELENGTH) {

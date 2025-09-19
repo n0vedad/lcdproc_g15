@@ -303,7 +303,7 @@ MODULE_EXPORT void debug_chr(Driver *drvthis, int x, int y, char c)
  */
 MODULE_EXPORT void debug_vbar(Driver *drvthis, int x, int y, int len, int promille, int options)
 {
-	// PrivateData *p = drvthis->private_data;
+	/* PrivateData not used directly - debug_chr() handles bounds checking */
 	int pos;
 
 	report(RPT_INFO, "%s(%i,%i,%i,%i,%i)", __FUNCTION__, x, y, len, promille, options);
@@ -328,7 +328,7 @@ MODULE_EXPORT void debug_vbar(Driver *drvthis, int x, int y, int len, int promil
  */
 MODULE_EXPORT void debug_hbar(Driver *drvthis, int x, int y, int len, int promille, int options)
 {
-	// PrivateData *p = drvthis->private_data;
+	/* PrivateData not used directly - debug_chr() handles bounds checking */
 	int pos;
 
 	report(RPT_INFO, "%s(%i,%i,%i,%i,%i)", __FUNCTION__, x, y, len, promille, options);
