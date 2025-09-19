@@ -612,6 +612,9 @@ void menuitem_destroy_ip(MenuItem *item)
 {
 	debug(RPT_DEBUG, "%s(item=[%s])", __FUNCTION__, ((item != NULL) ? item->id : "(null)"));
 
+	if (item == NULL)
+		return;
+
 	/* These strings should always be allocated */
 	free(item->data.ip.value);
 	free(item->data.ip.edit_str);
@@ -1082,11 +1085,11 @@ void menuitem_update_screen_ip(MenuItem *item, Screen *s)
 			item->data.ip.edit_str + item->data.ip.edit_offs,
 			item->data.ip.maxlength);
 		w->text[item->data.ip.maxlength] = '\0';
-	}
 
-	s->cursor = CURSOR_DEFAULT_ON;
-	s->cursor_x = w->x + item->data.ip.edit_pos - item->data.ip.edit_offs;
-	s->cursor_y = w->y;
+		s->cursor = CURSOR_DEFAULT_ON;
+		s->cursor_x = w->x + item->data.ip.edit_pos - item->data.ip.edit_offs;
+		s->cursor_y = w->y;
+	}
 
 	/* Only display error string if enough space... */
 	if (display_props->height > 2) {

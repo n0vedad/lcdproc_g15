@@ -486,8 +486,10 @@ void menu_update_screen(MenuItem *menu, Screen *s)
 
 	/* Update widgets for the title */
 	w = screen_find_widget(s, "title");
-	if (w == NULL)
+	if (w == NULL) {
 		report(RPT_ERR, "%s: could not find widget: %s", __FUNCTION__, "title");
+		return;
+	}
 	w->y = 1 - menu->data.menu.scroll;
 
 	/* TODO: remove next 3 limes when rendering is safe */
@@ -513,8 +515,10 @@ void menu_update_screen(MenuItem *menu, Screen *s)
 		snprintf(buf, sizeof(buf) - 1, "text%d", itemnr);
 		buf[sizeof(buf) - 1] = '\0';
 		w = screen_find_widget(s, buf);
-		if (w == NULL)
+		if (w == NULL) {
 			report(RPT_ERR, "%s: could not find widget: %s", __FUNCTION__, buf);
+			continue;
+		}
 		w->y = 2 + itemnr - hidden_count - menu->data.menu.scroll;
 
 		/* TODO: remove next 3 lines when rendering is safe */
@@ -528,8 +532,10 @@ void menu_update_screen(MenuItem *menu, Screen *s)
 			snprintf(buf, sizeof(buf) - 1, "icon%d", itemnr);
 			buf[sizeof(buf) - 1] = '\0';
 			w = screen_find_widget(s, buf);
-			if (w == NULL)
+			if (w == NULL) {
 				report(RPT_ERR, "%s: could not find widget: %s", __FUNCTION__, buf);
+				break;
+			}
 			w->y = 2 + itemnr - menu->data.menu.scroll;
 			w->length = ((int[]){ICON_CHECKBOX_OFF,
 					     ICON_CHECKBOX_ON,

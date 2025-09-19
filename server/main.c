@@ -752,7 +752,7 @@ static void do_mainloop(void)
 		last_t = t;
 		gettimeofday(&t, NULL);
 		t_diff = t.tv_sec - last_t.tv_sec;
-		if (((t_diff + 1) > (LONG_MAX / 1e6)) || (t_diff < 0)) {
+		if (((t_diff + 1) > ((double)LONG_MAX / 1e6)) || (t_diff < 0)) {
 			/* We're going to overflow the calculation - probably been to sleep, fudge
 			 * the values */
 			t_diff = 0;

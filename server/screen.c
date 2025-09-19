@@ -232,7 +232,7 @@ char *screen_find_key(Screen *s, const char *key)
  */
 Priority screen_pri_name_to_pri(char *priname)
 {
-	Priority pri = -1;
+	Priority pri = PRI_HIDDEN;
 	int i;
 
 	for (i = 0; pri_names[i]; i++) {

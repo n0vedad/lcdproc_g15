@@ -64,6 +64,8 @@ static struct keycode *keycode_create(const char *configvalue)
 	if (ret) {
 		ret->code = code;
 		ret->button = button;
+	} else {
+		free(button);
 	}
 
 	return ret;

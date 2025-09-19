@@ -717,9 +717,11 @@ static void test_lcdproc_client_integration(void)
 
 		/* Redirect stdout/stderr */
 		int devnull = open("/dev/null", O_WRONLY);
-		dup2(devnull, STDOUT_FILENO);
-		dup2(devnull, STDERR_FILENO);
-		close(devnull);
+		if (devnull >= 0) {
+			dup2(devnull, STDOUT_FILENO);
+			dup2(devnull, STDERR_FILENO);
+			close(devnull);
+		}
 
 		execv("../clients/lcdproc/lcdproc", args);
 		exit(1);

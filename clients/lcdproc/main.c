@@ -635,7 +635,8 @@ void main_loop(void)
 				case '\n':
 					buf[i] = 0;
 					if (argc > 0) {
-						if (0 == strcmp(argv[0], "listen")) {
+						if ((0 == strcmp(argv[0], "listen")) &&
+						    (argc >= 2)) {
 							for (j = 0; sequence[j].which; j++) {
 								if (sequence[j].which ==
 								    argv[1][0]) {
@@ -646,7 +647,8 @@ void main_loop(void)
 									      argv[1]);
 								}
 							}
-						} else if (0 == strcmp(argv[0], "ignore")) {
+						} else if ((0 == strcmp(argv[0], "ignore")) &&
+							   (argc >= 2)) {
 							for (j = 0; sequence[j].which; j++) {
 								if (sequence[j].which ==
 								    argv[1][0]) {
@@ -657,14 +659,13 @@ void main_loop(void)
 									      argv[1]);
 								}
 							}
-						} else if (0 == strcmp(argv[0], "key")) {
+						} else if ((0 == strcmp(argv[0], "key")) &&
+							   (argc >= 2)) {
 							report(RPT_INFO,
 							       "KEY EVENT RECEIVED: %s",
 							       argv[1]);
 							/* Handle G-Key macro events */
-							if (argc >= 2) {
-								gkey_macro_handle_key(argv[1]);
-							}
+							gkey_macro_handle_key(argv[1]);
 						}
 #ifdef LCDPROC_MENUS
 						else if (0 == strcmp(argv[0], "menuevent")) {

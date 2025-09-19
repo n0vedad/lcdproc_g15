@@ -260,6 +260,10 @@ int machine_get_fs(mounts_type fs[], int *cnt)
 	/* Get rid of old, unmounted filesystems... */
 	memset(fs, 0, sizeof(mounts_type) * 256);
 
+	if (mtab_fd == NULL) {
+		return -1;
+	}
+
 	while (x < 256) {
 		if (fgets(line, 256, mtab_fd) == NULL)
 			break;
@@ -556,8 +560,14 @@ int machine_get_iface_stats(IfaceInfo *interface)
 	/* Open the file in read-only mode and parse */
 	if ((file = fopen("/proc/net/dev", "r")) != NULL) {
 		/* Skip first 2 header lines of file */
-		fgets(buffer, sizeof(buffer), file);
-		fgets(buffer, sizeof(buffer), file);
+		if (fgets(buffer, sizeof(buffer), file) == NULL) {
+			fclose(file);
+			return -1;
+		}
+		if (fgets(buffer, sizeof(buffer), file) == NULL) {
+			fclose(file);
+			return -1;
+		}
 
 		/* By default, treat interface as down */
 		interface->status = down;

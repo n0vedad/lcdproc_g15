@@ -37,8 +37,10 @@ sring_buffer *sring_create(int iSize)
 	if ((buf = malloc(sizeof(*buf))) == NULL)
 		return NULL;
 
-	if ((buf->data = malloc(iSize + 1)) == NULL)
+	if ((buf->data = malloc(iSize + 1)) == NULL) {
+		free(buf);
 		return NULL;
+	}
 
 	buf->size = iSize + 1;
 	buf->w = 0;

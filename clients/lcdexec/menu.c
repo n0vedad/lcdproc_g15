@@ -331,16 +331,18 @@ int menu_sock_send(MenuEntry *me, MenuEntry *parent, int sock)
 		case MT_ARG_RING: {
 			int i;
 			char *tmp = strdup("");
+			if (tmp == NULL)
+				break;
 
 			// join all strings with TAB as separator
 			for (i = 0; me->data.ring.strings[i] != NULL; i++) {
-				size_t current_len = (tmp != NULL) ? strlen(tmp) : 0;
+				size_t current_len = strlen(tmp);
 				size_t new_len =
 				    current_len + 1 + strlen(me->data.ring.strings[i]) + 1;
 				char *new_tmp = realloc(tmp, new_len);
 				if (new_tmp != NULL) {
 					tmp = new_tmp;
-					if (tmp[0] != '\0')
+					if (current_len > 0)
 						strncat(tmp, "\t", new_len - strlen(tmp) - 1);
 					strncat(tmp,
 						me->data.ring.strings[i],

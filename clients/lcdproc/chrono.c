@@ -309,7 +309,6 @@ int uptime_screen(int rep, int display, int *flags_ptr)
 	int xoffs;
 	int days, hour, min, sec;
 	double uptime, idle;
-	static int heartbeat = 0;
 	char tmp[257]; /* should be large enough for host name */
 
 	if ((*flags_ptr & INITIALIZED) == 0) {
@@ -342,9 +341,6 @@ int uptime_screen(int rep, int display, int *flags_ptr)
 				    get_hostname());
 		}
 	}
-
-	/* toggle colon display */
-	heartbeat ^= 1;
 
 	machine_get_uptime(&uptime, &idle);
 	days = (int)uptime / 86400;
@@ -522,6 +518,8 @@ int mini_clock_screen(int rep, int display, int *flags_ptr)
 	rtime = localtime(&thetime);
 
 	if (timeFormat != NULL && strftime(now, sizeof(now), timeFormat, rtime) == 0)
+		*now = '\0';
+	else if (timeFormat == NULL)
 		*now = '\0';
 	tickTime(now, heartbeat);
 

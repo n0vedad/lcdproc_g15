@@ -424,7 +424,7 @@ int menu_set_item_func(Client *c, int argc, char **argv)
 	    {MENUITEM_ALPHA, "allowed_extra", STRING, offsetof(MenuItem, data.alpha.allowed_extra)},
 	    {MENUITEM_IP, "v6", BOOLEAN, offsetof(MenuItem, data.ip.v6)},
 	    {MENUITEM_IP, "value", STRING, -1 /*offsetof(MenuItem,data.ip.value)*/},
-	    {-1, NULL, -1, -1}};
+	    {0, NULL, NOVALUE, -1}};
 
 	bool bool_value = false;
 	CheckboxValue checkbox_value = CHECKBOX_OFF;

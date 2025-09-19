@@ -149,14 +149,16 @@ int main(int argc, char **argv)
 			FILE *pidf = fopen(pidfile, "w");
 
 			if (pidf) {
-				fprintf(pidf, "%d\n", (int)getpid());
+				int ret = fprintf(pidf, "%d\n", (int)getpid());
+				(void)ret; /* suppress unused variable warning */
 				fclose(pidf);
 				pidfile_written = TRUE;
 			} else {
-				fprintf(stderr,
-					"Error creating pidfile %s: %s\n",
-					pidfile,
-					strerror(errno));
+				int ret = fprintf(stderr,
+						  "Error creating pidfile %s: %s\n",
+						  pidfile,
+						  strerror(errno));
+				(void)ret; /* suppress unused variable warning */
 				return (EXIT_FAILURE);
 			}
 		}
@@ -268,9 +270,11 @@ static int process_command_line(int argc, char **argv)
 				error = -1;
 			}
 			break;
-		case 'h':
-			fprintf(stderr, "%s", help_text);
+		case 'h': {
+			int ret = fprintf(stderr, "%s", help_text);
+			(void)ret; /* suppress unused variable warning */
 			exit(EXIT_SUCCESS);
+		}
 			/* NOTREACHED */
 		case ':':
 			report(RPT_ERR, "Missing option argument for %c", optopt);
@@ -456,16 +460,18 @@ static int process_response(char *str)
 				entry->data.alpha.value =
 				    realloc(entry->data.alpha.value, strlen(argv[3]) + 1);
 				if (entry->data.alpha.value != NULL) {
-					strncpy(entry->data.alpha.value, argv[3], strlen(argv[3]));
-					entry->data.alpha.value[strlen(argv[3])] = '\0';
+					size_t len = strlen(argv[3]);
+					memcpy(entry->data.alpha.value, argv[3], len);
+					entry->data.alpha.value[len] = '\0';
 				}
 				break;
 			case MT_ARG_IP:
 				entry->data.ip.value =
 				    realloc(entry->data.ip.value, strlen(argv[3]) + 1);
 				if (entry->data.ip.value != NULL) {
-					strncpy(entry->data.ip.value, argv[3], strlen(argv[3]));
-					entry->data.ip.value[strlen(argv[3])] = '\0';
+					size_t len = strlen(argv[3]);
+					memcpy(entry->data.ip.value, argv[3], len);
+					entry->data.ip.value[len] = '\0';
 				}
 				break;
 			case MT_ARG_CHECKBOX:
@@ -533,49 +539,66 @@ static int exec_command(MenuEntry *cmd)
 			char buf[1025];
 
 			switch (arg->type) {
-			case MT_ARG_SLIDER:
-				snprintf(buf,
-					 sizeof(buf) - 1,
-					 "%s=%d",
-					 arg->name,
-					 arg->data.slider.value);
+			case MT_ARG_SLIDER: {
+				int ret = snprintf(buf,
+						   sizeof(buf) - 1,
+						   "%s=%d",
+						   arg->name,
+						   arg->data.slider.value);
+				(void)ret; /* suppress unused variable warning */
 				break;
-			case MT_ARG_RING:
-				snprintf(buf,
-					 sizeof(buf) - 1,
-					 "%s=%s",
-					 arg->name,
-					 arg->data.ring.strings[arg->data.ring.value]);
+			}
+			case MT_ARG_RING: {
+				int ret = snprintf(buf,
+						   sizeof(buf) - 1,
+						   "%s=%s",
+						   arg->name,
+						   arg->data.ring.strings[arg->data.ring.value]);
+				(void)ret; /* suppress unused variable warning */
 				break;
-			case MT_ARG_NUMERIC:
-				snprintf(buf,
-					 sizeof(buf) - 1,
-					 "%s=%d",
-					 arg->name,
-					 arg->data.numeric.value);
+			}
+			case MT_ARG_NUMERIC: {
+				int ret = snprintf(buf,
+						   sizeof(buf) - 1,
+						   "%s=%d",
+						   arg->name,
+						   arg->data.numeric.value);
+				(void)ret; /* suppress unused variable warning */
 				break;
-			case MT_ARG_ALPHA:
-				snprintf(buf,
-					 sizeof(buf) - 1,
-					 "%s=%s",
-					 arg->name,
-					 arg->data.alpha.value);
+			}
+			case MT_ARG_ALPHA: {
+				int ret = snprintf(buf,
+						   sizeof(buf) - 1,
+						   "%s=%s",
+						   arg->name,
+						   arg->data.alpha.value);
+				(void)ret; /* suppress unused variable warning */
 				break;
-			case MT_ARG_IP:
-				snprintf(
+			}
+			case MT_ARG_IP: {
+				int ret = snprintf(
 				    buf, sizeof(buf) - 1, "%s=%s", arg->name, arg->data.ip.value);
+				(void)ret; /* suppress unused variable warning */
 				break;
+			}
 			case MT_ARG_CHECKBOX:
-				if (arg->data.checkbox.map[arg->data.checkbox.value] != NULL)
-					strncpy(buf,
-						arg->data.checkbox.map[arg->data.checkbox.value],
-						sizeof(buf) - 1);
-				else
-					snprintf(buf,
-						 sizeof(buf) - 1,
-						 "%s=%d",
-						 arg->name,
-						 arg->data.checkbox.value);
+				if (arg->data.checkbox.map[arg->data.checkbox.value] != NULL) {
+					size_t len = strlen(
+					    arg->data.checkbox.map[arg->data.checkbox.value]);
+					if (len > sizeof(buf) - 1)
+						len = sizeof(buf) - 1;
+					memcpy(buf,
+					       arg->data.checkbox.map[arg->data.checkbox.value],
+					       len);
+					buf[len] = '\0';
+				} else {
+					int ret = snprintf(buf,
+							   sizeof(buf) - 1,
+							   "%s=%d",
+							   arg->name,
+							   arg->data.checkbox.value);
+					(void)ret; /* suppress unused variable warning */
+				}
 				break;
 			default:
 				/* error ? */

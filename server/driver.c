@@ -131,7 +131,7 @@ Driver *driver_load(const char *name, const char *filename)
 	}
 
 	/* Check module version */
-	if (strcmp(*(driver->api_version), API_VERSION) != 0) {
+	if (driver->api_version == NULL || strcmp(*(driver->api_version), API_VERSION) != 0) {
 		report(RPT_ERR, "Driver [%.40s] is of an incompatible version", name);
 		driver_unbind_module(driver);
 		free(driver->name);

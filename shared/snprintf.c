@@ -497,10 +497,12 @@ int portable_vsnprintf(char *str, size_t str_m, const char *fmt, va_list ap);
 
 /* declarations */
 
-static const char credits[] = "\n\
-@(#)snprintf.c, v2.3: Mark Martinec, <mark.martinec@ijs.si>\n\
-@(#)snprintf.c, v2.3: Copyright 1999-2002 Mark Martinec. Dual licensed: Frontier Artistic License or GNU General Public License applies.\n\
-@(#)snprintf.c, v2.3: http://www.ijs.si/software/snprintf/\n";
+/* Credits for snprintf implementation:
+ * @(#)snprintf.c, v2.3: Mark Martinec, <mark.martinec@ijs.si>
+ * @(#)snprintf.c, v2.3: Copyright 1999-2002 Mark Martinec. Dual licensed: Frontier Artistic License
+ * or GNU General Public License applies.
+ * @(#)snprintf.c, v2.3: http://www.ijs.si/software/snprintf/
+ */
 
 #if defined(NEED_ASPRINTF)
 int asprintf(char **ptr, const char *fmt, /*args*/...)
