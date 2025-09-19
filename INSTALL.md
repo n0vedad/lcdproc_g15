@@ -247,7 +247,7 @@ Once both LCDd server and lcdproc client are running with proper permissions:
 
 1. **Enter Recording Mode**: Press the `MR` key on your G15 keyboard
 2. **Select Target G-Key**: Press any G-key (G1-G18) to start recording for that key
-3. **Record Actions**: Type text, use mouse, or press keys - all input will be captured in real-time
+3. **Record Actions**: Type text or press keys - all input will be captured in real-time
 4. **Stop Recording**: Press `MR` again to stop and save the macro
 
 ### Playing a Macro

@@ -34,7 +34,7 @@ A: In `~/.config/lcdproc/g15_macros.json` with automatic saving.
 A: Yes! This macro implementation is optimized for **G510s** key layout. Other supported devices (G15/G15v2/G510) may have different key mappings and require manual adjustment.
 
 **Q: What gets recorded in macros?**  
-A: Keyboard input, mouse clicks, mouse movements, and timing between actions.
+A: Due the limitations of Wayland only keyboard input will be recorded.
 
 ## RGB Backlight Control
 

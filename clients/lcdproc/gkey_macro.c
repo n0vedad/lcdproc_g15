@@ -86,7 +86,6 @@ static int open_input_devices(void);
 static void close_input_devices(void);
 static const char *translate_key_code(int code);
 static int is_keyboard_device(const char *device_path);
-static int is_mouse_device(const char *device_path);
 
 int gkey_macro_init(void)
 {
@@ -386,18 +385,6 @@ static void play_macro(const char *g_key)
 			if (delay_ms > 0 && delay_ms < 5000) {
 				usleep(delay_ms * 1000);
 			}
-		} else if (strncmp(cmd, "mousemove:", 10) == 0) {
-			char cmd_buffer[256];
-			snprintf(cmd_buffer, sizeof(cmd_buffer), "mousemove %s", cmd + 10);
-			execute_ydotool_command(cmd_buffer);
-		} else if (strncmp(cmd, "mousemove_rel:", 14) == 0) {
-			char cmd_buffer[256];
-			snprintf(cmd_buffer, sizeof(cmd_buffer), "mousemove_relative %s", cmd + 14);
-			execute_ydotool_command(cmd_buffer);
-		} else if (strncmp(cmd, "click:", 6) == 0) {
-			char cmd_buffer[256];
-			snprintf(cmd_buffer, sizeof(cmd_buffer), "click %s", cmd + 6);
-			execute_ydotool_command(cmd_buffer);
 		}
 
 		/* Small delay between commands */
@@ -473,7 +460,7 @@ static int is_keyboard_device(const char *device_path)
 		return 0;
 	}
 
-	/* Check if it has keyboard keys (not just mouse buttons) */
+	/* Check if it has keyboard keys */
 	if (ioctl(fd, EVIOCGBIT(EV_KEY, KEY_MAX), keybit) < 0) {
 		close(fd);
 		return 0;
@@ -483,39 +470,6 @@ static int is_keyboard_device(const char *device_path)
 
 	/* Check for typical keyboard keys */
 	return (test_bit(KEY_Q, keybit) || test_bit(KEY_A, keybit) || test_bit(KEY_Z, keybit));
-}
-
-static int is_mouse_device(const char *device_path)
-{
-	int fd = open(device_path, O_RDONLY);
-	if (fd < 0)
-		return 0;
-
-	unsigned long evbit = 0;
-	unsigned long keybit[NLONGS(KEY_MAX)] = {0};
-	unsigned long relbit[NLONGS(REL_MAX)] = {0};
-
-	/* Check if device supports button and relative events */
-	if (ioctl(fd, EVIOCGBIT(0, EV_MAX), &evbit) < 0) {
-		close(fd);
-		return 0;
-	}
-
-	int has_key = evbit & (1 << EV_KEY);
-	int has_rel = evbit & (1 << EV_REL);
-
-	if (has_key) {
-		ioctl(fd, EVIOCGBIT(EV_KEY, KEY_MAX), keybit);
-	}
-	if (has_rel) {
-		ioctl(fd, EVIOCGBIT(EV_REL, REL_MAX), relbit);
-	}
-
-	close(fd);
-
-	/* Mouse should have mouse buttons and relative movement */
-	return (has_key && test_bit(BTN_LEFT, keybit)) ||
-	       (has_rel && (test_bit(REL_X, relbit) || test_bit(REL_Y, relbit)));
 }
 
 static int open_input_devices(void)
@@ -536,8 +490,8 @@ static int open_input_devices(void)
 		char device_path[256];
 		snprintf(device_path, sizeof(device_path), "/dev/input/%s", entry->d_name);
 
-		/* Only open keyboard and mouse devices */
-		if (!is_keyboard_device(device_path) && !is_mouse_device(device_path)) {
+		/* Only open keyboard devices */
+		if (!is_keyboard_device(device_path)) {
 			continue;
 		}
 
@@ -800,47 +754,10 @@ static void *input_recording_thread(void *arg)
 					       key_name);
 				}
 			} else if (ev.type == EV_KEY &&
-				   ev.value == 0) {	/* Key release - ignore for now */
-							/* Could add key release events if needed */
-			} else if (ev.type == EV_REL) { /* Mouse movement */
-				if (ev.code == REL_X || ev.code == REL_Y) {
-					static int rel_x = 0, rel_y = 0;
-					if (ev.code == REL_X)
-						rel_x += ev.value;
-					if (ev.code == REL_Y)
-						rel_y += ev.value;
-
-					/* Only record significant movements */
-					if (abs(rel_x) > 5 || abs(rel_y) > 5) {
-						fprintf(record_file,
-							"mousemove_rel:%d %d\n",
-							rel_x,
-							rel_y);
-						recorded_events++;
-						last_event_time = current_time;
-						rel_x = rel_y = 0;
-						report(
-						    RPT_DEBUG,
-						    "G-Key Macro: Recorded mouse movement: %d %d",
-						    rel_x,
-						    rel_y);
-					}
-				}
-			} else if (ev.type == EV_KEY &&
-				   (ev.code == BTN_LEFT || ev.code == BTN_RIGHT ||
-				    ev.code == BTN_MIDDLE)) {
-				/* Mouse button */
-				if (ev.value == 1) { /* Press */
-					const char *button = (ev.code == BTN_LEFT)    ? "1"
-							     : (ev.code == BTN_RIGHT) ? "3"
-										      : "2";
-					fprintf(record_file, "click:%s\n", button);
-					recorded_events++;
-					last_event_time = current_time;
-					report(RPT_DEBUG,
-					       "G-Key Macro: Recorded mouse click: button %s",
-					       button);
-				}
+				   ev.value == 0) { /* Key release - ignore for now */
+						    /* Could add key release events if needed */
+			} else if (ev.type == EV_REL) {
+				/* Skip all movement events - keyboard only */
 			}
 		}
 	}
@@ -941,6 +858,13 @@ static void convert_ydotool_recording(void)
 	}
 
 	fclose(file);
+
+	/* Delete the temporary recording file */
+	if (unlink(macro_state.recorder.record_file) != 0) {
+		report(RPT_WARNING,
+		       "G-Key Macro: Failed to delete temp file %s",
+		       macro_state.recorder.record_file);
+	}
 
 	if (macro->command_count == 0) {
 		report(RPT_WARNING,
