@@ -822,10 +822,15 @@ void menu_select_subitem(Menu *menu, char *item_id)
 		      menu->id);
 		return;
 	}
-	 debug(RPT_DEBUG, "%s: %s->%s is at position %d,"
-	       " current item is at menu position: %d, scroll: %d",
-	       __FUNCTION__, menu->id, item_id, position,
-	       menu->data.menu.selector_pos, menu->data.menu.scroll);
+	debug(RPT_DEBUG,
+	      "%s: %s->%s is at position %d,"
+	      " current item is at menu position: %d, scroll: %d",
+	      __FUNCTION__,
+	      menu->id,
+	      item_id,
+	      position,
+	      menu->data.menu.selector_pos,
+	      menu->data.menu.scroll);
 	menu->data.menu.selector_pos = position;
 	menu->data.menu.scroll = position;
 }
