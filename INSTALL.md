@@ -116,12 +116,32 @@ In order to compile/install LCDproc, you'll need the following programs:
 # Core build tools
 sudo pacman -S clang make autoconf automake
 
-# G15 hardware support
-sudo pacman -S libg15 libg15render libusb libftdi-compat
-
-# G-Key macro system
-sudo pacman -S ydotool
+# Base libraries (available in main repos)
+sudo pacman -S libusb libftdi-compat ydotool
 ```
+
+**G15 Hardware Support (AUR packages):**
+
+⚠️ **Important**: `libg15` and `libg15render` are **not available** in the main Arch repositories. You must install them from the AUR using one of these methods:
+
+```bash
+# Method 1: Using AUR helper (recommended)
+yay -S libg15 libg15render
+# OR: paru -S libg15 libg15render
+# OR: pamac install libg15 libg15render
+
+# Method 2: Manual AUR installation
+git clone https://aur.archlinux.org/libg15.git
+cd libg15 && makepkg -si && cd ..
+
+git clone https://aur.archlinux.org/libg15render.git
+cd libg15render && makepkg -si && cd ..
+```
+
+**Alternative sources for manual compilation:**
+
+- libg15: https://aur.archlinux.org/libg15.git or https://aur.archlinux.org/libg15-git.git
+- libg15render: https://aur.archlinux.org/libg15render.git or https://aur.archlinux.org/libg15render-git.git
 
 ## Installation
 

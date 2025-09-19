@@ -36,8 +36,18 @@ The client and server communicate via TCP connection, allowing remote monitoring
 ## Quick Start
 
 ```bash
-# Install dependencies
-sudo pacman -S clang make autoconf automake libg15 libg15render libusb libftdi-compat ydotool
+# Install dependencies (base tools)
+sudo pacman -S clang make autoconf automake libusb libftdi-compat ydotool
+
+# Install G15 libraries from AUR (choose one method):
+# Method 1: Using AUR helper (recommended)
+yay -S libg15 libg15render
+# OR: paru -S libg15 libg15render
+# OR: pamac install libg15 libg15render
+
+# Method 2: Manual AUR installation
+git clone https://aur.archlinux.org/libg15.git && cd libg15 && makepkg -si && cd ..
+git clone https://aur.archlinux.org/libg15render.git && cd libg15render && makepkg -si && cd ..
 
 # Build and compile in one command
 make
