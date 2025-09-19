@@ -96,16 +96,22 @@ This file contains all TODO comments found in the source code with explanations 
 
 #
 
-#### `/server/menu.c:453,493,520,538` - Rendering Safety
+#### `/server/menu.c:453,524,544` - Rendering Safety ✅ **PARTIALLY FIXED**
 
 ```c
 /* TODO: when menu is in a frame, these can be removed */
 /* TODO: remove next 3 lines when rendering is safe */
 ```
 
-**Explanation:** Multiple workarounds in menu rendering that can be removed once the rendering system is safer.
+**Explanation:** ~~Multiple workarounds in menu rendering that can be removed once the rendering system is safer.~~ **UPDATED 2025-09:** Rendering safety significantly improved through NULL-pointer fixes. Added proper NULL checks for widgets before accessing their properties (w->y, w->x), preventing crashes and making rendering more robust.
 
-**Impact:** Code cleanup, performance
+**Fixes Applied:**
+
+- Added NULL-check with `return` for title widget (line 491)
+- Added NULL-check with `continue` for text widgets (line 520)
+- Added NULL-check with `break` for icon widgets (line 537)
+
+**Impact:** ~~Code cleanup, performance~~ **Improved stability, crash prevention**
 
 #
 
@@ -296,10 +302,17 @@ perror("getloadavg"); /* ToDo: correct error reporting */
 
 ## Summary
 
-- **Total TODOs at 09/2025:** 20
+- **Total TODOs at 09/2025:** 20 (1 partially fixed)
 - **Critical:** 6 (Threading, Dependencies, Rendering)
-- **Medium:** 10 (Menus, Clients, Rendering)
+- **Medium:** 9 active + 1 partially fixed (Menus, Clients, Rendering)
 - **Low:** 4 (Documentation, Testing)
+
+**Recent Fixes (September 2025):**
+
+- ✅ **Menu rendering safety partially improved** through NULL-pointer checks
+- ✅ **Memory leak fixes** in multiple components (sring.c, linux_input.c, menuitem.c)
+- ✅ **Null-pointer dereference prevention** across server components
+- ✅ **Enum cast out-of-range fixes** for better type safety
 
 **Recommended Order:**
 
