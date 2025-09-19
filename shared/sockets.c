@@ -257,10 +257,10 @@ int sock_recv(int fd, void *dest, size_t maxlen)
 
 	err = read(fd, dest, maxlen);
 	if (err < 0) {
-		// report (RPT_DEBUG,"sock_recv: socket read error");
+		report (RPT_DEBUG,"sock_recv: socket read error");
 		return err;
 	}
-	// debug(RPT_DEBUG, "sock_recv: Got message \"%s\"", (char *)dest);
+	debug(RPT_DEBUG, "sock_recv: Got message \"%s\"", (char *)dest);
 
 	return err;
 }

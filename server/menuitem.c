@@ -212,7 +212,7 @@ menuitem_create(MenuItemType type, char *id, MenuEventFunc(*event_func), char *t
 	      text);
 
 	if ((id == NULL) || (text == NULL)) {
-		// report(RPT_ERR, "%s: illegal id or text", __FUNCTION__);
+		report(RPT_ERR, "%s: illegal id or text", __FUNCTION__);
 		return NULL;
 	}
 

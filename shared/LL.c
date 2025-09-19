@@ -436,8 +436,6 @@ void *LL_DeleteNode(LinkedList *list, Direction whereto)
 
 	list->current->prev = NULL;
 	list->current->next = NULL;
-	// This should not free things; the user should do it explicitly.
-	// if(list->current->data) free(list->current->data);
 	list->current->data = NULL;
 
 	free(list->current);

@@ -190,7 +190,7 @@ int main(int argc, char **argv)
 
 static void exit_program(int val)
 {
-	// printf("exit program\n");
+	printf("exit program now\n");
 	Quit = 1;
 	sock_close(sock);
 	if ((foreground != TRUE) && (pidfile != NULL) && (pidfile_written == TRUE))

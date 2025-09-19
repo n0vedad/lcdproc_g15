@@ -217,7 +217,7 @@ MODULE_EXPORT void debug_flush(Driver *drvthis)
 		out[i] = '-';
 	}
 	out[p->width] = 0;
-	// report(RPT_DEBUG, "+%s+", out);
+	report(RPT_DEBUG, "+%s+", out);
 
 	/* Output each framebuffer line */
 	for (i = 0; i < p->height; i++) {
@@ -225,7 +225,7 @@ MODULE_EXPORT void debug_flush(Driver *drvthis)
 			out[j] = p->framebuf[j + (i * p->width)];
 		}
 		out[p->width] = 0;
-		// report(RPT_DEBUG, "|%s|", out);
+		report(RPT_DEBUG, "|%s|", out);
 	}
 
 	/* Trailing line */
@@ -233,7 +233,7 @@ MODULE_EXPORT void debug_flush(Driver *drvthis)
 		out[i] = '-';
 	}
 	out[p->width] = 0;
-	// report(RPT_DEBUG, "+%s+", out);
+	report(RPT_DEBUG, "+%s+", out);
 }
 
 /**

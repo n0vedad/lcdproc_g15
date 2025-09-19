@@ -69,7 +69,7 @@ MenuEntry *menu_read(MenuEntry *parent, const char *name)
 				MenuEntry *entry = menu_read(me, entryname);
 
 				if (entry == NULL) {
-					// menu_free(me);
+					menu_free(me);
 					return NULL;
 				}
 
@@ -87,7 +87,7 @@ MenuEntry *menu_read(MenuEntry *parent, const char *name)
 
 			me->data.exec.command = strdup(config_get_string(name, "Exec", 0, ""));
 			if (me->data.exec.command == NULL) {
-				// menu_free(me);
+				menu_free(me);
 				return NULL;
 			}
 			me->data.exec.feedback = config_get_bool(name, "Feedback", 0, 0);
@@ -98,7 +98,7 @@ MenuEntry *menu_read(MenuEntry *parent, const char *name)
 				MenuEntry *entry = menu_read(me, entryname);
 
 				if (entry == NULL) {
-					// menu_free(me);
+					menu_free(me);
 					return NULL;
 				}
 
