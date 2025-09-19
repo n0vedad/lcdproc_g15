@@ -63,14 +63,17 @@ int drivers_load_driver(const char *name)
 	/* Retrieve data from config file */
 	s = config_get_string("server", "DriverPath", 0, "");
 	char driverpath[strlen(s) + 1];
-	strcpy(driverpath, s);
+	strncpy(driverpath, s, sizeof(driverpath) - 1);
+	driverpath[sizeof(driverpath) - 1] = '\0';
 
 	s = config_get_string(name, "File", 0, name);
 	char filename[strlen(driverpath) + strlen(s) + sizeof(MODULE_EXTENSION)];
-	strcpy(filename, driverpath);
-	strcat(filename, s);
-	if (s == name)
-		strcat(filename, MODULE_EXTENSION);
+	snprintf(filename,
+		 sizeof(filename),
+		 "%s%s%s",
+		 driverpath,
+		 s,
+		 (s == name) ? MODULE_EXTENSION : "");
 
 	/* Load the module */
 	driver = driver_load(name, filename);

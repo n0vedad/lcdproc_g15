@@ -125,9 +125,9 @@ int battery_screen(int rep, int display, int *flags_ptr)
 		char tmp[20];
 
 		if (percent >= 0)
-			sprintf(tmp, "%d%%", percent);
+			snprintf(tmp, sizeof(tmp), "%d%%", percent);
 		else
-			sprintf(tmp, "??%%");
+			snprintf(tmp, sizeof(tmp), "??%%");
 		sock_printf(sock,
 			    "widget_set B title {%s: %s:%s}\n",
 			    (acstat == LCDP_AC_ON && battstat == LCDP_BATT_ABSENT) ? "AC" : "Batt",

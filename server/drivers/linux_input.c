@@ -124,8 +124,7 @@ static int linuxInput_search_by_name(const char *name)
 		if (dirent->d_type != DT_CHR || strncmp(dirent->d_name, "event", 5))
 			continue;
 
-		strcpy(devname, "/dev/input/");
-		strcat(devname, dirent->d_name);
+		snprintf(devname, sizeof(devname), "/dev/input/%s", dirent->d_name);
 
 		fd = linuxInput_open_with_name(devname, name);
 		if (fd != -1)

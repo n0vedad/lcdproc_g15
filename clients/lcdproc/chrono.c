@@ -113,9 +113,9 @@ int time_screen(int rep, int display, int *flags_ptr)
 	time(&thetime);
 	rtime = localtime(&thetime);
 
-	if (strftime(today, sizeof(today), dateFormat, rtime) == 0)
+	if (dateFormat != NULL && strftime(today, sizeof(today), dateFormat, rtime) == 0)
 		*today = '\0';
-	if (strftime(now, sizeof(now), timeFormat, rtime) == 0)
+	if (timeFormat != NULL && strftime(now, sizeof(now), timeFormat, rtime) == 0)
 		*now = '\0';
 	tickTime(now, heartbeat);
 
@@ -132,15 +132,16 @@ int time_screen(int rep, int display, int *flags_ptr)
 		sec = ((int)uptime % 60);
 
 		if (lcd_wid >= 20)
-			sprintf(tmp,
-				"Up %3d day%s %02d:%02d:%02d",
-				days,
-				((days != 1) ? "s" : ""),
-				hour,
-				min,
-				sec);
+			snprintf(tmp,
+				 sizeof(tmp),
+				 "Up %3d day%s %02d:%02d:%02d",
+				 days,
+				 ((days != 1) ? "s" : ""),
+				 hour,
+				 min,
+				 sec);
 		else
-			sprintf(tmp, "Up %dd %02d:%02d:%02d", days, hour, min, sec);
+			snprintf(tmp, sizeof(tmp), "Up %dd %02d:%02d:%02d", days, hour, min, sec);
 
 		xoffs = (lcd_wid > strlen(tmp)) ? ((lcd_wid - strlen(tmp)) / 2) + 1 : 1;
 		if (display)
@@ -154,7 +155,7 @@ int time_screen(int rep, int display, int *flags_ptr)
 		/* display the time & idle time... */
 		current_idle =
 		    (load.total > 0) ? (int)(100.0 * ((double)load.idle / (double)load.total)) : 0;
-		sprintf(tmp, "%s %3i%% idle", now, current_idle);
+		snprintf(tmp, sizeof(tmp), "%s %3i%% idle", now, current_idle);
 		xoffs = (lcd_wid > strlen(tmp)) ? ((lcd_wid - strlen(tmp)) / 2) + 1 : 1;
 		if (display)
 			sock_printf(sock, "widget_set T three %i 4 {%s}\n", xoffs, tmp);
@@ -229,7 +230,7 @@ int clock_screen(int rep, int display, int *flags_ptr)
 
 			sock_printf(sock, "widget_set O title {DATE & TIME}\n");
 
-			sprintf(tmp, "%s", get_hostname());
+			snprintf(tmp, sizeof(tmp), "%s", get_hostname());
 			xoffs = (lcd_wid > strlen(tmp)) ? (((lcd_wid - strlen(tmp)) / 2) + 1) : 1;
 			sock_printf(sock, "widget_set O one %i 2 {%s}\n", xoffs, tmp);
 		} else {
@@ -249,9 +250,9 @@ int clock_screen(int rep, int display, int *flags_ptr)
 	time(&thetime);
 	rtime = localtime(&thetime);
 
-	if (strftime(today, sizeof(today), dateFormat, rtime) == 0)
+	if (dateFormat != NULL && strftime(today, sizeof(today), dateFormat, rtime) == 0)
 		*today = '\0';
-	if (strftime(now, sizeof(now), timeFormat, rtime) == 0)
+	if (timeFormat != NULL && strftime(now, sizeof(now), timeFormat, rtime) == 0)
 		*now = '\0';
 	tickTime(now, heartbeat);
 
@@ -324,11 +325,11 @@ int uptime_screen(int rep, int display, int *flags_ptr)
 
 			sock_send_string(sock, "widget_set U title {SYSTEM UPTIME}\n");
 
-			sprintf(tmp, "%s", get_hostname());
+			snprintf(tmp, sizeof(tmp), "%s", get_hostname());
 			xoffs = (lcd_wid > strlen(tmp)) ? (((lcd_wid - strlen(tmp)) / 2) + 1) : 1;
 			sock_printf(sock, "widget_set U one %i 2 {%s}\n", xoffs, tmp);
 
-			sprintf(tmp, "%s %s", get_sysname(), get_sysrelease());
+			snprintf(tmp, sizeof(tmp), "%s %s", get_sysname(), get_sysrelease());
 			xoffs = (lcd_wid > strlen(tmp)) ? (((lcd_wid - strlen(tmp)) / 2) + 1) : 1;
 			sock_printf(sock, "widget_set U three %i 4 {%s}\n", xoffs, tmp);
 		} else {
@@ -351,10 +352,16 @@ int uptime_screen(int rep, int display, int *flags_ptr)
 	min = ((int)uptime % 3600) / 60;
 	sec = ((int)uptime % 60);
 	if (lcd_wid >= 20)
-		sprintf(
-		    tmp, "%d day%s %02d:%02d:%02d", days, ((days != 1) ? "s" : ""), hour, min, sec);
+		snprintf(tmp,
+			 sizeof(tmp),
+			 "%d day%s %02d:%02d:%02d",
+			 days,
+			 ((days != 1) ? "s" : ""),
+			 hour,
+			 min,
+			 sec);
 	else
-		sprintf(tmp, "%dd %02d:%02d:%02d", days, hour, min, sec);
+		snprintf(tmp, sizeof(tmp), "%dd %02d:%02d:%02d", days, hour, min, sec);
 
 	if (display) {
 		xoffs = (lcd_wid > strlen(tmp)) ? (((lcd_wid - strlen(tmp)) / 2) + 1) : 1;
@@ -434,17 +441,19 @@ int big_clock_screen(int rep, int display, int *flags_ptr)
 			sock_send_string(sock, "widget_add K c1 num\n");
 		}
 
-		strcpy(old_fulltxt, "      ");
+		strncpy(old_fulltxt, "      ", sizeof(old_fulltxt) - 1);
+		old_fulltxt[sizeof(old_fulltxt) - 1] = '\0';
 	}
 
 	time(&thetime);
 	rtime = localtime(&thetime);
 
-	sprintf(fulltxt,
-		"%02d%02d%02d",
-		((TwentyFourHour) ? rtime->tm_hour : (((rtime->tm_hour + 11) % 12) + 1)),
-		rtime->tm_min,
-		rtime->tm_sec);
+	snprintf(fulltxt,
+		 sizeof(fulltxt),
+		 "%02d%02d%02d",
+		 ((TwentyFourHour) ? rtime->tm_hour : (((rtime->tm_hour + 11) % 12) + 1)),
+		 rtime->tm_min,
+		 rtime->tm_sec);
 
 	for (j = 0; j < digits; j++) {
 		if (fulltxt[j] != old_fulltxt[j]) {
@@ -512,7 +521,7 @@ int mini_clock_screen(int rep, int display, int *flags_ptr)
 	time(&thetime);
 	rtime = localtime(&thetime);
 
-	if (strftime(now, sizeof(now), timeFormat, rtime) == 0)
+	if (timeFormat != NULL && strftime(now, sizeof(now), timeFormat, rtime) == 0)
 		*now = '\0';
 	tickTime(now, heartbeat);
 

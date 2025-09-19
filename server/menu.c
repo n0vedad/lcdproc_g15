@@ -149,7 +149,8 @@ char *fill_labeled_value(char *string, int len, const char *text, const char *va
 		if ((value != NULL) && (textlen + strlen(value) < len - 1)) {
 			memset(string, ' ', len);
 			strncpy(string, text, textlen);
-			strcpy(string + len - strlen(value), value);
+			strncpy(string + len - strlen(value), value, strlen(value));
+			string[len] = '\0';
 		} else {
 			// safeguard against missing value or too long labels
 			if ((value == NULL) || (textlen >= len - 3))
@@ -160,20 +161,21 @@ char *fill_labeled_value(char *string, int len, const char *text, const char *va
 				memset(string, ' ', len);
 				strncpy(string, text, textlen);
 				strncpy(string + textlen + 2, value, len - textlen - 2);
-				strcpy(string + len - 2, "..");
+				strncpy(string + len - 2, "..", 2);
 				string[len] = '\0';
 				break;
 			case LV_LABEL_ALUE: // show last chars in value
 				memset(string, ' ', len);
 				strncpy(string, text, textlen);
-				strcpy(string + textlen + 2, "..");
-				strcpy(string + textlen + 4,
-				       value + strlen(value) - len + textlen + 4);
+				strncpy(string + textlen + 2, "..", 2);
+				strncpy(string + textlen + 4,
+					value + strlen(value) - len + textlen + 4,
+					len - textlen - 4);
 				string[len] = '\0';
 				break;
 			case LV_VALUE_ONLY:
 				/* indent by one to indicate it's a value */
-				strcpy(string, " ");
+				strncpy(string, " ", 1);
 				strncpy(string + 1, value, len - 1);
 				string[len] = '\0';
 				break;
@@ -419,8 +421,7 @@ void menu_build_screen(MenuItem *menu, Screen *s)
 			case MENUITEM_MENU:
 				/* Limit string length */
 				w->text = malloc(strlen(subitem->text) + 4);
-				strcpy(w->text, subitem->text);
-				strcat(w->text, " >");
+				snprintf(w->text, strlen(subitem->text) + 4, "%s >", subitem->text);
 				if (strlen(subitem->text) >= display_props->width - 1)
 					w->text[display_props->width - 1] = '\0';
 				break;

@@ -105,7 +105,10 @@ int gkey_macro_init(void)
 		snprintf(dir_path, sizeof(dir_path), "%s/.config/lcdproc", home);
 		mkdir(dir_path, 0755); /* Create if needed, ignore errors */
 	} else {
-		strcpy(macro_state.config_file, "/tmp/lcdproc_g15_macros.json");
+		strncpy(macro_state.config_file,
+			"/tmp/lcdproc_g15_macros.json",
+			sizeof(macro_state.config_file) - 1);
+		macro_state.config_file[sizeof(macro_state.config_file) - 1] = '\0';
 	}
 
 	/* Load existing macros */

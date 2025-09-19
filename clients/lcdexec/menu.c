@@ -41,13 +41,13 @@ MenuEntry *menu_read(MenuEntry *parent, const char *name)
 		me->id = id++;
 		me->name = strdup(name);
 		if (me->name == NULL) {
-			// menu_free(me);
+			menu_free(me);
 			return NULL;
 		}
 
 		me->displayname = strdup(config_get_string(name, "DisplayName", 0, name));
 		if (me->displayname == NULL) {
-			// menu_free(me);
+			menu_free(me);
 			return NULL;
 		}
 
@@ -204,7 +204,7 @@ MenuEntry *menu_read(MenuEntry *parent, const char *name)
 	} else {
 		/* the magic stuff: if name is NULL and parent is an EXEC entry,
 		 * then generate an Action entry with the name "Apply" */
-		if ((name == NULL) && (parent != NULL) && (parent->type = MT_EXEC)) {
+		if ((name == NULL) && (parent != NULL) && (parent->type == MT_EXEC)) {
 			MenuEntry *me = calloc(1, sizeof(MenuEntry)); // auto-NULL elements
 
 			if (me == NULL)
@@ -213,14 +213,14 @@ MenuEntry *menu_read(MenuEntry *parent, const char *name)
 			me->id = id++;
 			me->name = malloc(strlen(parent->name) + 10);
 			if (me->name == NULL) {
-				// menu_free(me);
+				menu_free(me);
 				return NULL;
 			}
 			snprintf(me->name, strlen(parent->name) + 10, "Apply_%s", parent->name);
 
 			me->displayname = strdup("Apply!");
 			if (me->displayname == NULL) {
-				// menu_free(me);
+				menu_free(me);
 				return NULL;
 			}
 

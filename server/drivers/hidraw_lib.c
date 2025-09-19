@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -84,8 +85,7 @@ static int lib_hidraw_find_device(const struct lib_hidraw_id *ids)
 		if (dirent->d_type != DT_CHR || strncmp(dirent->d_name, "hidraw", 6))
 			continue;
 
-		strcpy(devname, "/dev/");
-		strcat(devname, dirent->d_name);
+		snprintf(devname, sizeof(devname), "/dev/%s", dirent->d_name);
 
 		fd = lib_hidraw_open_device(devname, ids);
 		if (fd != -1)

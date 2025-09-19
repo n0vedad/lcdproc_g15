@@ -109,7 +109,8 @@ Driver *driver_load(const char *name, const char *filename)
 		free(driver);
 		return NULL;
 	}
-	strcpy(driver->name, name);
+	strncpy(driver->name, name, strlen(name));
+	driver->name[strlen(name)] = '\0';
 
 	driver->filename = malloc(strlen(filename) + 1);
 	if (driver->filename == NULL) {
@@ -118,7 +119,8 @@ Driver *driver_load(const char *name, const char *filename)
 		free(driver);
 		return NULL;
 	}
-	strcpy(driver->filename, filename);
+	strncpy(driver->filename, filename, strlen(filename));
+	driver->filename[strlen(filename)] = '\0';
 
 	/* Load and bind the driver module and locate the symbols */
 	if (driver_bind_module(driver) < 0) {
@@ -220,8 +222,12 @@ int driver_bind_module(Driver *driver)
 		if (driver->symbol_prefix != NULL) {
 			char *s = malloc(strlen(*(driver->symbol_prefix)) +
 					 strlen(driver_symbols[i].name) + 1);
-			strcpy(s, *(driver->symbol_prefix));
-			strcat(s, driver_symbols[i].name);
+			snprintf(s,
+				 strlen(*(driver->symbol_prefix)) + strlen(driver_symbols[i].name) +
+				     1,
+				 "%s%s",
+				 *(driver->symbol_prefix),
+				 driver_symbols[i].name);
 			debug(RPT_DEBUG, "%s: finding symbol: %s", __FUNCTION__, s);
 			*p = dlsym(driver->module_handle, s);
 			free(s);
