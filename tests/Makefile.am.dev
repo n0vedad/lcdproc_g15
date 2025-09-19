@@ -72,7 +72,7 @@ TESTS = $(check_PROGRAMS)
 EXTRA_DIST = README.md
 
 # Custom test targets for convenience
-.PHONY: test-verbose test-g15 test-g510 test-scenarios test-scenario-detection test-scenario-rgb test-scenario-macros test-scenario-failures test-memcheck test-coverage test-compilers test-full test-integration test-mock test-server test-clients test-e2e
+.PHONY: test-verbose test-g15 test-g510 test-scenarios test-scenario-detection test-scenario-rgb test-scenario-macros test-scenario-failures test-memcheck test-coverage test-compilers test-full test-integration test-integration-g15 test-integration-input test-integration-all test-mock test-server test-clients test-e2e
 
 # Run tests with verbose output
 test-verbose: $(check_PROGRAMS)
@@ -236,11 +236,52 @@ test-integration: test_integration_g15 mock_g15
 		exit 1; \
 	fi
 
+# G15/G510 hardware integration tests
+test-integration-g15: test_integration_g15 mock_g15
+	@echo "🎮 Running G15/G510 hardware integration tests..."
+	@echo "================================================"
+	@echo "⚠️  This requires actual G15/G510 hardware connected"
+	@./test_integration_g15 --hardware-g15 || { \
+		echo "❌ G15 hardware integration tests failed!"; \
+		echo "💡 Make sure G15/G510 hardware is connected"; \
+		exit 1; \
+	}
+
+# Linux input driver integration tests
+test-integration-input: test_integration_g15 mock_g15
+	@echo "⌨️  Running Linux input driver integration tests..."
+	@echo "=================================================="
+	@echo "Testing input device detection and key handling..."
+	@./test_integration_g15 --input-driver || { \
+		echo "❌ Linux input driver integration tests failed!"; \
+		exit 1; \
+	}
+
+# Comprehensive integration tests (all drivers)
+test-integration-all: test_integration_g15 mock_g15
+	@echo "🚀 Running comprehensive integration tests (all drivers)..."
+	@echo "=========================================================="
+	@echo "Testing: Debug driver, G15 hardware, Linux input..."
+	@./test_integration_g15 --all-drivers || { \
+		echo "❌ Comprehensive integration tests failed!"; \
+		exit 1; \
+	}
+
 # Run only the mock server for debugging
 test-mock: mock_g15
 	@echo "🎮 Starting G15 integration mock server..."
-	@echo "Press Ctrl+C to stop"
-	@./mock_g15
+	@./mock_g15 & \
+	SERVER_PID=$$!; \
+	sleep 2; \
+	if kill -0 $$SERVER_PID 2>/dev/null; then \
+		echo "✅ Mock server started successfully"; \
+		kill $$SERVER_PID 2>/dev/null; \
+		wait $$SERVER_PID 2>/dev/null; \
+		echo "✅ Test completed successfully"; \
+	else \
+		echo "❌ Mock server failed to start"; \
+		exit 1; \
+	fi
 
 # Test only server components
 test-server: test_integration_g15

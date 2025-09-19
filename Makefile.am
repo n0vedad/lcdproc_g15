@@ -43,7 +43,7 @@ distclean-local:
 
 ## convenience targets
 
-.PHONY: $(SUBDIRS) install-server install-clients format format-check format-before-build help test-full test-ci
+.PHONY: $(SUBDIRS) install-server install-clients format format-check format-before-build help test-full test-ci test-integration test-integration-g15 test-integration-input test-integration-all test-mock
 
 # Format code before any compilation starts - handled by GNUmakefile
 # all-recursive: format-before-build (disabled - GNUmakefile handles this)
@@ -202,5 +202,9 @@ lint-fix:
 
 # Standard autotools targets work automatically through SUBDIRS
 # test-full, test-ci etc. are handled by GNUmakefile for development-only features
+
+# Integration test delegation to tests subdirectory
+test-integration test-integration-g15 test-integration-input test-integration-all test-mock:
+	$(MAKE) -C tests $@
 
 ## EOF

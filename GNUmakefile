@@ -709,6 +709,9 @@ help:
 	@echo "                            Includes: test-full + multi-compiler testing"
 	@echo "  make test-integration   - End-to-end integration tests"
 	@echo "                            Includes: LCDd server + client + mock hardware"
+	@echo "  make test-integration-g15   - G15/G510 hardware integration tests"
+	@echo "  make test-integration-input - Linux input driver integration tests"  
+	@echo "  make test-integration-all   - All drivers comprehensive integration tests"
 	@echo "  make test-server        - Test only LCDd server functionality"
 	@echo "  make test-clients       - Test only client functionality"
 	@echo "  make test-e2e           - Full end-to-end workflow testing"
@@ -741,7 +744,7 @@ help:
 	@echo -e "$(YELLOW)ℹ️  Project not configured yet. Run 'make' or 'make dev' to begin setup.$(NC)"
 
 # Development-only test features - require make dev
-test-verbose test-g15 test-g510 test-scenarios test-scenario-detection test-scenario-rgb test-scenario-macros test-scenario-failures test-memcheck test-coverage test-compilers test-full test-ci test-integration test-mock test-server test-clients test-e2e:
+test-verbose test-g15 test-g510 test-scenarios test-scenario-detection test-scenario-rgb test-scenario-macros test-scenario-failures test-memcheck test-coverage test-compilers test-full test-ci test-integration test-integration-g15 test-integration-input test-integration-all test-mock test-server test-clients test-e2e:
 	@if [ ! -f Makefile ]; then \
 		echo -e "$(RED)❌ Project not configured yet$(NC)"; \
 		echo -e "$(YELLOW)💡 Run 'make dev' first to set up development environment$(NC)"; \
