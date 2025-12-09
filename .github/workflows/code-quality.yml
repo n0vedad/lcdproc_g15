@@ -46,6 +46,8 @@ jobs:
       run: |
         # Install base development tools
         pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear npm
+        # Install ICU library for Node.js compatibility
+        pacman -Sy --noconfirm icu
         # Install clang-tools for formatting and static analysis
         pacman -Sy --noconfirm clang-tools-extra
         # Install standard hardware libraries
@@ -59,10 +61,10 @@ jobs:
           git clone https://aur.archlinux.org/libg15.git
           cd libg15 && makepkg -si --noconfirm
           cd ..
-          git clone https://aur.archlinux.org/libg15render.git  
+          git clone https://aur.archlinux.org/libg15render.git
           cd libg15render && makepkg -si --noconfirm
         '
-        
+
         # Install npm dependencies for prettier
         npm install
     
@@ -116,6 +118,8 @@ jobs:
       run: |
         # Install base development tools
         pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear npm
+        # Install ICU library for Node.js compatibility
+        pacman -Sy --noconfirm icu
         # Install clang-tools for formatting and static analysis
         pacman -Sy --noconfirm clang-tools-extra
         # Install standard hardware libraries
@@ -129,7 +133,7 @@ jobs:
           git clone https://aur.archlinux.org/libg15.git
           cd libg15 && makepkg -si --noconfirm
           cd ..
-          git clone https://aur.archlinux.org/libg15render.git  
+          git clone https://aur.archlinux.org/libg15render.git
           cd libg15render && makepkg -si --noconfirm
         '
     
@@ -171,6 +175,8 @@ jobs:
         # Install base tools and create non-root user for AUR
         # Note: clang is the primary compiler for this project
         pacman -Sy --noconfirm base-devel git sudo clang make autoconf automake bear npm
+        # Install ICU library for Node.js compatibility
+        pacman -Sy --noconfirm icu
         useradd -m -G wheel -s /bin/bash builder
         echo 'builder ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
     
