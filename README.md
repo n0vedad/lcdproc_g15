@@ -37,7 +37,7 @@ The client and server communicate via TCP connection, allowing remote monitoring
 
 ```bash
 # Install dependencies (base tools)
-sudo pacman -S clang make autoconf automake libusb libftdi-compat ydotool
+sudo pacman -S clang make autoconf automake libusb libftdi-compat ydotool popt
 
 # Install G15 libraries from AUR (choose one method):
 # Method 1: Using AUR helper (recommended)

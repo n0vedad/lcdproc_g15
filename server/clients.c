@@ -1,17 +1,41 @@
-/** \file server/clients.c
- * This file contains code allowing LCDd to handle client connections and
- * data structures. It contains functions to initialize the internal list
- * of clients, terminate client connections, add new clients to the list,
- * and locating a client's socket.
- */
+// SPDX-License-Identifier: GPL-2.0+
 
-/* This file is part of LCDd, the lcdproc server.
+/**
+ * \file server/clients.c
+ * \brief Client list management implementation
+ * \author William Ferrell
+ * \author Selene Scriven
+ * \author Joris Robijn
+ * \date 1999-2002
  *
- * This file is released under the GNU General Public License.
- *  Refer to the COPYING file distributed with this package.
  *
- * Copyright (c) 1999, William Ferrell, Selene Scriven
- *               2002, Joris Robijn
+ * \features
+ * - Implementation of client list management for LCDd server core
+ * - Client list initialization and shutdown with proper resource management
+ * - Client addition and removal from global linked list with error handling
+ * - Client search functionality by socket descriptor for message routing
+ * - Client list iteration support for traversing connected clients
+ * - Global client list maintenance using LinkedList data structure
+ * - Proper cleanup of all clients during server shutdown
+ * - Debug logging for all client list operations and state changes
+ * - Error handling with proper reporting for all operations
+ * - Memory management with automatic resource cleanup
+ * - Client count tracking for server monitoring
+ * - Direction-based client removal for list traversal control
+ *
+ * \usage
+ * - Used by LCDd server core for managing the global list of connected clients
+ * - Initialize client list at server startup via clients_init()
+ * - Add new clients when TCP connections are established
+ * - Remove clients when connections close or timeout
+ * - Find clients by socket descriptor for routing incoming messages
+ * - Iterate through client list for broadcasting server messages
+ * - Track client count for server status monitoring
+ * - Clean shutdown of all clients via clients_shutdown()
+ * - Client lookup for command processing and state management
+ *
+ * \details Implementation of client list management for LCDd server
+ * containing functions to handle client connections and data structures.
  */
 
 #include <stdio.h>
@@ -22,12 +46,18 @@
 #include "client.h"
 #include "clients.h"
 #include "render.h"
+
 #include "shared/LL.h"
 #include "shared/report.h"
 
+/** \brief Global linked list containing all connected clients
+ *
+ * \details Initialized by clients_init(), destroyed by clients_shutdown().
+ * Stores Client* pointers for all active client connections to LCDd server.
+ */
 LinkedList *clientlist = NULL;
 
-/* Initialize and kill client list...*/
+// Initialize the global client list data structure
 int clients_init(void)
 {
 	debug(RPT_DEBUG, "%s()", __FUNCTION__);
@@ -41,6 +71,7 @@ int clients_init(void)
 	return 0;
 }
 
+// Shutdown client list and free all resources
 int clients_shutdown(void)
 {
 	Client *c;
@@ -48,11 +79,9 @@ int clients_shutdown(void)
 	debug(RPT_DEBUG, "%s()", __FUNCTION__);
 
 	if (!clientlist) {
-		/* Program shutdown before completed startup */
 		return -1;
 	}
 
-	/* Free all client structures... */
 	for (c = LL_GetFirst(clientlist); c; c = LL_GetNext(clientlist)) {
 		debug(RPT_DEBUG, "%s: ...", __FUNCTION__);
 		if (c) {
@@ -67,7 +96,6 @@ int clients_shutdown(void)
 		}
 	}
 
-	/* Then, free the list...*/
 	LL_Destroy(clientlist);
 
 	debug(RPT_DEBUG, "%s: done", __FUNCTION__);
@@ -75,7 +103,7 @@ int clients_shutdown(void)
 	return 0;
 }
 
-/* Add the client to the clients list... */
+// Add client to the global client list
 Client *clients_add_client(Client *c)
 {
 	if (LL_Push(clientlist, c) == 0)
@@ -84,7 +112,7 @@ Client *clients_add_client(Client *c)
 	return NULL;
 }
 
-/* Remove the client from the clients list... */
+// Remove client from the global client list
 Client *clients_remove_client(Client *c, Direction whereto)
 {
 	Client *client = LL_Remove(clientlist, c, whereto);
@@ -92,16 +120,16 @@ Client *clients_remove_client(Client *c, Direction whereto)
 	return client;
 }
 
+// Get first client in the client list
 Client *clients_getfirst(void) { return (Client *)LL_GetFirst(clientlist); }
 
+// Get next client in the client list
 Client *clients_getnext(void) { return (Client *)LL_GetNext(clientlist); }
 
+// Get total number of clients in the list
 int clients_client_count(void) { return LL_Length(clientlist); }
 
-/* A client is identified by the file descriptor
- * associated with it. Find one.
- */
-
+// Find client by socket file descriptor
 Client *clients_find_client_by_sock(int sock)
 {
 	Client *c;

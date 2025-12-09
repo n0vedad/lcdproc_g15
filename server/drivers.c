@@ -1,14 +1,43 @@
-/** \file server/drivers.c
- * Manage the lists of loaded drivers and perform actions on all drivers.
+// SPDX-License-Identifier: GPL-2.0+
+
+/**
+ * \file server/drivers.c
+ * \brief Driver collection management implementation
+ * \author Joris Robijn
+ * \date 2001
+ *
+ *
+ * \features
+ * - Implementation of driver collection management for LCDd server
+ * - Driver loading from configuration files with name-based identification
+ * - Driver list management using linked lists for dynamic driver collection
+ * - Unified operations across all loaded drivers with ForAllDrivers macro
+ * - Display property management from output driver with automatic detection
+ * - Input handling from any input driver with key aggregation
+ * - Hardware control across all drivers (backlight, contrast, macro LEDs)
+ * - Driver information aggregation and reporting
+ * - Automatic fallback to alternative functions when driver lacks implementation
+ * - Debug logging for all driver operations and state changes
+ * - Memory management for driver resources and cleanup
+ * - Global driver state management with output_driver identification
+ *
+ * \usage
+ * - Used by LCDd server core for managing multiple loaded drivers
+ * - Load drivers from configuration via drivers_load_driver()
+ * - Perform unified operations via drivers_* wrapper functions
+ * - Access display properties via global display_props structure
+ * - Retrieve input from any driver via drivers_get_key()
+ * - Control hardware features via drivers_backlight(), drivers_set_contrast()
+ * - Server shutdown cleanup via drivers_unload_all()
+ * - Driver iteration via drivers_getfirst() and drivers_getnext()
+ *
+ * \details Implementation of driver management for loading multiple drivers
+ * and performing operations across all loaded drivers.
  */
 
-/* This file is part of LCDd, the lcdproc server.
- *
- * This file is released under the GNU General Public License.
- * Refer to the COPYING file distributed with this package.
- *
- * Copyright(c) 2001, Joris Robijn
- */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #include <errno.h>
 #include <stdio.h>
@@ -16,8 +45,13 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
+/** \brief Dynamic driver module file extension
+ *
+ * \details Default shared library extension for driver modules.
+ * Can be overridden at compile time for different platforms.
+ */
+#ifndef MODULE_EXTENSION
+#define MODULE_EXTENSION ".so"
 #endif
 
 #include "shared/LL.h"
@@ -28,21 +62,23 @@
 #include "drivers.h"
 #include "widget.h"
 
+// Global driver management state: primary output driver, list of all loaded drivers, and shared
+// display properties
 Driver *output_driver = NULL;
-LinkedList *loaded_drivers = NULL;  /**< list of loaded drivers */
-DisplayProps *display_props = NULL; /**< properties of the display */
+LinkedList *loaded_drivers = NULL;
+DisplayProps *display_props = NULL;
 
-#define ForAllDrivers(drv)                                                                         \
-	for (drv = LL_GetFirst(loaded_drivers); drv; drv = LL_GetNext(loaded_drivers))
-
-/**
- * Load driver based on "DriverPath" config setting and section name or
- * "File" configuration setting in the driver's section.
- * \param name  Driver section name.
- * \retval  <0  error.
- * \retval   0  OK
- * \retval   2  OK, driver needs to run in the foreground.
+/** \brief Iterator macro for looping through all loaded drivers
+ * \param drv Driver pointer variable to use in loop
+ *
+ * \details Convenience macro that expands to a for-loop iterating through
+ * the loaded_drivers linked list. Automatically handles list traversal using
+ * LL_GetFirst() and LL_GetNext(). Loop variable must be a Driver* pointer.
  */
+#define ForAllDrivers(drv)                                                                         \
+	for ((drv) = LL_GetFirst(loaded_drivers); (drv); (drv) = LL_GetNext(loaded_drivers))
+
+// Load driver based on configuration settings and add to driver list
 int drivers_load_driver(const char *name)
 {
 	Driver *driver;
@@ -50,9 +86,7 @@ int drivers_load_driver(const char *name)
 
 	debug(RPT_DEBUG, "%s(name=\"%.40s\")", __FUNCTION__, name);
 
-	/* First driver ? */
 	if (!loaded_drivers) {
-		/* Create linked list */
 		loaded_drivers = LL_new();
 		if (!loaded_drivers) {
 			report(RPT_ERR, "Error allocating driver list.");
@@ -60,41 +94,35 @@ int drivers_load_driver(const char *name)
 		}
 	}
 
-	/* Retrieve data from config file */
+	// Get driver path from server config (e.g., "/usr/lib/lcdproc/")
 	s = config_get_string("server", "DriverPath", 0, "");
 	char driverpath[strlen(s) + 1];
 	strncpy(driverpath, s, sizeof(driverpath) - 1);
 	driverpath[sizeof(driverpath) - 1] = '\0';
 
+	// Get driver filename from driver section, or use driver name as default
 	s = config_get_string(name, "File", 0, name);
 	char filename[strlen(driverpath) + strlen(s) + sizeof(MODULE_EXTENSION)];
-	snprintf(filename,
-		 sizeof(filename),
-		 "%s%s%s",
-		 driverpath,
-		 s,
+	snprintf(filename, sizeof(filename), "%s%s%s", driverpath, s,
 		 (s == name) ? MODULE_EXTENSION : "");
 
-	/* Load the module */
 	driver = driver_load(name, filename);
 	if (driver == NULL) {
-		/* It failed. The message has already been given by driver_load() */
 		report(RPT_INFO, "Module %.40s could not be loaded", filename);
 		return -1;
 	}
 
-	/* Add driver to list */
 	LL_Push(loaded_drivers, driver);
 
-	/* If first output driver, store display properties */
+	// First output driver becomes primary and provides display properties
 	if (driver_does_output(driver) && !output_driver) {
 		output_driver = driver;
 
-		/* Allocate new DisplayProps structure */
 		display_props = malloc(sizeof(DisplayProps));
 		display_props->width = driver->width(driver);
 		display_props->height = driver->height(driver);
 
+		// Use driver's cell dimensions or fallback to defaults
 		if (driver->cellwidth != NULL && driver->cellwidth(driver) > 0)
 			display_props->cellwidth = driver->cellwidth(driver);
 		else
@@ -106,16 +134,14 @@ int drivers_load_driver(const char *name)
 			display_props->cellheight = LCD_DEFAULT_CELLHEIGHT;
 	}
 
-	/* Return the driver type */
+	// Return 2 if driver needs foreground, 0 on success
 	if (driver_stay_in_foreground(driver))
 		return 2;
 
 	return 0;
 }
 
-/**
- * Unload all loaded drivers.
- */
+// Unload all loaded drivers from memory
 void drivers_unload_all(void)
 {
 	Driver *driver;
@@ -129,11 +155,7 @@ void drivers_unload_all(void)
 	}
 }
 
-/**
- * Get information from loaded drivers.
- * \return  Pointer to information string of first driver with get_info() function defined,
- *          or the empty string if no driver has a get_info() function.
- */
+// Get information from loaded drivers
 const char *drivers_get_info(void)
 {
 	Driver *drv;
@@ -149,10 +171,7 @@ const char *drivers_get_info(void)
 	return "";
 }
 
-/**
- * Clear screen on all loaded drivers.
- * Call clear() function of all loaded drivers that have a clear() function defined.
- */
+// Clear screen on all loaded drivers
 void drivers_clear(void)
 {
 	Driver *drv;
@@ -166,10 +185,7 @@ void drivers_clear(void)
 	}
 }
 
-/**
- * Flush data on all loaded drivers to LCDs.
- * Call flush() function of all loaded drivers that have a flush() function defined.
- */
+// Flush data on all loaded drivers to LCDs
 void drivers_flush(void)
 {
 	Driver *drv;
@@ -183,13 +199,7 @@ void drivers_flush(void)
 	}
 }
 
-/**
- * Write string to all loaded drivers.
- * Call string() function of all loaded drivers that have a flush() function defined.
- * \param x        Horizontal character position (column).
- * \param y        Vertical character position (row).
- * \param string   String that gets written.
- */
+// Write string to all loaded drivers
 void drivers_string(int x, int y, const char *string)
 {
 	Driver *drv;
@@ -203,13 +213,7 @@ void drivers_string(int x, int y, const char *string)
 	}
 }
 
-/**
- * Write a character to all loaded drivers.
- * Call chr() function of all loaded drivers that have a chr() function defined.
- * \param x        Horizontal character position (column).
- * \param y        Vertical character position (row).
- * \param c        Character that gets written.
- */
+// Write a character to all loaded drivers
 void drivers_chr(int x, int y, char c)
 {
 	Driver *drv;
@@ -223,33 +227,13 @@ void drivers_chr(int x, int y, char c)
 	}
 }
 
-/**
- * Draw a vertical bar to all drivers.
- * For drivers that define a vbar() function, call it;
- * otherwise call the general driver_alt_vbar() function from the server core.
- * \param x        Horizontal character position (column) of the starting point.
- * \param y        Vertical character position (row) of the starting point.
- * \param len      Number of characters that the bar is long at 100%
- * \param promille Current length level of the bar in promille.
- * \param pattern  Options (currently unused).
- */
+// Draw a vertical bar to all drivers
 void drivers_vbar(int x, int y, int len, int promille, int pattern)
 {
 	Driver *drv;
 
-	debug(RPT_DEBUG,
-	      "%s(x=%d, y=%d, len=%d, promille=%d, pattern=%d)",
-	      __FUNCTION__,
-	      x,
-	      y,
-	      len,
-	      promille,
-	      pattern);
-
-	/* NEW FUNCTIONS
-	 *
-	 * We need more data in the widget. Requires language update...
-	 */
+	debug(RPT_DEBUG, "%s(x=%d, y=%d, len=%d, promille=%d, pattern=%d)", __FUNCTION__, x, y, len,
+	      promille, pattern);
 
 	ForAllDrivers(drv)
 	{
@@ -260,28 +244,13 @@ void drivers_vbar(int x, int y, int len, int promille, int pattern)
 	}
 }
 
-/**
- * Draw a horizontal bar to all drivers.
- * For drivers that define a hbar() function, call it;
- * otherwise call the general driver_alt_hbar() function from the server core.
- * \param x        Horizontal character position (column) of the starting point.
- * \param y        Vertical character position (row) of the starting point.
- * \param len      Number of characters that the bar is long at 100%
- * \param promille Current length level of the bar in promille.
- * \param pattern  Options (currently unused).
- */
+// Draw a horizontal bar to all drivers
 void drivers_hbar(int x, int y, int len, int promille, int pattern)
 {
 	Driver *drv;
 
-	debug(RPT_DEBUG,
-	      "%s(x=%d, y=%d, len=%d, promille=%d, pattern=%d)",
-	      __FUNCTION__,
-	      x,
-	      y,
-	      len,
-	      promille,
-	      pattern);
+	debug(RPT_DEBUG, "%s(x=%d, y=%d, len=%d, promille=%d, pattern=%d)", __FUNCTION__, x, y, len,
+	      promille, pattern);
 
 	ForAllDrivers(drv)
 	{
@@ -292,20 +261,7 @@ void drivers_hbar(int x, int y, int len, int promille, int pattern)
 	}
 }
 
-/**
- * Draw a percentage-bar to all drivers.
- * \param x            Horizontal character position (column) of the starting point.
- * \param y            Vertical character position (row) of the starting point.
- * \param width        Width of the widget in characters, including the
- *                     optional begin and end-labels.
- * \param promille     Current length level of the bar in promille.
- * \param begin_label  Optional (may be NULL) text to render in front of /
- *                     at the beginning of the percentage-bar.
- * \param end_label    Optional text to render at the end of the pbar.
- *
- * Note the driver may choose to not render the labels if there is not enough
- * space.
- */
+// Draw a percentage-bar to all drivers
 void drivers_pbar(int x, int y, int width, int promille, char *begin_label, char *end_label)
 {
 	Driver *drv;
@@ -313,13 +269,7 @@ void drivers_pbar(int x, int y, int width, int promille, char *begin_label, char
 	ForAllDrivers(drv) driver_pbar(drv, x, y, width, promille, begin_label, end_label);
 }
 
-/**
- * Write a big number to all output drivers.
- * For drivers that define a num() function, call it;
- * otherwise call the general driver_alt_num() function from the server core.
- * \param x        Horizontal character position (column).
- * \param num      Character to write (0 - 10 with 10 representing ':')
- */
+// Write a big number to all output drivers
 void drivers_num(int x, int num)
 {
 	Driver *drv;
@@ -335,12 +285,7 @@ void drivers_num(int x, int num)
 	}
 }
 
-/**
- * Perform heartbeat on all drivers.
- * For drivers that define a heartbeat() function, call it;
- * otherwise call the general driver_alt_heartbeat() function from the server core.
- * \param state    Heartbeat state.
- */
+// Perform heartbeat on all drivers
 void drivers_heartbeat(int state)
 {
 	Driver *drv;
@@ -356,52 +301,27 @@ void drivers_heartbeat(int state)
 	}
 }
 
-/**
- * Write icon to all drivers.
- * For drivers that define a icon() function, call it;
- * otherwise call the general driver_alt_icon() function from the server core.
- * If the driver's locally defined icon() function returns -1, then also
- * call the server core's driver_alt_icon().
- * \param x        Horizontal character position (column).
- * \param y        Vertical character position (row).
- * \param icon     synbolic value representing the icon.
- */
+// Write icon to all drivers
 void drivers_icon(int x, int y, int icon)
 {
 	Driver *drv;
 
-	debug(RPT_DEBUG,
-	      "%s(x=%d, y=%d, icon=ICON_%s)",
-	      __FUNCTION__,
-	      x,
-	      y,
+	debug(RPT_DEBUG, "%s(x=%d, y=%d, icon=ICON_%s)", __FUNCTION__, x, y,
 	      widget_icon_to_iconname(icon));
 
 	ForAllDrivers(drv)
 	{
-		/* Does the driver have the icon function ? */
 		if (drv->icon) {
-			/* Try driver call */
 			if (drv->icon(drv, x, y, icon) == -1) {
-				/* do alternative call if driver's function does not know the icon
-				 */
 				driver_alt_icon(drv, x, y, icon);
 			}
 		} else {
-			/* Also do alternative call if the driver does not have icon function */
 			driver_alt_icon(drv, x, y, icon);
 		}
 	}
 }
 
-/**
- * Set cursor on all loaded drivers.
- * For drivers that define a cursor() function, call it;
- * otherwise call the general driver_alt_cursor() function from the server core.
- * \param x        Horizontal cursor position (column).
- * \param y        Vertical cursor position (row).
- * \param state    New cursor state.
- */
+// Set cursor on all loaded drivers
 void drivers_cursor(int x, int y, int state)
 {
 	Driver *drv;
@@ -417,11 +337,7 @@ void drivers_cursor(int x, int y, int state)
 	}
 }
 
-/**
- * Set backlight on all drivers.
- * Call backlight() function of all drivers that have a backlight() function defined.
- * \param state    New backlight status.
- */
+// Set backlight on all drivers
 void drivers_backlight(int state)
 {
 	Driver *drv;
@@ -435,29 +351,20 @@ void drivers_backlight(int state)
 	}
 }
 
-/**
- * Set macro LED status on all drivers.
- * Call set_macro_leds() function of all drivers that have this function defined.
- * \param m1       M1 LED state (0=off, 1=on)
- * \param m2       M2 LED state (0=off, 1=on)
- * \param m3       M3 LED state (0=off, 1=on)
- * \param mr       MR LED state (0=off, 1=on)
- * \return         0 on success, -1 on error
- */
+// Set macro LED status on all drivers
 int drivers_set_macro_leds(int m1, int m2, int m3, int mr)
 {
 	Driver *drv;
-	int result = -1; /* Default to error */
+	int result = -1;
 
 	debug(RPT_DEBUG, "%s(m1=%d, m2=%d, m3=%d, mr=%d)", __FUNCTION__, m1, m2, m3, mr);
 
 	ForAllDrivers(drv)
 	{
-
 		if (drv->set_macro_leds) {
 			int drv_result = drv->set_macro_leds(drv, m1, m2, m3, mr);
 			if (drv_result == 0) {
-				result = 0; /* At least one driver succeeded */
+				result = 0;
 			}
 		}
 	}
@@ -465,11 +372,7 @@ int drivers_set_macro_leds(int m1, int m2, int m3, int mr)
 	return result;
 }
 
-/**
- * Set output on all drivers.
- * Call ouptput() function of all drivers that have an ouptput() function defined.
- * \param state    New ouptut status.
- */
+// Set output on all drivers
 void drivers_output(int state)
 {
 	Driver *drv;
@@ -483,14 +386,9 @@ void drivers_output(int state)
 	}
 }
 
-/**
- * Get key presses from loaded drivers.
- * \return  Pointer to key string for first driver ithat has a get_key() function defined
- *          and for which the get_key() function returns a key; otherwise \c NULL.
- */
+// Get key presses from loaded drivers
 const char *drivers_get_key(void)
 {
-	/* Find the first input keystroke, if any */
 	Driver *drv;
 	const char *keystroke;
 
@@ -501,13 +399,58 @@ const char *drivers_get_key(void)
 		if (drv->get_key) {
 			keystroke = drv->get_key(drv);
 			if (keystroke != NULL) {
-				report(RPT_INFO,
-				       "Driver [%.40s] generated keystroke %.40s",
-				       drv->name,
-				       keystroke);
+				report(RPT_INFO, "Driver [%.40s] generated keystroke %.40s",
+				       drv->name, keystroke);
 				return keystroke;
 			}
 		}
 	}
 	return NULL;
+}
+
+// Set custom character definition on all drivers
+void drivers_set_char(char ch, unsigned char *dat)
+{
+	Driver *drv;
+
+	debug(RPT_DEBUG, "%s(ch='%c', dat=%p)", __FUNCTION__, ch, dat);
+
+	ForAllDrivers(drv)
+	{
+		if (drv->set_char)
+			drv->set_char(drv, ch, dat);
+	}
+}
+
+// Get contrast from output driver
+int drivers_get_contrast(void)
+{
+	Driver *drv;
+
+	debug(RPT_DEBUG, "%s()", __FUNCTION__);
+
+	ForAllDrivers(drv)
+	{
+		if (drv->get_contrast) {
+			int contrast = drv->get_contrast(drv);
+			debug(RPT_DEBUG, "%s: Driver [%.40s] returned contrast %d", __FUNCTION__,
+			      drv->name, contrast);
+			return contrast;
+		}
+	}
+	return -1;
+}
+
+// Set contrast on all drivers
+void drivers_set_contrast(int contrast)
+{
+	Driver *drv;
+
+	debug(RPT_DEBUG, "%s(contrast=%d)", __FUNCTION__, contrast);
+
+	ForAllDrivers(drv)
+	{
+		if (drv->set_contrast)
+			drv->set_contrast(drv, contrast);
+	}
 }

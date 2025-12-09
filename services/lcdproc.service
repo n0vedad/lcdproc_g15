@@ -1,12 +1,17 @@
 [Unit]
 Description=lcdproc client
 Requires=lcdd.service
-After=network-online.target
+After=lcdd.service network-online.target
 
 [Service]
-Type=forking
-ExecStart=/usr/bin/lcdproc -c /etc/lcdproc.conf
-Environment=HOME=/home/lucas
+Type=simple
+ExecStart=/usr/bin/lcdproc -c /etc/lcdproc.conf -f
+Restart=on-failure
+RestartSec=5s
+Environment=HOME=/var/lib/lcdproc
+DynamicUser=yes
+StateDirectory=lcdproc
+SupplementaryGroups=input
 
 [Install]
 WantedBy=multi-user.target

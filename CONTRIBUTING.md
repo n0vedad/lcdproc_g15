@@ -12,14 +12,14 @@ For development work, you'll need these additional tools beyond the runtime requ
 - `gcc` for fallback and multi-compiler testing
 - `npm` for Markdown/JSON/Shell formatting (includes Node.js)
 - `bear` for generating compile database
-- `valgrind` for detecting memory leaks
+- `doxygen` and `graphviz` for generating source code documentation
 - `act` for testing GitHub workflow locally (optional)
 - `python-evdev` for for reading raw input events from /dev/input/event\*
 - `gcovr` for code coverage analysis and reporting
 
 ```bash
 # Install all optional dependencies
-sudo pacman -S clang-format clang-tidy gcc npm bear valgrind act python-evdev gcovr
+sudo pacman -S clang-format clang-tidy gcc npm bear doxygen graphviz act python-evdev gcovr
 ```
 
 ### Build for Development
@@ -36,14 +36,17 @@ make setup-hooks-install (for local git hooks)
 
 # Development configuration (includes debug driver)
 ./configure \
-  --prefix=/usr \                      # Install base directory
---sbindir=/usr/bin \                   # Server binaries to /usr/bin (not /usr/sbin)
---sysconfdir=/etc \                    # Configuration files to /etc
---enable-libusb \                      # Enable libusb support for G15 device communication
---enable-lcdproc-menus \               # Enable menu support in lcdproc client
---enable-stat-smbfs \                  # Enable Samba filesystem statistics
---enable-debug \                       # Required for debug driver
---enable-drivers=g15,linux_input,debug # Build all drivers including debug
+
+| Option                                  | Description                                        |
+| --------------------------------------- | -------------------------------------------------- |
+| --prefix=/usr                           | Install base directory                             |
+| --sbindir=/usr/bin                      | Server binaries to /usr/bin (not /usr/sbin)        |
+| --sysconfdir=/etc                       | Configuration files to /etc                        |
+| --enable-libusb                         | Enable libusb support for G15 device communication |
+| --enable-lcdproc-menus                  | Enable menu support in lcdproc client              |
+| --enable-stat-smbfs                     | Enable Samba filesystem statistics                 |
+| --enable-debug                          | Required for debug driver                          |
+| --enable-drivers=g15,linux_input,debug  | Build G15 and input drivers                        |
 
 # Build
 make
@@ -91,11 +94,32 @@ They are implemented two-way, local (via `make setup-hooks-install`) and via Git
 
 Please see [tests/README.md](tests/README.md) for more details.
 
-## Testing
+## Documentation
 
-### Running Tests
+### Generating Source Code Documentation
 
-The project includes a comprehensive testing system with unit- and integration tests and Python debug scripts for real hardware analysis. Further it includes code formatting & static analysis and test coverage reports. Please refer to [tests/README.md](tests/README.md) for available tests and more.
+The project uses Doxygen to generate comprehensive API documentation from source code comments.
+
+```bash
+# Generate HTML documentation
+make html
+
+# View the documentation
+xdg-open docs/html/index.html
+
+# Clean generated documentation
+make clean # removes docs/html/ and docs/latex/
+```
+
+**Documentation Features:**
+
+- API reference for all public functions
+- Cross-referenced source code browser
+- Call graphs and dependency diagrams (requires graphviz)
+- File and module organization
+- Search functionality
+
+**Installation location:** When running `make install`, documentation is installed to `$(docdir)/html/` (typically `/usr/share/doc/lcdproc-g15/html/`).
 
 ## Submitting Changes
 
@@ -125,7 +149,6 @@ Follow conventional commit format:
 
 ## Development Resources
 
-- [TODO.md](TODO.md) - Known issues and future improvements
 - Check existing issues in the repository
 - Review the [FAQ.md](FAQ.md) for common questions
 - Reference the [INSTALL.md](INSTALL.md) for setup issues

@@ -49,7 +49,7 @@ pkg/
 core
 *.core
 *.debug
-gdb.txt
+*.txt
 compile_commands.json
 
 # Temporary/backup files

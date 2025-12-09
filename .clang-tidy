@@ -1,24 +1,98 @@
 # clang-tidy configuration for lcdproc-g15
 # Static analysis for C code quality and security
 
-# Minimal critical security checks only
+# Comprehensive checks for system programming with LCDproc
 Checks: >
-  bugprone-buffer-overrun,
-  bugprone-use-after-free,
-  bugprone-sizeof-expression,
-  clang-analyzer-security.insecureAPI.strcpy,
-  clang-analyzer-core.NonNullParamChecker,
-  clang-analyzer-core.NullDereference,
+  bugprone-*,
+  clang-analyzer-*,
+  performance-*,
+  portability-*,
+  concurrency-*,
+  cert-*,
+  misc-*,
+  readability-implicit-bool-conversion,
+  readability-misleading-indentation,
+  readability-simplify-boolean-expr,
+  -readability-braces-around-statements,
+  -readability-identifier-naming,
+  -readability-magic-numbers,
+  -readability-function-size,
+  -readability-identifier-length,
+  -readability-inconsistent-declaration-parameter-name,
+  -readability-non-const-parameter,
+  -readability-redundant-control-flow,
+  -misc-unused-parameters,
+  -misc-include-cleaner,
+  -misc-no-recursion,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-reserved-identifier,
+  -bugprone-assignment-in-if-condition,
+  -bugprone-narrowing-conversions,
+  -bugprone-implicit-widening-of-multiplication-result,
+  -cert-err33-c,
+  -cert-err34-c,
+  -cert-dcl03-c,
+  -cert-dcl37-c,
+  -cert-dcl51-cpp,
+  -cppcoreguidelines-avoid-goto,
+  -cppcoreguidelines-init-variables,
+  -cppcoreguidelines-narrowing-conversions,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -cppcoreguidelines-no-malloc,
+  -hicpp-signed-bitwise,
   -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling
 
-# Header filter - analyze our code, not system headers  
-HeaderFilterRegex: '(clients|server|shared)/.*\.(h|hpp)$'
+# Header filter - analyze our code, not system headers
+HeaderFilterRegex: '(clients|server|shared|tests)/.*\.(h|hpp)$'
 
 # Analysis modes for system-level code
 FormatStyle: file
 
-# Warnings as errors for critical security issues only
+# Warnings as errors for critical security and concurrency issues
 WarningsAsErrors: >
   bugprone-use-after-free,
   bugprone-buffer-overrun,
-  clang-analyzer-security.insecureAPI.strcpy
+  bugprone-infinite-loop,
+  clang-analyzer-security.insecureAPI.strcpy,
+  clang-analyzer-core.NullDereference,
+  concurrency-*
+
+# Configure specific checks for embedded/system programming
+CheckOptions:
+  # Allow longer functions for system code (driver init, etc.)
+  - key: readability-function-size.LineThreshold
+    value: '200'
+  - key: readability-function-size.StatementThreshold
+    value: '80'
+
+  # Allow common system programming types without const
+  - key: performance-unnecessary-value-param.AllowedTypes
+    value: 'Driver;Screen;Client;Widget;MenuItem'
+
+  # Naming conventions for LCDproc codebase
+  - key: readability-identifier-naming.FunctionCase
+    value: 'lower_case'
+  - key: readability-identifier-naming.VariableCase
+    value: 'lower_case'
+  - key: readability-identifier-naming.ParameterCase
+    value: 'lower_case'
+  - key: readability-identifier-naming.StructCase
+    value: 'CamelCase'
+  - key: readability-identifier-naming.EnumCase
+    value: 'CamelCase'
+  - key: readability-identifier-naming.MacroCase
+    value: 'UPPER_CASE'
+
+  # Concurrency settings (critical for LCDproc multi-client support)
+  # FunctionSet 'posix' checks against POSIX thread-unsafe functions
+  # glibc-specific thread-safe functions (readdir, dlerror) are marked with NOLINTNEXTLINE
+  - key: concurrency-mt-unsafe.FunctionSet
+    value: 'posix'
+
+  # Performance tuning
+  - key: performance-move-const-arg.CheckTriviallyCopyableMove
+    value: 'false'
+
+  # Portability settings
+  - key: portability-simd-intrinsics.Suggest
+    value: 'false'

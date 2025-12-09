@@ -1,16 +1,43 @@
-/** \file clients/lcdproc/machine_Linux.c
- * Collects system information on Linux.
+// SPDX-License-Identifier: GPL-2.0+
+
+/**
+ * \file clients/lcdproc/machine.c
+ * \brief System information collection implementation for lcdproc client
+ * \author William Ferrell, Selene Scriven, n0vedad
+ * \date 1999-2025
+ *
+ * \features
+ * - CPU load monitoring (single and SMP)
+ * - Memory and swap usage statistics
+ * - Filesystem and mount point information
+ * - Battery status monitoring via APM
+ * - Process information and memory usage
+ * - Network interface statistics
+ * - System uptime and load average
+ * - Support for both traditional and modern Linux features
+ * - Uses /proc filesystem for most system information
+ * - Supports both getloadavg() and /proc/loadavg for load averages
+ * - Handles various filesystem types and statistics methods
+ * - Provides fallback mechanisms for missing features
+ *
+ * \usage
+ * - Called by lcdproc client for system information retrieval
+ * - Provides abstraction layer for Linux system monitoring
+ * - Supports both single and SMP CPU configurations
+ * - Handles filesystem statistics and battery monitoring
+ * - Used internally by various lcdproc display screens
+ *
+ * \details
+ * This file implements Linux-specific system information collection
+ * functions for the lcdproc client. It interfaces with the Linux /proc filesystem
+ * to gather various system metrics including CPU load, memory usage, filesystem
+ * statistics, process information, and network interface data.
  */
 
-/*-
- * This file is part of lcdproc, the lcdproc client.
- *
- * This file is released under the GNU General Public License.
- * Refer to the COPYING file distributed with this package.
- *
- * Copyright (C) 2025 n0vedad <https://github.com/n0vedad/>
- * 2025-08-31 remove non-linux support
- */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#include "shared/posix_wrappers.h"
+#endif
 
 #include <ctype.h>
 #include <dirent.h>
@@ -21,14 +48,11 @@
 #include <string.h>
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/statfs.h>
 #include <sys/statvfs.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
 #include <unistd.h>
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
 
 #if TIME_WITH_SYS_TIME
 #include <sys/time.h>
@@ -41,6 +65,7 @@
 #endif
 #endif
 
+/** \brief Enable getloadavg() if available on this platform */
 #ifdef HAVE_GETLOADAVG
 #define USE_GETLOADAVG
 #endif
@@ -62,19 +87,43 @@
 #include "machine.h"
 #include "main.h"
 #include "mode.h"
+#include "shared/posix_wrappers.h"
+
 #include "shared/LL.h"
+#include "shared/posix_wrappers.h"
 #include "shared/report.h"
 
-static int batt_fd;
-static int load_fd;
-static int loadavg_fd;
-static int meminfo_fd;
-static int uptime_fd;
+/** \name /proc File Descriptors
+ * Cached file descriptors for reading system statistics from /proc
+ */
+///@{
+static int batt_fd;    ///< Battery status file descriptor
+static int load_fd;    ///< CPU load file descriptor
+static int loadavg_fd; ///< Load average file descriptor
+static int meminfo_fd; ///< Memory info file descriptor
+static int uptime_fd;  ///< Uptime file descriptor
+///@}
 
-static char procbuf[1024]; /* TODO ugly hack! */
+/**
+ * \todo Replace procbuf with dynamic allocation or per-function buffers.
+ *
+ * Static global buffer procbuf[1024] is shared across multiple functions for /proc file parsing.
+ * This is an unclean solution that can lead to:
+ * - Buffer overflows if /proc files exceed 1024 bytes
+ * - Reentrancy issues if functions using procbuf are called concurrently
+ * - Code coupling - multiple functions depend on the same global buffer
+ *
+ * Recommended fix: Replace with either dynamic allocation (malloc/free) per function call
+ * or per-function local buffers sized appropriately.
+ *
+ * Impact: Security, thread safety, code quality
+ *
+ * \ingroup ToDo_medium
+ */
+static char procbuf[1024]; ///< Shared buffer for /proc file parsing (ugly hack!)
+static FILE *mtab_fd;	   ///< Mount table file handle
 
-static FILE *mtab_fd;
-
+// Initialize machine-specific subsystems and open proc files
 int machine_init(void)
 {
 	uptime_fd = -1;
@@ -120,7 +169,6 @@ int machine_init(void)
 	if (batt_fd < 0) {
 		batt_fd = open("/proc/apm", O_RDONLY);
 		if (batt_fd < 0) {
-			/* allow opening /proc/apm to fail */
 			batt_fd = -1;
 		}
 	}
@@ -128,6 +176,7 @@ int machine_init(void)
 	return (TRUE);
 }
 
+// Clean up machine-specific resources and close open files
 int machine_close(void)
 {
 	if (batt_fd >= 0)
@@ -155,6 +204,14 @@ int machine_close(void)
 	return (TRUE);
 }
 
+/**
+ * \brief Reread data from /proc file into buffer
+ * \param f File descriptor of open /proc file
+ * \param errmsg Error message to display on failure
+ *
+ * \details Seeks to beginning and reads entire file into procbuf.
+ * Exits program with perror() if seek or read fails.
+ */
 static void reread(int f, char *errmsg)
 {
 	if (lseek(f, 0L, 0) == 0 && read(f, procbuf, sizeof(procbuf) - 1) > 0)
@@ -163,12 +220,24 @@ static void reread(int f, char *errmsg)
 	exit(1);
 }
 
+/**
+ * \brief Extract tagged numeric value from /proc buffer
+ * \param tag Tag name to search for (e.g., "MemTotal:")
+ * \param bufptr Buffer containing /proc file contents
+ * \param value Output pointer for parsed numeric value
+ * \retval 1 Tag found and value extracted
+ * \retval 0 Tag not found
+ *
+ * \details Searches for tag in buffer and parses following numeric value using strtol().
+ */
 static int getentry(const char *tag, const char *bufptr, long *value)
 {
 	char *tail;
 	int len = strlen(tag);
 	long val;
 
+	// Parse /proc file line by line: find tag prefix, extract integer value with validation,
+	// return success or failure
 	while (bufptr != NULL) {
 		if (*bufptr == '\n')
 			bufptr++;
@@ -183,15 +252,16 @@ static int getentry(const char *tag, const char *bufptr, long *value)
 		}
 		bufptr = strchr(bufptr, '\n');
 	}
+
 	return FALSE;
 }
 
+// Get battery status information from APM
 int machine_get_battstat(int *acstat, int *battflag, int *percent)
 {
 	char str[64];
 	int battstat;
 
-	/* no battery status available: fake one ;-) */
 	if (batt_fd < 0) {
 		*acstat = LCDP_AC_ON;
 		*battflag = LCDP_BATT_ABSENT;
@@ -199,15 +269,19 @@ int machine_get_battstat(int *acstat, int *battflag, int *percent)
 		return (TRUE);
 	}
 
+	// Rewind /proc/apm file to beginning for fresh read
 	if (lseek(batt_fd, 0, 0) != 0)
 		return (FALSE);
 
+	// Read APM battery status from /proc/apm into buffer
 	if (read(batt_fd, str, sizeof(str) - 1) < 0)
 		return (FALSE);
 
+	// Parse APM status: skip first 13 chars, read hex values and percentage
 	if (3 > sscanf(str + 13, "0x%x 0x%x 0x%x %d", acstat, &battstat, battflag, percent))
 		return (FALSE);
 
+	// Translate APM battery flags to lcdproc constants
 	if (*battflag == 0xff)
 		*battflag = LCDP_BATT_UNKNOWN;
 	else {
@@ -223,16 +297,25 @@ int machine_get_battstat(int *acstat, int *battflag, int *percent)
 			*battflag = LCDP_BATT_ABSENT;
 	}
 
+	// Translate APM AC adapter status to lcdproc constants
 	switch (*acstat) {
+
+	// APM reports no AC power
 	case 0:
 		*acstat = LCDP_AC_OFF;
 		break;
+
+	// APM reports AC power connected
 	case 1:
 		*acstat = LCDP_AC_ON;
 		break;
+
+	// APM reports backup power source
 	case 2:
 		*acstat = LCDP_AC_BACKUP;
 		break;
+
+	// APM reports unknown or invalid AC status
 	default:
 		*acstat = LCDP_AC_UNKNOWN;
 		break;
@@ -241,6 +324,7 @@ int machine_get_battstat(int *acstat, int *battflag, int *percent)
 	return (TRUE);
 }
 
+// Get filesystem statistics for all mounted filesystems
 int machine_get_fs(mounts_type fs[], int *cnt)
 {
 #ifdef STAT_STATVFS
@@ -249,15 +333,15 @@ int machine_get_fs(mounts_type fs[], int *cnt)
 	struct statfs fsinfo;
 #endif
 	char line[256];
-	int x = 0, err;
+	int x = 0;
+	int err;
 
 #ifdef MTAB_FILE
 	mtab_fd = fopen(MTAB_FILE, "r");
 #else
-#error "Can't find your mounted filesystem table file."
+	mtab_fd = fopen("/proc/mounts", "r");
 #endif
 
-	/* Get rid of old, unmounted filesystems... */
 	memset(fs, 0, sizeof(mounts_type) * 256);
 
 	if (mtab_fd == NULL) {
@@ -270,14 +354,17 @@ int machine_get_fs(mounts_type fs[], int *cnt)
 
 		sscanf(line, "%s %s %s", fs[x].dev, fs[x].mpoint, fs[x].type);
 
-		if (strcmp(fs[x].type, "proc") && strcmp(fs[x].type, "tmpfs")
+		if (strcmp(fs[x].type, "proc") != 0 && strcmp(fs[x].type, "tmpfs") != 0
+
 #ifndef STAT_NFS
-		    && strcmp(fs[x].type, "nfs")
+		    && strcmp(fs[x].type, "nfs") != 0
 #endif
+
 #ifndef STAT_SMBFS
-		    && strcmp(fs[x].type, "smbfs")
+		    && strcmp(fs[x].type, "smbfs") != 0
 #endif
 		) {
+
 #ifdef STAT_STATVFS
 			err = statvfs(fs[x].mpoint, &fsinfo);
 #elif STAT_STATFS2_BSIZE
@@ -285,14 +372,18 @@ int machine_get_fs(mounts_type fs[], int *cnt)
 #elif STAT_STATFS4
 			err = statfs(fs[x].mpoint, &fsinfo, sizeof(fsinfo), 0);
 #else
-#error "statfs for this system not yet supported"
+			err = statfs(fs[x].mpoint, &fsinfo);
 #endif
+
 			if (err < 0) {
-				debug(RPT_INFO, "statvfs(%s): %s", fs[x].mpoint, strerror(errno));
+				char err_buf[256];
+				strerror_r(errno, err_buf, sizeof(err_buf));
+				debug(RPT_INFO, "statvfs(%s): %s", fs[x].mpoint, err_buf);
 				continue;
 			}
 
 			fs[x].blocks = fsinfo.f_blocks;
+
 			if (fs[x].blocks > 0) {
 				fs[x].bsize = fsinfo.f_bsize;
 				fs[x].bfree = fsinfo.f_bfree;
@@ -308,6 +399,7 @@ int machine_get_fs(mounts_type fs[], int *cnt)
 	return (TRUE);
 }
 
+// Get CPU load statistics for single-processor systems
 int machine_get_load(load_type *curr_load)
 {
 	static load_type last_load = {0, 0, 0, 0, 0};
@@ -317,16 +409,11 @@ int machine_get_load(load_type *curr_load)
 
 	reread(load_fd, "get_load");
 
-	ret = sscanf(procbuf,
-		     "cpu %lu %lu %lu %lu %lu %lu %lu",
-		     &load.user,
-		     &load.nice,
-		     &load.system,
-		     &load.idle,
-		     &load_iowait,
-		     &load_irq,
-		     &load_softirq);
+	// Parse CPU line: "cpu user nice system idle iowait irq softirq"
+	ret = sscanf(procbuf, "cpu %lu %lu %lu %lu %lu %lu %lu", &load.user, &load.nice,
+		     &load.system, &load.idle, &load_iowait, &load_irq, &load_softirq);
 
+	// Merge modern kernel extensions into existing categories
 	if (ret >= 5)
 		load.idle += load_iowait;
 	if (ret >= 6)
@@ -336,25 +423,39 @@ int machine_get_load(load_type *curr_load)
 
 	load.total = load.user + load.nice + load.system + load.idle;
 
+	// Calculate deltas for percentage calculation
 	curr_load->user = load.user - last_load.user;
 	curr_load->nice = load.nice - last_load.nice;
 	curr_load->system = load.system - last_load.system;
 	curr_load->idle = load.idle - last_load.idle;
 	curr_load->total = load.total - last_load.total;
 
-	/* struct assignment is legal in C89 */
 	last_load = load;
 
 	return (TRUE);
 }
 
+// Get system load average (1-minute average)
 int machine_get_loadavg(double *load)
 {
 #ifdef USE_GETLOADAVG
 	double loadavg[LOADAVG_NSTATS];
 
 	if (getloadavg(loadavg, LOADAVG_NSTATS) <= LOADAVG_1MIN) {
-		perror("getloadavg"); /* ToDo: correct error reporting */
+
+		/**
+		 * \todo Replace perror() with report() for consistent error handling.
+		 *
+		 * Current implementation uses primitive perror("getloadavg") which outputs
+		 * directly to stderr. Should use LCDproc's report(RPT_ERR, ...) function
+		 * for consistency with the rest of the codebase and proper log routing.
+		 *
+		 * Impact: Error handling consistency, logging uniformity
+		 *
+		 * \ingroup ToDo_medium
+		 */
+
+		perror("getloadavg");
 		return (FALSE);
 	}
 	*load = loadavg[LOADAVG_1MIN];
@@ -365,25 +466,30 @@ int machine_get_loadavg(double *load)
 	return (TRUE);
 }
 
+// Get memory and swap usage statistics
 int machine_get_meminfo(meminfo_type *result)
 {
 	long tmp;
 
 	reread(meminfo_fd, "get_meminfo");
+
+	// Extract RAM memory statistics (index 0 = RAM)
 	result[0].total = (getentry("MemTotal:", procbuf, &tmp) == TRUE) ? tmp : 0L;
 	result[0].free = (getentry("MemFree:", procbuf, &tmp) == TRUE) ? tmp : 0L;
 	result[0].shared = (getentry("MemShared:", procbuf, &tmp) == TRUE) ? tmp : 0L;
 	result[0].buffers = (getentry("Buffers:", procbuf, &tmp) == TRUE) ? tmp : 0L;
 	result[0].cache = (getentry("Cached:", procbuf, &tmp) == TRUE) ? tmp : 0L;
+
+	// Extract swap space statistics (index 1 = swap)
 	result[1].total = (getentry("SwapTotal:", procbuf, &tmp) == TRUE) ? tmp : 0L;
 	result[1].free = (getentry("SwapFree:", procbuf, &tmp) == TRUE) ? tmp : 0L;
 
 	return (TRUE);
 }
 
+// Get process memory usage information for top memory consumers
 int machine_get_procs(LinkedList *procs)
 {
-	/* Much of this code was ripped from "gmemusage" */
 	DIR *proc;
 	FILE *StatusFile;
 	struct dirent *procdir;
@@ -395,56 +501,66 @@ int machine_get_procs(LinkedList *procs)
 	const int NameLineLen = strlen(NameLine), VmSizeLineLen = strlen(VmSizeLine),
 		  VmDataLineLen = strlen(VmDataLine), VmStkLineLen = strlen(VmStkLine),
 		  VmExeLineLen = strlen(VmExeLine), VmRSSLineLen = strlen(VmRSSLine);
+
+	// Memory threshold: only track processes using >400KB
 	int threshold = 400, unique;
 
 	if ((proc = opendir("/proc")) == NULL) {
-		/* ToDo: correct error reporting */
+
+		/**
+		 * \todo Replace perror() with report() for consistent error handling in
+		 * mem_top_screen
+		 *
+		 * Current implementation uses primitive perror("mem_top_screen: unable to open
+		 * /proc") which outputs directly to stderr. Should use LCDproc's report(RPT_ERR,
+		 * ...) function for consistency with the rest of the codebase and proper log
+		 * routing.
+		 *
+		 * Impact: Error handling consistency, logging uniformity
+		 *
+		 * \ingroup ToDo_medium
+		 */
+
 		perror("mem_top_screen: unable to open /proc");
 		return (FALSE);
 	}
 
-	while ((procdir = readdir(proc))) {
+	// Iterate /proc directory entries: filter numeric PIDs, parse /proc/[pid]/status for memory
+	// stats, aggregate process memory usage
+	// readdir() is thread-safe on Linux (glibc uses per-DIR lock for different directory
+	// streams)
+	while ((procdir = safe_readdir(proc))) {
 		char buf[128];
 
-		/* ignore everything in proc except process ids */
 		if (!strchr("1234567890", procdir->d_name[0]))
 			continue;
 
 		sprintf(buf, "/proc/%s/status", procdir->d_name);
 		if ((StatusFile = fopen(buf, "r")) == NULL) {
-			/*
-			 * Not a serious error; process has finished before
-			 * we could examine it:
-			 */
 			continue;
 		}
 
 		procRSS = procSize = procData = procStk = procExe = 0;
 		while (fgets(buf, sizeof(buf), StatusFile)) {
 			if (!strncmp(buf, NameLine, NameLineLen)) {
-				/* Name: procName */
 				sscanf(buf, "%*s %s", procName);
 			} else if (!strncmp(buf, VmSizeLine, VmSizeLineLen)) {
-				/* VmSize: procSize kB */
 				sscanf(buf, "%*s %d", &procSize);
 			} else if (!strncmp(buf, VmRSSLine, VmRSSLineLen)) {
-				/* VmRSS: procRSS kB */
 				sscanf(buf, "%*s %d", &procRSS);
 			} else if (!strncmp(buf, VmDataLine, VmDataLineLen)) {
-				/* VmData: procData kB */
 				sscanf(buf, "%*s %d", &procData);
 			} else if (!strncmp(buf, VmStkLine, VmStkLineLen)) {
-				/* VmStk: procStk kB */
 				sscanf(buf, "%*s %d", &procStk);
 			} else if (!strncmp(buf, VmExeLine, VmExeLineLen)) {
-				/* VmExe: procExe kB */
 				sscanf(buf, "%*s %d", &procExe);
 			}
 		}
 		fclose(StatusFile);
 
+		// Add process to list if above threshold: merge with existing entry or create new
+		// one
 		if (procSize > threshold) {
-			/* Figure out if it's sharing any memory... */
 			unique = 1;
 			LL_Rewind(procs);
 			do {
@@ -457,7 +573,6 @@ int machine_get_procs(LinkedList *procs)
 				}
 			} while (LL_Next(procs) == 0);
 
-			/* If this is the first one by this name... */
 			if (unique) {
 				procinfo_type *p = malloc(sizeof(procinfo_type));
 				if (p == NULL) {
@@ -468,7 +583,19 @@ int machine_get_procs(LinkedList *procs)
 				p->name[sizeof(p->name) - 1] = '\0';
 				p->totl = procData + procStk + procExe;
 				p->number = 1;
-				/* TODO:  Check for errors here? */
+
+				/**
+				 * \todo Check for errors when pushing processes to linked list
+				 *
+				 * Missing error handling when pushing processes to linked list in
+				 * Linux-specific code. The LL_Push() operation may fail, but errors
+				 * are currently not checked or handled.
+				 *
+				 * Impact: Robustness
+				 *
+				 * \ingroup ToDo_medium
+				 */
+
 				LL_Push(procs, (void *)p);
 			}
 		}
@@ -478,6 +605,7 @@ int machine_get_procs(LinkedList *procs)
 	return (TRUE);
 }
 
+// Get CPU load statistics for multi-processor (SMP) systems
 int machine_get_smpload(load_type *result, int *numcpus)
 {
 	char *token;
@@ -489,20 +617,17 @@ int machine_get_smpload(load_type *result, int *numcpus)
 
 	reread(load_fd, "get_load");
 
-	/* Look for lines starting with "cpu0", "cpu1", etc. */
-	token = strtok(procbuf, "\n");
+	// Parse per-CPU lines: "cpu0", "cpu1", "cpu2", etc.
+	char *saveptr;
+	token = strtok_r(procbuf, "\n", &saveptr);
 	while (token != NULL) {
 		if ((strlen(token) > 3) && (!strncmp(token, "cpu", 3)) && isdigit(token[3])) {
-			ret = sscanf(token,
-				     "cpu%*d %lu %lu %lu %lu %lu %lu %lu",
-				     &curr_load[ncpu].user,
-				     &curr_load[ncpu].nice,
-				     &curr_load[ncpu].system,
-				     &curr_load[ncpu].idle,
-				     &load_iowait,
-				     &load_irq,
-				     &load_softirq);
+			ret = sscanf(token, "cpu%*d %lu %lu %lu %lu %lu %lu %lu",
+				     &curr_load[ncpu].user, &curr_load[ncpu].nice,
+				     &curr_load[ncpu].system, &curr_load[ncpu].idle, &load_iowait,
+				     &load_irq, &load_softirq);
 
+			// Merge modern kernel extensions
 			if (ret >= 5)
 				curr_load[ncpu].idle += load_iowait;
 			if (ret >= 6)
@@ -513,53 +638,52 @@ int machine_get_smpload(load_type *result, int *numcpus)
 			curr_load[ncpu].total = curr_load[ncpu].user + curr_load[ncpu].nice +
 						curr_load[ncpu].system + curr_load[ncpu].idle;
 
+			// Calculate deltas for percentage calculation
 			result[ncpu].total = curr_load[ncpu].total - last_load[ncpu].total;
 			result[ncpu].user = curr_load[ncpu].user - last_load[ncpu].user;
 			result[ncpu].nice = curr_load[ncpu].nice - last_load[ncpu].nice;
 			result[ncpu].system = curr_load[ncpu].system - last_load[ncpu].system;
 			result[ncpu].idle = curr_load[ncpu].idle - last_load[ncpu].idle;
 
-			/* struct assignment is legal in C89 */
 			last_load[ncpu] = curr_load[ncpu];
 
-			/* restrict # CPUs to min(*numcpus, MAX_CPUS) */
 			ncpu++;
 			if ((ncpu >= *numcpus) || (ncpu >= MAX_CPUS))
 				break;
 		}
-		token = strtok(NULL, "\n");
+		token = strtok_r(NULL, "\n", &saveptr);
 	}
 	*numcpus = ncpu;
 
 	return (TRUE);
 }
 
+// Get system uptime and idle time statistics
 int machine_get_uptime(double *up, double *idle)
 {
 	double local_up, local_idle;
 
 	reread(uptime_fd, "get_uptime");
 	sscanf(procbuf, "%lf %lf", &local_up, &local_idle);
+
 	if (up != NULL)
 		*up = local_up;
+
 	if (idle != NULL)
 		*idle = (local_up != 0) ? 100 * local_idle / local_up : 100;
 
 	return (TRUE);
 }
 
+// Get network interface statistics
 int machine_get_iface_stats(IfaceInfo *interface)
 {
-	FILE *file;		   /* file handler */
-	char buffer[1024];	   /* buffer to work with the file */
-	static int first_time = 1; /* is it first time we call this
-				    * function? */
-	char *ch_pointer = NULL;   /* pointer to where interface values are in
-				    * file */
+	FILE *file;
+	char buffer[1024];
+	static int first_time = 1;
+	char *ch_pointer = NULL;
 
-	/* Open the file in read-only mode and parse */
 	if ((file = fopen("/proc/net/dev", "r")) != NULL) {
-		/* Skip first 2 header lines of file */
 		if (fgets(buffer, sizeof(buffer), file) == NULL) {
 			fclose(file);
 			return -1;
@@ -569,55 +693,39 @@ int machine_get_iface_stats(IfaceInfo *interface)
 			return -1;
 		}
 
-		/* By default, treat interface as down */
 		interface->status = down;
 
-		/* Search iface_name and scan values */
+		// Parse /proc/net/dev for interface stats: find matching interface line, extract
+		// rx/tx bytes and packets, initialize baseline on first call
 		while ((fgets(buffer, sizeof(buffer), file) != NULL)) {
 			if (strstr(buffer, interface->name)) {
-				/* interface exists */
-				interface->status = up;		     /* is up */
-				interface->last_online = time(NULL); /* save actual time */
+				interface->status = up;
+				interface->last_online = time(NULL);
 
-				/* search ':' and skip over it */
 				ch_pointer = strchr(buffer, ':');
 				ch_pointer++;
 
-				/*
-				 * Now ch_pointer points to values of
-				 * iface_name
-				 */
-				/* Scan values from here */
-				sscanf(ch_pointer,
-				       "%lf %lf %*s %*s %*s %*s %*s %*s %lf %lf",
-				       &interface->rc_byte,
-				       &interface->rc_pkt,
-				       &interface->tr_byte,
+				// Parse: rx_bytes rx_packets ... tx_bytes tx_packets
+				sscanf(ch_pointer, "%lf %lf %*s %*s %*s %*s %*s %*s %lf %lf",
+				       &interface->rc_byte, &interface->rc_pkt, &interface->tr_byte,
 				       &interface->tr_pkt);
 
-				/*
-				 * if is the first time we call this
-				 * function, old values are the same as new
-				 * so we don't get big speeds when
-				 * calculating
-				 */
+				// Initialize old values on first call to prevent spikes
 				if (first_time) {
 					interface->rc_byte_old = interface->rc_byte;
 					interface->tr_byte_old = interface->tr_byte;
 					interface->rc_pkt_old = interface->rc_pkt;
 					interface->tr_pkt_old = interface->tr_pkt;
-					first_time = 0; /* now it isn't first
-							 * time */
+					first_time = 0;
 				}
 			}
 		}
 
 		fclose(file);
 		return (TRUE);
-	} else { /* error when opening the file */
+
+	} else {
 		perror("Error: Could not open DEVFILE");
 		return (FALSE);
 	}
 }
-
-/* End of Linux x86_64 implementation */

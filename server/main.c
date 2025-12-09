@@ -1,27 +1,46 @@
-/** \file server/main.c
- * Contains main(), plus signal callback functions and a help screen.
+// SPDX-License-Identifier: GPL-2.0+
+
+/**
+ * \file server/main.c
+ * \brief Main server entry point and initialization
+ * \author William Ferrell
+ * \author Selene Scriven
+ * \author Joris Robijn
+ * \author Rene Wagner
+ * \author Mike Patnode
+ * \author Guillaume Filion
+ * \author Peter Marschall
+ * \date 1999-2006
  *
- * Program init, command-line handling, and the main loop are
- * implemented here.  Also, minimal data about the program such as
- * the revision number.
+ * \features
+ * - Program initialization and main event loop
+ * - Command-line argument processing
+ * - Configuration file parsing
+ * - Signal handling for clean shutdown and reload
+ * - Daemon mode with parent-child communication
+ * - Privilege dropping for security
+ * - Driver initialization and management
+ * - Network socket initialization
+ * - Screen rendering and client polling
+ * - Server screen rotation and timing control
  *
- * Some of this stuff should probably be move elsewhere eventually,
- * such as command-line handling and the main loop.  main() is supposed
- * to be "dumb".
+ * \usage
+ * - Entry point for LCDd server daemon
+ * - Processes command-line options and config file
+ * - Initializes all server subsystems in correct order
+ * - Runs main loop for rendering and input processing
+ * - Handles reload signals (SIGHUP) for config changes
+ * - Implements clean shutdown on termination signals
+ *
+ * \details Contains main(), plus signal callback functions and a help screen.
+ * Program init, command-line handling, and the main loop are implemented here.
+ * Also contains minimal data about the program such as the revision number.
  */
 
-/* This file is part of LCDd, the lcdproc server.
- *
- * This file is released under the GNU General Public License.
- * Refer to the COPYING file distributed with this package.
- *
- * Copyright (c) 1999, William Ferrell, Selene Scriven
- *		 2001, Joris Robijn
- *               2001, Rene Wagner
- *               2002, Mike Patnode
- *               2002, Guillaume Filion
- *               2005-2006, Peter Marschall (cleanup)
- */
+/** \brief Enable POSIX.1-2008 functions */
+#define _POSIX_C_SOURCE 200809L
+/** \brief Enable BSD and SVID functions */
+#define _DEFAULT_SOURCE
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -43,14 +62,28 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "getopt.h"
+#include <popt.h>
 
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-/* TODO: fill in what to include otherwise */
+
+/**
+ * \todo Fill in what to include for systems without sys/time.h
+ *
+ * Incomplete include statements for platforms where sys/time.h is not available.
+ * Platform-specific missing header files need to be determined for systems like
+ * Windows, legacy Unix systems, or embedded platforms that don't provide sys/time.h.
+ *
+ * Need to add conditional includes based on configure-detected availability.
+ *
+ * Impact: Portability, compilability on non-POSIX systems
+ *
+ * \ingroup ToDo_critical
+ */
 
 #include "shared/defines.h"
+#include "shared/environment.h"
 #include "shared/report.h"
 
 #include "clients.h"
@@ -70,75 +103,93 @@
 #define SYSCONFDIR "/etc"
 #endif
 
+/** \brief Default server bind address */
 #define DEFAULT_BIND_ADDR "127.0.0.1"
+/** \brief Default server bind port */
 #define DEFAULT_BIND_PORT LCDPORT
+/** \brief Default configuration file path */
 #define DEFAULT_CONFIGFILE SYSCONFDIR "/LCDd.conf"
+/** \brief Default user for privilege dropping */
 #define DEFAULT_USER "nobody"
+/** \brief Default LCD driver */
 #define DEFAULT_DRIVER "curses"
-#define DEFAULT_DRIVER_PATH "" /* not needed */
+/** \brief Default driver search path */
+#define DEFAULT_DRIVER_PATH ""
+/** \brief Maximum number of drivers that can be loaded */
 #define MAX_DRIVERS 8
+/** \brief Default foreground mode (0 = daemon, 1 = foreground) */
 #define DEFAULT_FOREGROUND_MODE 0
+/** \brief Default server screen rotation setting */
 #define DEFAULT_ROTATE_SERVER_SCREEN SERVERSCREEN_ON
+/** \brief Default report destination */
 #define DEFAULT_REPORTDEST RPT_DEST_STDERR
+/** \brief Default report level */
 #define DEFAULT_REPORTLEVEL RPT_WARNING
 
+/** \brief Default frame refresh interval in microseconds (125ms) */
 #define DEFAULT_FRAME_INTERVAL 125000
+/** \brief Default screen duration in frame intervals */
 #define DEFAULT_SCREEN_DURATION 32
+/** \brief Default backlight setting */
 #define DEFAULT_BACKLIGHT BACKLIGHT_OPEN
+/** \brief Default heartbeat setting */
 #define DEFAULT_HEARTBEAT HEARTBEAT_OPEN
+/** \brief Default title scroll speed */
 #define DEFAULT_TITLESPEED TITLESPEED_MAX
+/** \brief Default auto-rotation setting */
 #define DEFAULT_AUTOROTATE AUTOROTATE_ON
 
-/* Socket to bind to...
-
-   Using loopback is much more secure; it means that this port is
-   accessible only to programs running locally on the same host as LCDd.
-
-   Using variables for these means that (later) we can select which port
-   and which address to bind to at run time. */
-
-/* Store some standard defines into vars... */
-char *version = VERSION;
-char *protocol_version = PROTOCOL_VERSION;
-char *api_version = API_VERSION;
-
-/**** Configuration variables ****/
-/* Some variables are settable on the command line. This are variables that
- * change the mode of operation. This includes settings that you can use to
- * enable debugging: driver selection, report settings, bind address etc.
- * These variables should be in main.h and main.c (below).
- *
- * All other settings do not need to be settable from the command line. They
- * also do not necesarily need to be read in main.c but can better be read in
- * in the file concerned.
+/** \name Version Information
+ * Version strings for server, protocol, and API
  */
+///@{
+char *version = VERSION;		   ///< LCDd server version string
+char *protocol_version = PROTOCOL_VERSION; ///< Client-server protocol version
+char *api_version = API_VERSION;	   ///< Driver API version
+///@}
 
-unsigned int bind_port = UNSET_INT;
-char bind_addr[64];   /* Do not preinit these strings as they will occupy */
-char configfile[256]; /* a lot of space in the executable. */
-char user[64];	      /* The values will be overwritten anyway... */
+/** \name Network Configuration
+ * Server network binding settings
+ */
+///@{
+unsigned int bind_port = UNSET_INT; ///< TCP port for client connections
+char bind_addr[64];		    ///< Bind address (IP or hostname)
+///@}
 
-int frame_interval = DEFAULT_FRAME_INTERVAL;
+/** \name File Paths and User
+ * Configuration file path and privilege dropping user
+ */
+///@{
+char configfile[256]; ///< Path to LCDd.conf configuration file
+char user[64];	      ///< User name for privilege dropping
+///@}
 
-/* The drivers and their driver parameters */
-char *drivernames[MAX_DRIVERS];
-int num_drivers = 0;
+int frame_interval = DEFAULT_FRAME_INTERVAL; ///< Frame refresh interval in microseconds
 
-/* End of configuration variables */
+/** \name Driver Management
+ * Driver loading and initialization state
+ */
+///@{
+char *drivernames[MAX_DRIVERS]; ///< Array of driver names to load
+int num_drivers = 0;		///< Number of drivers configured
+///@}
 
-/* Local variables */
-static int foreground_mode = UNSET_INT;
-static int report_dest = UNSET_INT;
-static int report_level = UNSET_INT;
+/** \name Runtime State Variables
+ * Internal state for daemon operation and signal handling
+ */
+///@{
+static int foreground_mode = UNSET_INT;	     ///< Run in foreground (1) or daemon (0)
+static int report_dest = UNSET_INT;	     ///< Logging destination (stderr/syslog)
+static int report_level = UNSET_INT;	     ///< Logging verbosity level
+static int stored_argc;			     ///< Stored argc for config reload
+static char **stored_argv;		     ///< Stored argv for config reload
+static volatile short got_reload_signal = 0; ///< SIGHUP reload signal received flag
+///@}
 
-static int stored_argc;
-static char **stored_argv;
-static volatile short got_reload_signal = 0;
+long timer = 0; ///< Main loop timer counter (incremented each frame)
 
-/* Local exported variables */
-long timer = 0;
-
-/**** Local functions ****/
+// Internal function declarations for initialization, signal handling, daemon mode, and runtime
+// control
 static void clear_settings(void);
 static int process_command_line(int argc, char **argv);
 static int process_configfile(char *cfgfile);
@@ -157,20 +208,41 @@ static int interpret_boolean_arg(char *s);
 static void output_help_screen(void);
 static void output_GPL_notice(void);
 
+/**
+ * \brief Chain function calls with error checking
+ * \details Only execute function if no previous error occurred (e >= 0).
+ * Allows clean error propagation through initialization chains.
+ */
 #define CHAIN(e, f)                                                                                \
 	{                                                                                          \
-		if (e >= 0) {                                                                      \
-			e = (f);                                                                   \
+		if ((e) >= 0) {                                                                    \
+			(e) = (f);                                                                 \
 		}                                                                                  \
 	}
+
+/**
+ * \brief Terminate initialization chain on error
+ * \details Check if error occurred (e < 0), report critical error and exit.
+ * Used as final step in CHAIN sequences to abort on failure.
+ */
 #define CHAIN_END(e, msg)                                                                          \
 	{                                                                                          \
-		if (e < 0) {                                                                       \
+		if ((e) < 0) {                                                                     \
 			report(RPT_CRIT, (msg));                                                   \
 			exit(EXIT_FAILURE);                                                        \
 		}                                                                                  \
 	}
 
+/**
+ * \brief LCDd server main entry point
+ * \param argc Argument count
+ * \param argv Argument vector
+ * \retval 0 Normal exit
+ * \retval !=0 Error exit
+ *
+ * \details Initializes server, processes config, optionally daemonizes,
+ * initializes drivers and enters main event loop.
+ */
 int main(int argc, char **argv)
 {
 	int e = 0;
@@ -179,56 +251,30 @@ int main(int argc, char **argv)
 	stored_argc = argc;
 	stored_argv = argv;
 
-	/*
-	 * Settings in order of preference:
-	 *
-	 * 1: Settings specified in command line options...
-	 * 2: Settings specified in configuration file...
-	 * 3: Default settings
-	 *
-	 * Because of this, and because one option (-c) specifies where
-	 * the configuration file is, things are done in this order:
-	 *
-	 * 1. Read and set options.
-	 * 2. Read configuration file; if option is read in configuration
-	 *    file and not already set, then set it.
-	 * 3. Having read configuration file, if parameter is not set,
-	 *    set it to the default value.
-	 *
-	 * It is for this reason that the default values are **NOT** set
-	 * in the variable declaration...
-	 */
+	// Settings priority: 1) Command line  2) Config file  3) Defaults
+	// This order requires reading command line first, then config, then applying defaults
 
-	/* Report that server is starting (report will be delayed) */
+	env_cache_init();
+
 	report(RPT_NOTICE, "LCDd version %s starting", version);
 	report(RPT_INFO, "Protocol version %s, API version %s", protocol_version, api_version);
 
 	clear_settings();
 
-	/* Read command line*/
 	CHAIN(e, process_command_line(argc, argv));
 
-	/* Read config file
-	 * If config file was not given on command line use default */
 	if (strcmp(configfile, UNSET_STR) == 0)
 		strncpy(configfile, DEFAULT_CONFIGFILE, sizeof(configfile));
 	CHAIN(e, process_configfile(configfile));
 
-	/* Set default values*/
 	set_default_settings();
 
-	/* Set reporting settings (will also flush delayed reports) */
 	set_reporting("LCDd", report_level, report_dest);
-	report(RPT_INFO,
-	       "Set report level to %d, output to %s",
-	       report_level,
+	report(RPT_INFO, "Set report level to %d, output to %s", report_level,
 	       ((report_dest == RPT_DEST_SYSLOG) ? "syslog" : "stderr"));
 	CHAIN_END(e, "Critical error while processing settings, abort.");
 
-	/* Now, go into daemon mode (if we should)...
-	 * We wait for the child to report it is running OK. This mechanism
-	 * is used because forking after starting the drivers causes the
-	 * child to loose the (LPT) port access. */
+	// Daemon mode requires forking before driver init to preserve LPT port access
 	if (!foreground_mode) {
 		report(RPT_INFO, "Server forking to background");
 		CHAIN(e, parent_pid = daemonize());
@@ -236,10 +282,9 @@ int main(int argc, char **argv)
 		output_GPL_notice();
 		report(RPT_INFO, "Server running in foreground");
 	}
-	install_signal_handlers(!foreground_mode);
-	/* Only catch SIGHUP if not in foreground mode */
 
-	/* Startup the subparts of the server */
+	install_signal_handlers(!foreground_mode);
+
 	CHAIN(e, sock_init(bind_addr, bind_port));
 	CHAIN(e, screenlist_init());
 	CHAIN(e, init_drivers());
@@ -248,19 +293,23 @@ int main(int argc, char **argv)
 	CHAIN(e, menuscreens_init());
 	CHAIN(e, server_screen_init());
 	CHAIN_END(e, "Critical error while initializing, abort.");
+
 	if (!foreground_mode) {
-		/* Tell to parent that startup went OK. */
 		wave_to_parent(parent_pid);
 	}
-	drop_privs(user); /* This can't be done before, because sending a
-			signal to a process of a different user will fail */
 
+	drop_privs(user);
 	do_mainloop();
-	/* This loop never stops; we'll get out only with a signal...*/
 
 	return 0;
 }
 
+/**
+ * \brief Reset all configuration variables to UNSET state
+ *
+ * \details Sets all server configuration variables (ports, paths, drivers, etc.)
+ * to UNSET_INT or UNSET_STR for reinitialization.
+ */
 static void clear_settings(void)
 {
 	int i;
@@ -288,119 +337,181 @@ static void clear_settings(void)
 	num_drivers = 0;
 }
 
-/* parses arguments given on command line */
+/**
+ * \brief Parse command-line arguments
+ * \param argc Argument count
+ * \param argv Argument vector
+ * \retval 0 Success
+ * \retval -1 Error or help requested
+ *
+ * \details Parses options like -c config, -d driver, -f foreground, etc.
+ */
 static int process_command_line(int argc, char **argv)
 {
-	int c, b;
-	int e = 0, help = 0;
+	int e = 0;
+	int help = 0;
+	char *config_arg = NULL;
+	char *driver_arg = NULL;
+	char *addr_arg = NULL;
+	int port_arg = 0;
+	char *user_arg = NULL;
+	double wait_arg = 0.0;
+	char *syslog_arg = NULL;
+	int level_arg = -1;
+	char *rotate_arg = NULL;
 
 	debug(RPT_DEBUG, "%s(argc=%d, argv=...)", __FUNCTION__, argc);
 
-	/* Reset getopt */
-	opterr = 0; /* Prevent some messages to stderr */
+	// Define popt option table for thread-safe argument parsing
+	struct poptOption optionsTable[] = {
+	    {"help", 'h', POPT_ARG_NONE, &help, 0, "Display this help screen", NULL},
+	    {"config", 'c', POPT_ARG_STRING, (void *)&config_arg, 0,
+	     "Use a configuration file other than " DEFAULT_CONFIGFILE, "FILE"},
+	    {"driver", 'd', POPT_ARG_STRING, (void *)&driver_arg, 0,
+	     "Add a driver to use (overrides drivers in config file)", "DRIVER"},
+	    {"foreground", 'f', POPT_ARG_NONE, &foreground_mode, 0, "Run in the foreground", NULL},
+	    {"addr", 'a', POPT_ARG_STRING, (void *)&addr_arg, 0,
+	     "Network (IP) address to bind to [" DEFAULT_BIND_ADDR "]", "ADDRESS"},
+	    {"port", 'p', POPT_ARG_INT, &port_arg, 0, "Network port to listen for connections on",
+	     "PORT"},
+	    {"user", 'u', POPT_ARG_STRING, (void *)&user_arg, 0, "User to run as", "USER"},
+	    {"waittime", 'w', POPT_ARG_DOUBLE, &wait_arg, 0,
+	     "Time to pause at each screen (in seconds)", "SECONDS"},
+	    {"syslog", 's', POPT_ARG_STRING, (void *)&syslog_arg, 0,
+	     "If set, reporting will be done using syslog", "BOOL"},
+	    {"reportlevel", 'r', POPT_ARG_INT, &level_arg, 0, "Report level (0-5)", "LEVEL"},
+	    {"rotate", 'i', POPT_ARG_STRING, (void *)&rotate_arg, 0,
+	     "Whether to rotate the server info screen", "BOOL"},
+	    POPT_AUTOHELP POPT_TABLEEND};
 
-	/* Analyze options here.. (please try to keep list of options the
-	 * same everywhere) */
-	while ((c = getopt(argc, argv, "hc:d:fa:p:u:w:s:r:i:")) > 0) {
-		switch (c) {
-		case 'h':
-			help = 1; /* Continue to process the other
-				   * options */
-			break;
-		case 'c':
-			strncpy(configfile, optarg, sizeof(configfile));
-			configfile[sizeof(configfile) - 1] = '\0'; /* Terminate string */
-			break;
-		case 'd':
-			/* Add to a list of drivers to be initialized later...*/
-			if (num_drivers < MAX_DRIVERS) {
-				drivernames[num_drivers] = strdup(optarg);
-				if (drivernames[num_drivers] != NULL) {
-					num_drivers++;
-				} else {
-					report(
-					    RPT_ERR, "alloc error storing driver name: %s", optarg);
-					e = -1;
-				}
-			} else {
-				report(RPT_ERR, "Too many drivers!");
-				e = -1;
-			}
-			break;
-		case 'f':
-			foreground_mode = 1;
-			break;
-		case 'a':
-			strncpy(bind_addr, optarg, sizeof(bind_addr));
-			bind_addr[sizeof(bind_addr) - 1] = '\0'; /* Terminate string */
-			break;
-		case 'p':
-			bind_port = atoi(optarg);
-			break;
-		case 'u':
-			strncpy(user, optarg, sizeof(user));
-			user[sizeof(user) - 1] = '\0'; /* Terminate string */
-			break;
-		case 'w':
-			default_duration = (int)(atof(optarg) * 1e6 / frame_interval);
-			if (default_duration * frame_interval < 2e6) {
-				report(RPT_ERR,
-				       "Waittime should be at least 2 (seconds), not %.8s",
-				       optarg);
-				e = -1;
-			}
-			break;
-		case 's':
-			b = interpret_boolean_arg(optarg);
-			if (b == -1) {
-				report(RPT_ERR, "Not a boolean value: '%s'", optarg);
-				e = -1;
-			} else {
-				report_dest = (b) ? RPT_DEST_SYSLOG : RPT_DEST_STDERR;
-			}
-			break;
-		case 'r':
-			report_level = atoi(optarg);
-			break;
-		case 'i':
-			b = interpret_boolean_arg(optarg);
-			if (b == -1) {
-				report(RPT_ERR, "Not a boolean value: '%s'", optarg);
-				e = -1;
-			} else {
-				rotate_server_screen = b;
-			}
-			break;
-		case '?':
-			/* For some reason getopt also returns an '?'
-			 * when an option argument is mission... */
-			report(RPT_ERR, "Unknown option: '%c'", optopt);
-			e = -1;
-			break;
-		case ':':
-			report(RPT_ERR, "Missing option argument!");
-			e = -1;
-			break;
-		}
+	poptContext optcon = poptGetContext(NULL, argc, (const char **)argv, optionsTable, 0);
+
+	// Parse all options
+	int rc;
+	while ((rc = poptGetNextOpt(optcon)) > 0) {
+		// All options are handled by popt automatically via arg pointers
 	}
 
-	if (optind < argc) {
+	// Check for parsing errors
+	if (rc < -1) {
+		report(RPT_ERR, "%s: %s", poptBadOption(optcon, POPT_BADOPTION_NOALIAS),
+		       poptStrerror(rc));
+		e = -1;
+		goto cleanup;
+	}
+
+	// Check for leftover arguments
+	const char **leftover = poptGetArgs(optcon);
+	if (leftover != NULL && leftover[0] != NULL) {
 		report(RPT_ERR, "Non-option arguments on the command line !");
 		e = -1;
+		goto cleanup;
 	}
+
+	// Process help flag
 	if (help) {
 		output_help_screen();
 		e = -1;
+		goto cleanup;
 	}
+
+	// Process config file argument
+	if (config_arg != NULL) {
+		strncpy(configfile, config_arg, sizeof(configfile));
+		configfile[sizeof(configfile) - 1] = '\0';
+	}
+
+	// Process driver argument (can be specified multiple times via leftover handling)
+	if (driver_arg != NULL) {
+		if (num_drivers < MAX_DRIVERS) {
+			drivernames[num_drivers] = strdup(driver_arg);
+			if (drivernames[num_drivers] != NULL) {
+				num_drivers++;
+			} else {
+				report(RPT_ERR, "alloc error storing driver name: %s", driver_arg);
+				e = -1;
+				goto cleanup;
+			}
+		} else {
+			report(RPT_ERR, "Too many drivers!");
+			e = -1;
+			goto cleanup;
+		}
+	}
+
+	// Process bind address argument
+	if (addr_arg != NULL) {
+		strncpy(bind_addr, addr_arg, sizeof(bind_addr));
+		bind_addr[sizeof(bind_addr) - 1] = '\0';
+	}
+
+	// Process port argument
+	if (port_arg > 0) {
+		bind_port = port_arg;
+	}
+
+	// Process user argument
+	if (user_arg != NULL) {
+		strncpy(user, user_arg, sizeof(user));
+		user[sizeof(user) - 1] = '\0';
+	}
+
+	// Process wait time argument
+	if (wait_arg > 0.0) {
+		default_duration = (int)(wait_arg * 1e6 / frame_interval);
+		if (default_duration * frame_interval < 2e6) {
+			report(RPT_ERR, "Waittime should be at least 2 (seconds), not %f",
+			       wait_arg);
+			e = -1;
+			goto cleanup;
+		}
+	}
+
+	// Process syslog argument
+	if (syslog_arg != NULL) {
+		int b = interpret_boolean_arg(syslog_arg);
+		if (b == -1) {
+			report(RPT_ERR, "Not a boolean value: '%s'", syslog_arg);
+			e = -1;
+			goto cleanup;
+		}
+		report_dest = (b) ? RPT_DEST_SYSLOG : RPT_DEST_STDERR;
+	}
+
+	// Process report level argument
+	if (level_arg >= 0) {
+		report_level = level_arg;
+	}
+
+	// Process server screen rotation argument
+	if (rotate_arg != NULL) {
+		int b = interpret_boolean_arg(rotate_arg);
+		if (b == -1) {
+			report(RPT_ERR, "Not a boolean value: '%s'", rotate_arg);
+			e = -1;
+			goto cleanup;
+		}
+		rotate_server_screen = b;
+	}
+
+cleanup:
+	poptFreeContext(optcon);
 	return e;
 }
 
-/* reads and parses configuration file */
+/**
+ * \brief Read and parse configuration file
+ * \param configfile Path to LCDd.conf configuration file
+ * \retval 0 Configuration file processed successfully
+ * \retval -1 Error reading or parsing configuration file
+ *
+ * \details Reads configuration file and applies settings that were not set on
+ * command line. Configures network binding, user privileges, driver settings,
+ * and display parameters.
+ */
 static int process_configfile(char *configfile)
 {
 	debug(RPT_DEBUG, "%s()", __FUNCTION__);
-
-	/* Read server settings*/
 
 	if (config_read_file(configfile) != 0) {
 		report(RPT_CRIT, "Could not read config file: %s", configfile);
@@ -411,8 +522,7 @@ static int process_configfile(char *configfile)
 		bind_port = config_get_int("Server", "Port", 0, UNSET_INT);
 
 	if (strcmp(bind_addr, UNSET_STR) == 0)
-		strncpy(bind_addr,
-			config_get_string("Server", "Bind", 0, UNSET_STR),
+		strncpy(bind_addr, config_get_string("Server", "Bind", 0, UNSET_STR),
 			sizeof(bind_addr));
 
 	if (strcmp(user, UNSET_STR) == 0)
@@ -457,7 +567,6 @@ static int process_configfile(char *configfile)
 	if (titlespeed == UNSET_INT) {
 		int speed = config_get_int("Server", "TitleSpeed", 0, DEFAULT_TITLESPEED);
 
-		/* set titlespeed */
 		titlespeed = (speed <= TITLESPEED_NO) ? TITLESPEED_NO : min(speed, TITLESPEED_MAX);
 	}
 
@@ -473,13 +582,8 @@ static int process_configfile(char *configfile)
 		report_level = config_get_int("Server", "ReportLevel", 0, UNSET_INT);
 	}
 
-	/* Read drivers */
-
-	/* If drivers have been specified on the command line, then do not
-	 * use the driver list from the config file.
-	 */
+	// If drivers specified on command line, skip config file drivers
 	if (num_drivers == 0) {
-		/* loop over all the Driver= directives to read the driver names */
 		while (1) {
 			const char *s = config_get_string("Server", "Driver", num_drivers, NULL);
 			if (s == NULL)
@@ -498,11 +602,15 @@ static int process_configfile(char *configfile)
 	return 0;
 }
 
+/**
+ * \brief Apply defaults to unset configuration variables
+ *
+ * \details Fills in default values for server configuration variables
+ * that weren't set via config file or command line.
+ */
 static void set_default_settings(void)
 {
 	debug(RPT_DEBUG, "%s()", __FUNCTION__);
-
-	/* Set defaults into unfilled variables... */
 
 	if (bind_port == UNSET_INT)
 		bind_port = DEFAULT_BIND_PORT;
@@ -530,7 +638,6 @@ static void set_default_settings(void)
 	if (report_level == UNSET_INT)
 		report_level = DEFAULT_REPORTLEVEL;
 
-	/* Use default driver */
 	if (num_drivers == 0) {
 		drivernames[0] = strdup(DEFAULT_DRIVER);
 		if (drivernames[0] == NULL) {
@@ -541,50 +648,56 @@ static void set_default_settings(void)
 	}
 }
 
+/**
+ * \brief Install signal handlers for server lifecycle
+ * \param allow_reload Enable SIGHUP reload handler (1=yes, 0=no)
+ *
+ * \details Sets handlers for SIGINT/SIGTERM (exit), SIGPIPE (ignore),
+ * and optionally SIGHUP (reload).
+ */
 static void install_signal_handlers(int allow_reload)
 {
-	/* Installs signal handlers so that the program does clean exit and
-	 * can also receive a reload signal.
-	 * sigaction() is favoured over signal() */
-
 	struct sigaction sa;
 
 	debug(RPT_DEBUG, "%s(allow_reload=%d)", __FUNCTION__, allow_reload);
 
 	sigemptyset(&(sa.sa_mask));
 
-	/* Clients can cause SIGPIPE if they quit unexpectedly, and the
-	 * default action is to kill the server.  Just ignore it. */
 	sa.sa_handler = SIG_IGN;
 	sigaction(SIGPIPE, &sa, NULL);
 
 	sa.sa_handler = exit_program;
+
 #ifdef HAVE_SA_RESTART
 	sa.sa_flags = SA_RESTART;
 #endif
 
-	sigaction(SIGINT, &sa, NULL);  /* Ctrl-C will cause a clean exit...*/
-	sigaction(SIGTERM, &sa, NULL); /* and "kill"...*/
+	sigaction(SIGINT, &sa, NULL);
+	sigaction(SIGTERM, &sa, NULL);
 
 	if (allow_reload) {
 		sa.sa_handler = catch_reload_signal;
-		/* On SIGHUP reread config and restart the drivers ! */
-	} else {
-		/* Treat this signal just like INT and TERM */
 	}
 	sigaction(SIGHUP, &sa, NULL);
 }
 
+/**
+ * \brief Signal handler for parent process on child success
+ * \param signal Signal number (SIGUSR1)
+ *
+ * \details Parent process exits with SUCCESS when child signals readiness.
+ */
 static void child_ok_func(int signal)
 {
-	/* We only catch this signal to be sure the child runs OK. */
-
 	debug(RPT_INFO, "%s(signal=%d)", __FUNCTION__, signal);
 
-	/* Exit now !    because of bug? in wait() */
-	_exit(EXIT_SUCCESS); /* Parent exits normally. */
+	_exit(EXIT_SUCCESS);
 }
 
+/**
+ * \brief Daemonize
+ * \return Return value
+ */
 static pid_t daemonize(void)
 {
 	pid_t child;
@@ -597,51 +710,50 @@ static pid_t daemonize(void)
 	parent = getpid();
 	debug(RPT_INFO, "parent = %d", parent);
 
-	/* Install handler at parent for child's signal */
-	/* sigaction should be more portable than signal, but it does not
-	 * work for some reason. */
 	sa.sa_handler = child_ok_func;
 	sigemptyset(&(sa.sa_mask));
 	sa.sa_flags = SA_RESTART;
 	sigaction(SIGUSR1, &sa, NULL);
 
-	/* Do the fork */
 	switch ((child = fork())) {
+
+	// Fork failed
 	case -1:
 		report(RPT_ERR, "Could not fork");
 		return -1;
-	case 0: /* We are the child */
+
+	// Child process continues execution
+	case 0:
 		break;
-	default: /* We are the parent */
+
+	// Parent process waits for child signal
+	default:
 		debug(RPT_INFO, "child = %d", child);
 		wait(&child_status);
-		/* BUG? According to the man page wait() should also return
-		 * when a signal comes in that is caught. Instead it
-		 * continues to wait. */
 
 		if (WIFEXITED(child_status)) {
-			/* Child exited normally, probably because of some
-			 * error. */
 			debug(RPT_INFO, "Child has terminated!");
 			exit(WEXITSTATUS(child_status));
-			/* Parent exits with same status as child did... */
 		}
-		/* Child is still running and has signalled it's OK.
-		 * This means the parent can now rest in peace. */
 		debug(RPT_INFO, "Got OK signal from child.");
-		exit(EXIT_SUCCESS); /* Parent exits normally. */
+		exit(EXIT_SUCCESS);
 	}
-	/* At this point we are always the child. */
-	/* Reset signal handler */
+
 	sa.sa_handler = SIG_DFL;
 	sigaction(SIGUSR1, &sa, NULL);
 
-	setsid(); /* Create a new session because otherwise we'll
-		   * catch a SIGHUP when the shell is closed. */
+	setsid();
 
 	return parent;
 }
 
+/**
+ * \brief Signal parent process that child initialized successfully
+ * \param parent_pid Parent process ID
+ * \retval 0 Always returns 0
+ *
+ * \details Sends SIGUSR1 to parent, allowing it to exit cleanly.
+ */
 static int wave_to_parent(pid_t parent_pid)
 {
 	debug(RPT_DEBUG, "%s(parent_pid=%d)", __FUNCTION__, parent_pid);
@@ -651,6 +763,10 @@ static int wave_to_parent(pid_t parent_pid)
 	return 0;
 }
 
+/**
+ * \brief Initialize drivers
+ * \return Return value
+ */
 static int init_drivers(void)
 {
 	int i, res;
@@ -658,11 +774,8 @@ static int init_drivers(void)
 	debug(RPT_DEBUG, "%s()", __FUNCTION__);
 
 	for (i = 0; i < num_drivers; i++) {
-
 		res = drivers_load_driver(drivernames[i]);
 		if (res >= 0) {
-			/* Load went OK */
-
 			if (res == 2)
 				foreground_mode = 1;
 		} else {
@@ -670,22 +783,31 @@ static int init_drivers(void)
 		}
 	}
 
-	/* Do we have a running output driver ?*/
 	if (output_driver)
 		return 0;
 
 	report(RPT_ERR, "There is no output driver");
+
 	return -1;
 }
 
+/**
+ * \brief Drop privs
+ * \param user char *user
+ * \return Return value
+ */
 static int drop_privs(char *user)
 {
+	struct passwd pwd;
 	struct passwd *pwent;
+	char buffer[4096];
 
 	debug(RPT_DEBUG, "%s(user=\"%.40s\")", __FUNCTION__, user);
 
 	if (getuid() == 0 || geteuid() == 0) {
-		if ((pwent = getpwnam(user)) == NULL) {
+		// getpwnam_r() is thread-safe (POSIX.1-2001), uses caller-provided buffer
+		int result = getpwnam_r(user, &pwd, buffer, sizeof(buffer), &pwent);
+		if (result != 0 || pwent == NULL) {
 			report(RPT_ERR, "User %.40s not a valid user!", user);
 			return -1;
 		} else {
@@ -699,40 +821,38 @@ static int drop_privs(char *user)
 	return 0;
 }
 
+/**
+ * \brief Reload configuration and restart drivers
+ *
+ * \details Called on SIGHUP signal. Unloads drivers, rereads config,
+ * and reinitializes drivers with new configuration.
+ */
 static void do_reload(void)
 {
 	int e = 0;
 
-	drivers_unload_all(); /* Close all drivers */
-
+	drivers_unload_all();
 	config_clear();
 	clear_settings();
 
-	/* Reread command line*/
 	CHAIN(e, process_command_line(stored_argc, stored_argv));
 
-	/* Reread config file */
 	if (strcmp(configfile, UNSET_STR) == 0)
 		strncpy(configfile, DEFAULT_CONFIGFILE, sizeof(configfile));
 	CHAIN(e, process_configfile(configfile));
 
-	/* Set default values */
 	CHAIN(e, (set_default_settings(), 0));
 
-	/* Set reporting values */
 	CHAIN(e, set_reporting("LCDd", report_level, report_dest));
-	CHAIN(e,
-	      (report(RPT_INFO,
-		      "Set report level to %d, output to %s",
-		      report_level,
-		      ((report_dest == RPT_DEST_SYSLOG) ? "syslog" : "stderr")),
-	       0));
+	CHAIN(e, (report(RPT_INFO, "Set report level to %d, output to %s", report_level,
+			 ((report_dest == RPT_DEST_SYSLOG) ? "syslog" : "stderr")),
+		  0));
 
-	/* And restart the drivers */
 	CHAIN(e, init_drivers());
 	CHAIN_END(e, "Critical error while reloading, abort.");
 }
 
+// Main loop: process clients/input at PROCESS_FREQ Hz, render at frame_interval
 static void do_mainloop(void)
 {
 	Screen *s;
@@ -745,16 +865,15 @@ static void do_mainloop(void)
 
 	debug(RPT_DEBUG, "%s()", __FUNCTION__);
 
-	gettimeofday(&t, NULL); /* Get initial time */
+	gettimeofday(&t, NULL);
 
+	// Main event loop: calculate time delta, process clients/input when due, render screens
+	// when due, sleep remainder
 	while (1) {
-		/* Get current time */
 		last_t = t;
 		gettimeofday(&t, NULL);
 		t_diff = t.tv_sec - last_t.tv_sec;
 		if (((t_diff + 1) > ((double)LONG_MAX / 1e6)) || (t_diff < 0)) {
-			/* We're going to overflow the calculation - probably been to sleep, fudge
-			 * the values */
 			t_diff = 0;
 			process_lag = 1;
 			render_lag = frame_interval;
@@ -764,107 +883,149 @@ static void do_mainloop(void)
 		}
 		process_lag += t_diff;
 		if (process_lag > 0) {
-			/* Time for a processing stroke */
-			sock_poll_clients();	     /* poll clients for input*/
-			parse_all_client_messages(); /* analyze input from network clients*/
-			handle_input();		     /* handle key input from devices*/
+			sock_poll_clients();
+			parse_all_client_messages();
+			handle_input();
 
-			/* We've done the job... */
 			process_lag = 0 - (1e6 / PROCESS_FREQ);
-			/* Note : this does not make a fixed frequency */
 		}
 
 		render_lag += t_diff;
 		if (render_lag > 0) {
-			/* Time for a rendering stroke */
 			timer++;
 			screenlist_process();
 			s = screenlist_current();
 
-			/* TODO: Move this call to every client connection
-			 *       and every screen add...
+			/**
+			 * \todo Move this call to every client connection and every screen add
+			 *
+			 * Critical threading issue: update_server_screen() should be called per
+			 * client connection and every screen add, but is currently only called once
+			 * globally when rendering the server screen. This can lead to race
+			 * conditions and inconsistent behavior with multiple simultaneous clients.
+			 *
+			 * Current behavior: Only updates when server_screen is the active screen
+			 * Desired behavior: Update on each client connect/disconnect and screen
+			 * add/remove
+			 *
+			 * Impact: Thread-safety, multi-client support, display accuracy
+			 *
+			 * \ingroup ToDo_critical
 			 */
 			if (s == server_screen) {
 				update_server_screen();
 			}
 			render_screen(s, timer);
 
-			/* We've done the job... */
 			if (render_lag > frame_interval * MAX_RENDER_LAG_FRAMES) {
-				/* Cause rendering slowdown because too much lag */
 				render_lag = frame_interval * MAX_RENDER_LAG_FRAMES;
 			}
 			render_lag -= frame_interval;
-			/* Note: this DOES make a fixed frequency (except with slowdown) */
 		}
 
-		/* Sleep just as long as needed */
 		sleeptime = min(0 - process_lag, 0 - render_lag);
 		if (sleeptime > 0) {
 			usleep(sleeptime);
 		}
 
-		/* Check if a SIGHUP has been caught */
 		if (got_reload_signal) {
 			got_reload_signal = 0;
 			do_reload();
 		}
 	}
 
-	/* Quit! */
 	exit_program(0);
 }
 
+/**
+ * \brief Perform clean shutdown of all server subsystems and exit
+ * \param val Exit signal number (0 for normal exit, >0 for signal-triggered exit)
+ *
+ * \details Shuts down all subsystems in correct order: goodbye screen, drivers,
+ * clients, menu screens, screen list, input, and sockets. Reports shutdown reason
+ * based on signal number. Never returns - calls _exit(EXIT_SUCCESS).
+ */
 static void exit_program(int val)
 {
 	char buf[64];
 
 	debug(RPT_DEBUG, "%s(val=%d)", __FUNCTION__, val);
 
-	/* TODO: These things shouldn't be so interdependent.  The order
-	 * things are shut down in shouldn't matter...
+	/**
+	 * \todo These things shouldn't be so interdependent. Shutdown order shouldn't matter.
+	 *
+	 * Architecture problem with circular or fragile dependencies between components.
+	 * The shutdown order is critical and error-prone - changing the order can cause
+	 * crashes, deadlocks, or resource leaks. Components should be independently
+	 * shutdownable in any order.
+	 *
+	 * Current issues:
+	 * - drivers depend on clients being closed first
+	 * - screen list depends on menu screens
+	 * - sockets must be last but this is fragile
+	 *
+	 * Desired: Each component handles its own cleanup independently with proper
+	 * reference counting or dependency tracking.
+	 *
+	 * Impact: Code maintainability, refactoring resistance, shutdown robustness
+	 *
+	 * \ingroup ToDo_critical
 	 */
 
 	if (val > 0) {
+
 		switch (val) {
+
+		// SIGHUP signal (reload request)
 		case 1:
 			snprintf(buf, sizeof(buf), "Server shutting down on SIGHUP");
 			break;
+
+		// SIGINT signal (Ctrl-C)
 		case 2:
 			snprintf(buf, sizeof(buf), "Server shutting down on SIGINT");
 			break;
+
+		// SIGTERM signal (termination request)
 		case 15:
 			snprintf(buf, sizeof(buf), "Server shutting down on SIGTERM");
 			break;
+
+		// Other signals
 		default:
 			snprintf(buf, sizeof(buf), "Server shutting down on signal %d", val);
 			break;
-			/* Other values should not be seen, but just in case.. */
 		}
-		report(RPT_NOTICE, buf); /* report it */
+
+		report(RPT_NOTICE, buf);
 	}
 
-	/* Set emergency reporting and flush all messages if not done already. */
 	if (report_level == UNSET_INT)
 		report_level = DEFAULT_REPORTLEVEL;
 	if (report_dest == UNSET_INT)
 		report_dest = DEFAULT_REPORTDEST;
 	set_reporting("LCDd", report_level, report_dest);
 
-	goodbye_screen();     /* display goodbye screen on LCD display */
-	drivers_unload_all(); /* release driver memory and file descriptors */
+	goodbye_screen();
+	drivers_unload_all();
 
-	/* Shutdown things if server start was complete */
-	clients_shutdown(); /* shutdown clients (must come first) */
+	clients_shutdown();
 	menuscreens_shutdown();
-	screenlist_shutdown(); /* shutdown screens (must come after client_shutdown) */
-	input_shutdown();      /* shutdown key input part */
-	sock_shutdown();       /* shutdown the sockets server */
+	screenlist_shutdown();
+	input_shutdown();
+	sock_shutdown();
 
 	report(RPT_INFO, "Exiting.");
 	_exit(EXIT_SUCCESS);
 }
 
+/**
+ * \brief Signal handler for SIGHUP reload request
+ * \param val Signal number (unused)
+ *
+ * \details Sets reload_flag which triggers config reload in main loop.
+ * Async-signal-safe.
+ */
 static void catch_reload_signal(int val)
 {
 	debug(RPT_DEBUG, "%s(val=%d)", __FUNCTION__, val);
@@ -872,77 +1033,86 @@ static void catch_reload_signal(int val)
 	got_reload_signal = 1;
 }
 
+/**
+ * \brief Interpret boolean arg
+ * \param s char *s
+ * \retval 0 Success
+ * \retval -1 Error
+ */
 static int interpret_boolean_arg(char *s)
 {
-	/* keep these checks consistent with config_get_boolean() */
 	if (strcasecmp(s, "0") == 0 || strcasecmp(s, "false") == 0 || strcasecmp(s, "n") == 0 ||
 	    strcasecmp(s, "no") == 0 || strcasecmp(s, "off") == 0) {
 		return 0;
 	}
+
 	if (strcasecmp(s, "1") == 0 || strcasecmp(s, "true") == 0 || strcasecmp(s, "y") == 0 ||
 	    strcasecmp(s, "yes") == 0 || strcasecmp(s, "on") == 0) {
 		return 1;
 	}
-	/* no legal boolean string given */
+
 	return -1;
 }
 
+/**
+ * \brief Print GPL license notice to stderr
+ *
+ * \details Displays LCDd version, copyright, and GPL license terms
+ * when server runs in foreground mode.
+ */
 static void output_GPL_notice(void)
 {
-	/* This will only be invoked when running in foreground
-	 * So, directly output to stderr
-	 */
 	fprintf(stderr, "LCDd %s, LCDproc Protocol %s\n", VERSION, PROTOCOL_VERSION);
-	fprintf(stderr,
-		"Copyright (C) 1998-2017 William Ferrell, Selene Scriven\n"
-		"                        and many other contributors\n\n");
+	fprintf(stderr, "Copyright (C) 1998-2017 William Ferrell, Selene Scriven\n"
+			"                        and many other contributors\n\n");
 
-	fprintf(stderr,
-		"This program is free software; you can redistribute it and/or\n"
-		"modify it under the terms of the GNU General Public License\n"
-		"as published by the Free Software Foundation; either version 2\n"
-		"of the License, or (at your option) any later version.\n\n");
+	fprintf(stderr, "This program is free software; you can redistribute it and/or\n"
+			"modify it under the terms of the GNU General Public License\n"
+			"as published by the Free Software Foundation; either version 2\n"
+			"of the License, or (at your option) any later version.\n\n");
 }
 
+/**
+ * \brief Display command-line usage help
+ *
+ * \details Prints LCDd command-line options, syntax, and examples
+ * to stdout and exits.
+ */
 static void output_help_screen(void)
 {
-	/* Help screen is printed to stdout on purpose. No reason to have
-	 * this in syslog...
-	 */
 	debug(RPT_DEBUG, "%s()", __FUNCTION__);
 
 	fprintf(stdout, "LCDd - LCDproc Server Daemon, %s\n\n", version);
 	fprintf(
 	    stdout,
 	    "Copyright (c) 1998-2017 Selene Scriven, William Ferrell, and misc. contributors.\n");
+
 	fprintf(stdout,
 		"This program is released under the terms of the GNU General Public License.\n\n");
+
 	fprintf(stdout, "Usage: LCDd [<options>]\n");
 	fprintf(stdout, "  where <options> are:\n");
 	fprintf(stdout, "    -h                  Display this help screen\n");
-	fprintf(stdout,
-		"    -c <config>         Use a configuration file other than %s\n",
+	fprintf(stdout, "    -c <config>         Use a configuration file other than %s\n",
 		DEFAULT_CONFIGFILE);
+
 	fprintf(
 	    stdout,
 	    "    -d <driver>         Add a driver to use (overrides drivers in config file) [%s]\n",
 	    DEFAULT_DRIVER);
+
 	fprintf(stdout, "    -f                  Run in the foreground\n");
-	fprintf(stdout,
-		"    -a <addr>           Network (IP) address to bind to [%s]\n",
+	fprintf(stdout, "    -a <addr>           Network (IP) address to bind to [%s]\n",
 		DEFAULT_BIND_ADDR);
-	fprintf(stdout,
-		"    -p <port>           Network port to listen for connections on [%i]\n",
+
+	fprintf(stdout, "    -p <port>           Network port to listen for connections on [%i]\n",
 		DEFAULT_BIND_PORT);
+
 	fprintf(stdout, "    -u <user>           User to run as [%s]\n", DEFAULT_USER);
-	fprintf(stdout,
-		"    -w <waittime>       Time to pause at each screen (in seconds) [%d]\n",
+	fprintf(stdout, "    -w <waittime>       Time to pause at each screen (in seconds) [%d]\n",
 		(int)((DEFAULT_SCREEN_DURATION * frame_interval) / 1e6));
+
 	fprintf(stdout, "    -s <bool>           If set, reporting will be done using syslog\n");
 	fprintf(stdout, "    -r <level>          Report level [%d]\n", DEFAULT_REPORTLEVEL);
 	fprintf(stdout, "    -i <bool>           Whether to rotate the server info screen\n");
-
-	/* Error messages will be flushed to the configured output after this
-	 * help message.
-	 */
 }

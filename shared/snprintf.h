@@ -8,6 +8,9 @@
 #include "config.h"
 #endif
 
+#include <stdarg.h>
+#include <stddef.h>
+
 #ifdef HAVE_SNPRINTF
 #include <stdio.h>
 #else

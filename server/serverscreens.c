@@ -1,32 +1,47 @@
-/** \file server/serverscreens.c
- * This file contains code to allow the server to generate its own screens.
+// SPDX-License-Identifier: GPL-2.0+
+
+/**
+ * \file server/serverscreens.c
+ * \brief Server screen generation and management implementation
+ * \author William Ferrell
+ * \author Selene Scriven
+ * \author Joris Robijn
+ * \author Peter Marschall
+ * \date 1999-2007
+ *
+ * \features
+ * - Server status screen with client and screen counts
+ * - Welcome message display on startup
+ * - Goodbye message display on shutdown
+ * - Configurable hello and goodbye messages
+ * - Blank screen mode support
+ * - Dynamic screen content updates
+ * - Automatic hello to status transition
+ *
+ * \usage
+ * - Server screen creation and initialization
+ * - Welcome/goodbye message management
+ * - Client and screen count display
+ * - Display size adaptation and formatting
+ * - Screen rotation and priority control
+ *
+ * \details This file contains code to allow the server to generate its own screens.
  * Currently, the startup, goodbye and server status screen are provided. The
  * server status screen shows total number of connected clients, and the
- * combined total of screens they provide.
- *
- * It is interesting to note that the server creates a special screen
- * definition for its screens, but uses the same widget set made available
- * to clients.
+ * combined total of screens they provide. Server creates a special screen definition
+ * for its screens, uses the same widget set made available to clients, automatically
+ * switches from hello to status display when clients connect, supports different
+ * display sizes and formats appropriately, and integrates with the normal screen
+ * rotation system.
  */
-
-/*-
- * This file is part of LCDd, the lcdproc server.
- *
- * This file is released under the GNU General Public License.
- * Refer to the COPYING file distributed with this package.
- *
- * Copyright (c) 1999, William Ferrell, Selene Scriven
- *               2002, Joris Robijn
- *               2007, Peter Marschall
- */
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "shared/configfile.h"
 #include "shared/report.h"
@@ -40,21 +55,21 @@
 #include "serverscreens.h"
 #include "widget.h"
 
-/* global variables */
+// Global server screen instance
 Screen *server_screen = NULL;
+
+// Server screen rotation setting
 int rotate_server_screen = UNSET_INT;
 
-/* file-local variables */
+/** \brief Flag indicating if custom hello message is configured
+ *
+ * \details Set to 1 if "Hello" key exists in config, 0 otherwise.
+ * Determines whether to display custom or default startup message.
+ */
 static int has_hello_msg = 0;
-
-/* file-local function declarations */
 static int reset_server_screen(int rotate, int heartbeat, int title);
 
-/**
- * Create the server screen and (optionally) print the hello message to it.
- * \return  -1 on error allocating the screen or one of its widgets,
- *           0 otherwise.
- */
+// Create and initialize server screen with widgets for each display line
 int server_screen_init(void)
 {
 	Widget *w;
@@ -64,16 +79,16 @@ int server_screen_init(void)
 
 	debug(RPT_DEBUG, "%s()", __FUNCTION__);
 
-	/* Create the screen */
 	server_screen = screen_create("_server_screen", NULL);
 	if (!server_screen) {
 		report(RPT_ERR, "server_screen_init: Error allocating screen");
 		return -1;
 	}
-	server_screen->name = "Server screen";
-	server_screen->duration = 1e6 / frame_interval + 1; /* about 1 second, instead of 4...*/
 
-	/* Create all the widgets...*/
+	server_screen->name = "Server screen";
+	server_screen->duration = 1e6 / frame_interval + 1;
+
+	// Create one string widget per display line for dynamic server message rendering
 	for (i = 0; i < display_props->height; i++) {
 		char id[8];
 		sprintf(id, "line%d", i + 1);
@@ -83,17 +98,17 @@ int server_screen_init(void)
 			report(RPT_ERR, "server_screen_init: Can't create a widget");
 			return -1;
 		}
+
 		screen_add_widget(server_screen, w);
 		w->x = 1;
 		w->y = i + 1;
 		w->text = calloc(LCD_MAX_WIDTH + 1, 1);
 	}
 
-	/* set parameters for server_screen and it's widgets */
 	reset_server_screen(rotate_server_screen, !has_hello_msg, !has_hello_msg);
 
-	/* set the widgets depending on the Hello option in LCDd.conf */
-	if (has_hello_msg) { /* show whole Hello message */
+	// Populate server screen widgets with multi-line hello message from config file
+	if (has_hello_msg) {
 		int i;
 
 		for (i = 0; i < display_props->height; i++) {
@@ -101,7 +116,9 @@ int server_screen_init(void)
 			char id[8];
 
 			sprintf(id, "line%d", i + 1);
+
 			w = screen_find_widget(server_screen, id);
+
 			if ((w != NULL) && (w->text != NULL)) {
 				strncpy(w->text, line, LCD_MAX_WIDTH);
 				w->text[LCD_MAX_WIDTH] = '\0';
@@ -109,7 +126,6 @@ int server_screen_init(void)
 		}
 	}
 
-	/* And enqueue the screen */
 	screenlist_add(server_screen);
 
 	debug(RPT_DEBUG, "%s() done", __FUNCTION__);
@@ -117,22 +133,20 @@ int server_screen_init(void)
 	return 0;
 }
 
+// Clean up server screen and free all resources
 int server_screen_shutdown(void)
 {
 	if (server_screen == NULL)
 		return -1;
 
 	screenlist_remove(server_screen);
+
 	screen_destroy(server_screen);
+
 	return 0;
 }
 
-/**
- * Print the numbers of connected clients and screens on the server screen
- * unless screen is set to be blank. If a custom hello message has been set
- * it is shown until the first client connects.
- * \return  Always 0.
- */
+// Update server screen with client and screen counts
 int update_server_screen(void)
 {
 	static int hello_done = 0;
@@ -141,36 +155,50 @@ int update_server_screen(void)
 	int num_clients = 0;
 	int num_screens = 0;
 
-	/* get info on the number of connected clients...*/
 	num_clients = clients_client_count();
 
-	/* turn off the Hello message after the first client connected */
+	// Hello message transition logic: display hello screen until client connects, then switch
+	// to server info screen once
 	if (has_hello_msg && !hello_done) {
-		/* TODO:
-		 * checking for num_clients is not really correct; we really
-		 * want num_screens (see also comment in main.c).
-		 * Unfortunately we do only get called if the server screen
-		 * needs to be updated; therefore we get num_screen updated too
-		 * late so that after a client disconnects to quickly (in its
-		 * 1st round of screens showing) num_screens still is 0.
+
+		/**
+		 * \todo Check num_screens instead of num_clients for hello message logic
+		 *
+		 * Current implementation checks `num_clients` but should check `num_screens`
+		 * because update_server_screen() is only called when the server screen is active,
+		 * causing the screen count to update too late.
+		 *
+		 * Problem: If a client connects and disconnects quickly during first screen
+		 * rotation, num_screens is still 0 when update_server_screen() is eventually
+		 * called, causing the hello message to display incorrectly.
+		 *
+		 * Solution:
+		 * - Check num_screens instead of num_clients
+		 * - Call update_server_screen() on every client connect/disconnect event
+		 * - Ensure screen count updates immediately, not lazily
+		 *
+		 * \see server/main.c:910 (related ToDo about moving update_server_screen call)
+		 * \ingroup ToDo_low
 		 */
+
 		if (num_clients != 0) {
 			reset_server_screen(rotate_server_screen, 1, 1);
 			hello_done = 1;
+
 		} else {
 			return 0;
 		}
 	}
 
-	/* ... and screens */
+	// Count total screens across all clients and update server screen widgets with
+	// client/screen statistics, adapting layout to display dimensions
 	for (c = clients_getfirst(); c != NULL; c = clients_getnext()) {
 		num_screens += client_screen_count(c);
 	}
 
-	/* update statistics if we do not only want to show a blank screen */
 	if (rotate_server_screen != SERVERSCREEN_BLANK) {
-		/* format strings for the appropriate display size ... */
-		if (display_props->height >= 3) { /* >2-line display */
+		if (display_props->height >= 3) {
+
 			w = screen_find_widget(server_screen, "line2");
 			if ((w != NULL) && (w->text != NULL)) {
 				snprintf(w->text, LCD_MAX_WIDTH, "Clients: %i", num_clients);
@@ -180,27 +208,22 @@ int update_server_screen(void)
 			if ((w != NULL) && (w->text != NULL)) {
 				snprintf(w->text, LCD_MAX_WIDTH, "Screens: %i", num_screens);
 			}
-		} else { /* 2-line display */
+		} else {
+
 			w = screen_find_widget(server_screen, "line2");
 			if ((w != NULL) && (w->text != NULL)) {
-				snprintf(w->text,
-					 LCD_MAX_WIDTH,
+				snprintf(w->text, LCD_MAX_WIDTH,
 					 ((display_props->width >= 16) ? "Cli: %i  Scr: %i"
 								       : "C: %i  S: %i"),
-					 num_clients,
-					 num_screens);
+					 num_clients, num_screens);
 			}
 		}
 	}
+
 	return 0;
 }
 
-/**
- * Writes the default or a custom goodbye message defined in the config file
- * to the screen. Default message is centered on the screen while the custom
- * message has to be formatted by the user.
- * \return  Always 0.
- */
+// Display custom or default centered goodbye message
 int goodbye_screen(void)
 {
 	if (!display_props)
@@ -208,21 +231,23 @@ int goodbye_screen(void)
 
 	drivers_clear();
 
-	if (config_has_key("Server", "GoodBye")) { /* custom GoodBye */
+	// Display goodbye message: custom multi-line from config if defined, otherwise centered
+	// default message with platform-specific branding
+	if (config_has_key("Server", "GoodBye")) {
 		int i;
 
-		/* loop over all display lines to read config & display message */
 		for (i = 0; i < display_props->height; i++) {
 			const char *line = config_get_string("Server", "GoodBye", i, "");
 
 			drivers_string(1, 1 + i, line);
 		}
-	} else { /* default GoodBye */
+	} else {
 		if ((display_props->height >= 2) && (display_props->width >= 16)) {
 			int xoffs = (display_props->width - 16) / 2;
 			int yoffs = (display_props->height - 2) / 2;
 
 			char *top = "Thanks for using";
+
 #ifdef LINUX
 			char *low = "LCDproc & Linux!";
 #else
@@ -241,14 +266,14 @@ int goodbye_screen(void)
 }
 
 /**
- * Clear all text on the server screen and (optionally) reset the title. If
- * the screen is blank or off it is put in the background. If it is on, the
- * screen is shown as a regular screen (priority info).
+ * \brief Configure server screen display properties
+ * \param rotate Enable screen rotation flag
+ * \param heartbeat Heartbeat display mode
+ * \param title Show title flag
+ * \retval 0 Success
+ * \retval -1 Server screen not initialized
  *
- * \param rotate     Server screen state (on/off/blank).
- * \param heartbeat  If true (1) show the heartbeat unless the screen is blank.
- * \param title      If true (1) and screen is not blank print the default title.
- * \return  -1 if no server screen has been created yet, 0 otherwise.
+ * \details Sets priority, heartbeat mode, backlight, and optionally adds title widget.
  */
 static int reset_server_screen(int rotate, int heartbeat, int title)
 {
@@ -261,12 +286,15 @@ static int reset_server_screen(int rotate, int heartbeat, int title)
 	    (heartbeat && (rotate != SERVERSCREEN_BLANK)) ? HEARTBEAT_OPEN : HEARTBEAT_OFF;
 	server_screen->priority = (rotate == SERVERSCREEN_ON) ? PRI_INFO : PRI_BACKGROUND;
 
+	// Reset all server screen widgets: clear text, set positions, and configure first line as
+	// title widget if enabled
 	for (i = 0; i < display_props->height; i++) {
 		char id[8];
 		Widget *w;
 
 		sprintf(id, "line%d", i + 1);
 		w = screen_find_widget(server_screen, id);
+
 		if (w != NULL) {
 			w->x = 1;
 			w->y = i + 1;
@@ -283,5 +311,6 @@ static int reset_server_screen(int rotate, int heartbeat, int title)
 			}
 		}
 	}
+
 	return 0;
 }

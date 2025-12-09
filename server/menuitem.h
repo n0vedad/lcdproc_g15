@@ -1,27 +1,32 @@
-/** \file server/menuitem.h
- * Defines all the menuitem data and actions.
- *
- * There are a few different menuitems:
- * - action
- * - checkbox (on/off and optionally open)
- * - slider (the user can increase/decrease a value)
- * - numeric input
- * - alphanumeric input (in short: alpha)
- * - menu (a menu is a menuitem itself too)
- *
- * The slider, numeric & string input and menu have their own screen,
- * that comes to front when the items are selected.
- * One menuitem is in a different file: Menu data is in menu.h.
- */
+// SPDX-License-Identifier: GPL-2.0+
 
-/* This file is part of LCDd, the lcdproc server.
+/**
+ * \file server/menuitem.h
+ * \brief Menu item data structures and function declarations
+ * \author William Ferrell
+ * \author Selene Scriven
+ * \author F5 Networks, Inc.
+ * \author Peter Marschall
+ * \date 1999-2005
  *
- * This file is released under the GNU General Public License.
- * Refer to the COPYING file distributed with this package.
+ * \features
+ * - Menu item type definitions and data structures
+ * - Menu item creation and destruction functions
+ * - Input processing and event handling
+ * - Screen building and updating for menu items
+ * - Type conversion utilities
+ * - Support for action, checkbox, slider, numeric, alphanumeric, ring, IP address and menu items
  *
- * Copyright (c) 1999, William Ferrell, Selene Scriven
- *               2004, F5 Networks, Inc. - IP-address input
- *               2005, Peter Marschall - error checks, ...
+ * \usage
+ * - Include this header to access menu item functionality
+ * - Use menuitem_create_* functions to create specific item types
+ * - The slider, numeric and string input items have their own screens
+ * - Menu data structures are defined in menu.h
+ * - Uses union for different item type data to optimize memory usage
+ *
+ * \details Defines all the menuitem data and actions for the LCDd menu system.
+ * Provides interface for creating and managing different types of menu items.
+ * Screen comes to front when items are selected.
  */
 
 #ifndef MENUITEM_H
@@ -40,314 +45,483 @@
 
 #include "shared/LL.h"
 
-extern bool menu_permissive_goto; /* Flag from the configuration file */
-
-/*********************************************************************
- * Data definitions of the menustuff
+/** \brief Permissive menu navigation mode flag
+ *
+ * \details When true, allows navigation to any menu item ID even if not found
+ * in current menu tree. When false, strict validation is enforced. Set from
+ * configuration file.
  */
+extern bool menu_permissive_goto;
 
-/** These values are used in the function tables in menuitem.c ! */
+/**
+ * \brief Menu item type enumeration
+ * \details Defines all supported menu item types in the LCDd menu system.
+ */
 typedef enum MenuItemType {
-	MENUITEM_INVALID = -1,
-	MENUITEM_MENU = 0,
-	MENUITEM_ACTION = 1,
-	MENUITEM_CHECKBOX = 2,
-	MENUITEM_RING = 3,
-	MENUITEM_SLIDER = 4,
-	MENUITEM_NUMERIC = 5,
-	MENUITEM_ALPHA = 6,
-	MENUITEM_IP = 7,
-	NUM_ITEMTYPES = 8
+	MENUITEM_INVALID = -1, ///< Invalid/uninitialized menu item
+	MENUITEM_MENU = 0,     ///< Submenu container
+	MENUITEM_ACTION = 1,   ///< Action button (triggers event)
+	MENUITEM_CHECKBOX = 2, ///< Boolean on/off toggle
+	MENUITEM_RING = 3,     ///< Circular selection list
+	MENUITEM_SLIDER = 4,   ///< Numeric value slider
+	MENUITEM_NUMERIC = 5,  ///< Numeric value input
+	MENUITEM_ALPHA = 6,    ///< Text/alphanumeric input
+	MENUITEM_IP = 7,       ///< IP address input
+	NUM_ITEMTYPES = 8      ///< Total number of item types
 } MenuItemType;
 
+/**
+ * \brief Menu item type typedef
+ * \note These values are used in the function tables in menuitem.c!
+ */
 typedef enum CheckboxValue { CHECKBOX_OFF = 0, CHECKBOX_ON, CHECKBOX_GRAY } CheckboxValue;
 
-/** Recognized input token codes: they need to be bit values */
+/**
+ * \brief Input token codes for menu navigation
+ * \note These need to be bit values for combination support
+ */
 typedef enum MenuToken {
-	MENUTOKEN_NONE = 0x0000,  /**< no key */
-	MENUTOKEN_MENU = 0x0001,  /**< MenuKey */
-	MENUTOKEN_ENTER = 0x0002, /**< EnterKey */
-	MENUTOKEN_UP = 0x0004,	  /**< UpKey */
-	MENUTOKEN_DOWN = 0x0008,  /**< DownKey */
-	MENUTOKEN_LEFT = 0x0010,  /**< LeftKey */
-	MENUTOKEN_RIGHT = 0x0020, /**< RightKey */
-	MENUTOKEN_OTHER = 0x1000  /**< any other key */
+	MENUTOKEN_NONE = 0x0000,  // no key
+	MENUTOKEN_MENU = 0x0001,  // MenuKey
+	MENUTOKEN_ENTER = 0x0002, // EnterKey
+	MENUTOKEN_UP = 0x0004,	  // UpKey
+	MENUTOKEN_DOWN = 0x0008,  // DownKey
+	MENUTOKEN_LEFT = 0x0010,  // LeftKey
+	MENUTOKEN_RIGHT = 0x0020, // RightKey
+	MENUTOKEN_OTHER = 0x1000  // any other key
 } MenuToken;
 
-/** Return codes from an input handler */
+/**
+ * \brief Return codes from menu input handlers
+ */
 typedef enum MenuResult {
-	MENURESULT_ERROR = -1,	/**< Something has gone wrong */
-	MENURESULT_NONE = 0,	/**< Token handled OK, no extra action */
-	MENURESULT_ENTER,	/**< Token handled OK, enter the selected
-				 * menuitem now */
-	MENURESULT_CLOSE,	/**< Token handled OK, close the current
-				 * menuitem now */
-	MENURESULT_QUIT,	/**< Token handled OK, close ALL menus now */
-	MENURESULT_PREDECESSOR, /**< Token handled OK, goto registered
-				 * predecessor */
-	MENURESULT_SUCCESSOR	/**< Token handled OK, goto registered
-				 * successor */
+	MENURESULT_ERROR = -1,	// Something has gone wrong
+	MENURESULT_NONE = 0,	// Token handled OK, no extra action
+	MENURESULT_ENTER,	// Token handled OK, enter the selected menuitem now
+	MENURESULT_CLOSE,	// Token handled OK, close the current menuitem now
+	MENURESULT_QUIT,	// Token handled OK, close ALL menus now
+	MENURESULT_PREDECESSOR, // Token handled OK, goto registered predecessor
+	MENURESULT_SUCCESSOR	// Token handled OK, goto registered successor
 } MenuResult;
 
-/** Events caused by a menuitem */
+/**
+ * \brief Event types generated by menu items
+ */
 typedef enum MenuEventType {
-	MENUEVENT_INVALID = -1, /**< Special value for error handling */
-	MENUEVENT_SELECT = 0,	/**< Item has been selected
-				 * (action chosen) */
-	MENUEVENT_UPDATE = 1,	/**< Item has been modified
-				 * (checkbox, numeric, alphanumeric) */
-	MENUEVENT_PLUS = 2,	/**< Item has been modified in positive direction
-				 * (slider moved) */
-	MENUEVENT_MINUS = 3,	/**< Item has been modified in negative direction
-				 * (slider moved) */
-	MENUEVENT_ENTER = 4,	/**< Menu has been entered */
-	MENUEVENT_LEAVE = 5,	/**< Menu has been left */
+	MENUEVENT_INVALID = -1, // Special value for error handling
+	MENUEVENT_SELECT = 0,	// Item has been selected (action chosen)
+	MENUEVENT_UPDATE = 1,	// Item has been modified (checkbox, numeric, alphanumeric)
+	MENUEVENT_PLUS = 2,	// Item has been modified in positive direction (slider moved)
+	MENUEVENT_MINUS = 3,	// Item has been modified in negative direction (slider moved)
+	MENUEVENT_ENTER = 4,	// Menu has been entered
+	MENUEVENT_LEAVE = 5,	// Menu has been left
 	NUM_EVENTTYPES = 6
 } MenuEventType;
 
+/**
+ * \brief Menu event function type definition macro
+ * \param f Function name to define
+ *
+ * \details Expands to a function signature: int f(struct MenuItem *item, MenuEventType event)
+ * where item is the menu item that generated the event and event is the type of event.
+ */
 #define MenuEventFunc(f) int(f)(struct MenuItem * item, MenuEventType event)
 
-/** I've used a union in the struct below. Why? And why not for Widget?
+/**
+ * \brief Main menu item data structure
+ * \note Uses a union for type-specific data to optimize memory usage.
  *
- * There are different types of menuitems. There are also types of widgets.
- * Menuitems have, just like widgets, different datafields per subtype.
- * The difference is that menuitems have, unlike widgets _many__different_
- * attributes. Widgets share many attributes like x, y, text.
- * The code would become unreadable if we used the 'widget way', or it would
- * get large if we define datafields that we use for only one type of
- * menuitem. (Joris)
+ * \details Unlike widgets which share many common attributes (x, y, text),
+ * menu items have very different attributes per subtype, making
+ * a union approach more efficient and readable.
  */
 typedef struct MenuItem {
-	MenuItemType type;	 /**< Type as defined above */
-	char *id;		 /**< Internal name for client supplied menus */
-	char *successor_id;	 /**< next menuitem after hitting "Enter" on
-				  * this one. (Special values are "_quit_",
-				  * "_close_", "_none_"). */
-	char *predecessor_id;	 /**< next menuitem after hitting "Escape" on
-				  * this one. (Special values are "_quit_",
-				  * "_close_", "_none_"). */
-	struct MenuItem *parent; /**< Parent of this menuitem */
+	MenuItemType type;	 // Type as defined above
+	char *id;		 // Internal name for client supplied menus
+	char *successor_id;	 /// next menuitem after hitting "Enter" on this one.
+	char *predecessor_id;	 // next menuitem after hitting "Escape" on this one.
+	struct MenuItem *parent; // Parent of this menuitem
 	MenuEventFunc(*event_func);
-	/**< Defines event_func to be an event function */
-	char *text;	/**< Visible name of the item */
-	void *client;	/**< The owner of this menuitem. */
-	bool is_hidden; /**< If the item currently should not appear in a menu. */
+	// Event handler function pointer
+	char *text;	// Visible name of the item
+	void *client;	// The owner of this menuitem.
+	bool is_hidden; // If the item currently should not appear in a menu.
+	/**
+	 * \brief Type-specific data for menu items
+	 * \details Tagged union containing different structures depending on item type.
+	 * Only one member is valid at a time, determined by the `type` field.
+	 */
 	union data {
+		/**
+		 * \brief Submenu data
+		 * \details Used when type == MENUITEM_MENU
+		 */
 		struct menu {
-			int selector_pos;     /**< At what menuitem is the
-						 selector (0 for first) */
-			int scroll;	      /**< How much has the menu been
-						 scrolled down */
-			void *association;    /**< To associate an object
-						 with this menu */
-			LinkedList *contents; /**< What's in this menu */
+			int selector_pos;     // At what menuitem is the selector (0 for first)
+			int scroll;	      // How much has the menu been scrolled down
+			void *association;    // To associate an object with this menu
+			LinkedList *contents; // What's in this menu
 		} menu;
+		/** \brief Action item data (empty) - Used when type == MENUITEM_ACTION */
 		struct action {
-			/* nothing */
+			// nothing
 		} action;
+		/** \brief Checkbox widget data - Used when type == MENUITEM_CHECKBOX */
 		struct checkbox {
-			bool allow_gray;     /**< Is CHECKBOX_GRAY allowed ? */
-			CheckboxValue value; /**< Current value */
+			bool allow_gray;     // Is CHECKBOX_GRAY allowed ?
+			CheckboxValue value; // Current value
 		} checkbox;
+		/** \brief Ring selection widget data - Used when type == MENUITEM_RING */
 		struct ring {
-			LinkedList *strings; /**< The selectable strings */
-			short value;	     /**< Current index */
+			LinkedList *strings; // The selectable strings
+			short value;	     // Current index
 		} ring;
+		/** \brief Slider widget data - Used when type == MENUITEM_SLIDER */
 		struct slider {
-			char *mintext; /**< Text at minimal value */
-			char *maxtext; /**< Text at minimal value */
+			char *mintext; // Text at minimal value
+			char *maxtext; // Text at minimal value
 			int minvalue;
 			int maxvalue;
 			int stepsize;
-			int value; /**< Current value */
+			int value; // Current value
 		} slider;
+		/** \brief Numeric input widget data - Used when type == MENUITEM_NUMERIC */
 		struct numeric {
 			int maxvalue;
 			int minvalue;
-			// short allowed_decimals; /**< Number of numbers behind dot */
-			int value;	 /**< Current value */
-			char *edit_str;	 /**< Value while being edited */
-			short edit_pos;	 /**< Position while editing */
-			short edit_offs; /**< Offset while editing */
+			// short allowed_decimals, Number of numbers behind dot
+			int value;	 // Current value
+			char *edit_str;	 // Value while being edited
+			short edit_pos;	 // Position while editing
+			short edit_offs; // Offset while editing
 			short error_code;
 		} numeric;
+		/** \brief Alphanumeric text input widget data - Used when type == MENUITEM_ALPHA */
 		struct alpha {
-			char password_char; /**< For passwords */
+			char password_char; // For passwords
 			short minlength;
 			short maxlength;
-			bool allow_caps;     /**< Caps allowed ? */
-			bool allow_noncaps;  /**< Non-caps allowed ? */
-			bool allow_numbers;  /**< Numbers allowed ? */
-			char *allowed_extra; /**< Allowed extra characters */
-			char *value;	     /**< Current value */
-			char *edit_str;	     /**< Value while being edited */
-			short edit_pos;	     /**< Position while editing */
-			short edit_offs;     /**< Offset while editing */
+			bool allow_caps;     // Caps allowed ?
+			bool allow_noncaps;  // Non-caps allowed ?
+			bool allow_numbers;  // Numbers allowed ?
+			char *allowed_extra; // Allowed extra characters
+			char *value;	     // Current value
+			char *edit_str;	     // Value while being edited
+			short edit_pos;	     // Position while editing
+			short edit_offs;     // Offset while editing
 			short error_code;
 		} alpha;
+		/** \brief IP address input widget data - Used when type == MENUITEM_IP */
 		struct ip {
-			char *value;	/**< Current value */
-			char *edit_str; /**< Value while being edited */
+			char *value;	// Current value
+			char *edit_str; // Value while being edited
 			short maxlength;
-			bool v6;	 /**< true if editing ipv6 addr */
-			short edit_pos;	 /**< Position while editing */
-			short edit_offs; /**< Offset while editing */
+			bool v6;	 // true if editing ipv6 addr
+			short edit_pos;	 // Position while editing
+			short edit_offs; // Offset while editing
 			short error_code;
 		} ip;
 	} data;
 } MenuItem;
 
-/*********************************************************************
- * Functions to use the menustuff
+/**
+ * \brief Translate predecessor_id string into MenuResult enum
+ * \param predecessor_id Predecessor ID string to translate
+ * \param default_result Default result if translation fails
+ * \retval MenuResult Translated menu result or default_result
  */
-
-/** translates a predecessor_id into a MenuResult. */
 MenuResult menuitem_predecessor2menuresult(char *predecessor_id, MenuResult default_result);
 
-/** translates a successor_id into a MenuResult. */
+/**
+ * \brief Translate successor_id string into MenuResult enum
+ * \param successor_id Successor ID string to translate
+ * \param default_result Default result if translation fails
+ * \retval MenuResult Translated menu result or default_result
+ */
 MenuResult menuitem_successor2menuresult(char *successor_id, MenuResult default_result);
 
+/**
+ * \brief Search for a menu item by ID and client
+ * \param menu_id Menu item ID to search for
+ * \param client Client that owns the menu item
+ * \retval MenuItem* Found menu item
+ * \retval NULL Item not found
+ */
 MenuItem *menuitem_search(char *menu_id, Client *client);
 
-/** YOU SHOULD NOT CALL THIS FUNCTION BUT THE TYPE SPECIFIC ONE INSTEAD */
-MenuItem *menuitem_create(
-    MenuItemType type, char *id, MenuEventFunc(*event_func), char *text, Client *client);
+/**
+ * \brief Create a generic menu item (use type-specific functions instead)
+ * \param type Menu item type to create
+ * \param id Unique identifier for the menu item
+ * \param event_func Event handler function (can be NULL)
+ * \param text Display text for the menu item
+ * \param client Client that owns this menu item
+ * \retval MenuItem* Newly created menu item
+ * \retval NULL Creation failed
+ * \warning Use type-specific creation functions instead of calling this directly
+ */
+MenuItem *menuitem_create(MenuItemType type, char *id, MenuEventFunc(*event_func), char *text,
+			  Client *client);
 
-/* For all constructor functions below the following:
+/**
+ * \details For all constructor functions below the following parameter meanings apply:
+ * - \c id: Internal name of the item. Never visible. String will be copied.
+ * - \c event_func: The event function that should be called upon actions on this item.
+ * - \c text: The displayed text.
+ * \retval the new item, or NULL on error.
  *
- * id:		internal name of the item. Never visible. String will be
- *		copied.
- * event_func:	the event function that should be called upon actions on this
- *		item.
- * text:	the displayed text.
+ * \note All strings will be copied!
+ * To create a Menu (which is also an ItemType), call menu_create().
+ */
+
+/**
+ * \brief Create an action menu item
+ * \param id Unique identifier for the action item
+ * \param event_func Event handler function (can be NULL)
+ * \param text Display text for the action
+ * \param client Client that owns this menu item
+ * \param menu_result Menu result when action is selected
+ * \retval MenuItem* Newly created action item
+ * \retval NULL Creation failed
  *
- * All strings will be copied !
+ * \details Creates a simple action item that generates MENUEVENT_SELECT
+ * when user selects it. Action items are basic menu entries without
+ * additional input capabilities.
+ */
+MenuItem *menuitem_create_action(char *id, MenuEventFunc(*event_func), char *text, Client *client,
+				 MenuResult menu_result);
+
+/**
+ * \brief Create a checkbox menu item
+ * \param id Unique identifier for the checkbox item
+ * \param event_func Event handler function (can be NULL)
+ * \param text Display text for the checkbox
+ * \param client Client that owns this menu item
+ * \param allow_gray True to allow gray/indeterminate state
+ * \param value Initial checkbox value (true=on, false=off)
+ * \retval MenuItem* Newly created checkbox item
+ * \retval NULL Creation failed
  *
- * Return value: the new item, or NULL on error.
+ * \details Creates a checkbox item that can be toggled between on/off
+ * and optionally gray states. Generates MENUEVENT_UPDATE when user
+ * changes the value immediately.
+ */
+MenuItem *menuitem_create_checkbox(char *id, MenuEventFunc(*event_func), char *text, Client *client,
+				   bool allow_gray, bool value);
+
+/**
+ * \brief Create a ring (selection list) menu item
+ * \param id Unique identifier for the ring item
+ * \param event_func Event handler function (can be NULL)
+ * \param text Display text for the ring
+ * \param client Client that owns this menu item
+ * \param strings Tab-separated string list of selectable options
+ * \param value Initial selected index (0-based)
+ * \retval MenuItem* Newly created ring item
+ * \retval NULL Creation failed
  *
- * To create a Menu (which is also an ItemType), call menu_create.
+ * \details Creates a ring item with selectable options from a tab-separated
+ * string. Example: strings="abc\\tdef" with value=1 selects "def".
+ * Generates MENUEVENT_UPDATE when user changes selection immediately.
+ */
+MenuItem *menuitem_create_ring(char *id, MenuEventFunc(*event_func), char *text, Client *client,
+			       char *strings, short value);
+
+/**
+ * \brief Create a slider menu item
+ * \param id Unique identifier for the slider item
+ * \param event_func Event handler function (can be NULL)
+ * \param text Display text for the slider
+ * \param client Client that owns this menu item
+ * \param mintext Text displayed at minimum value position
+ * \param maxtext Text displayed at maximum value position
+ * \param minvalue Minimum allowed value
+ * \param maxvalue Maximum allowed value
+ * \param stepsize Step size for value changes (0 to disable automatic changes)
+ * \param value Initial slider value
+ * \retval MenuItem* Newly created slider item
+ * \retval NULL Creation failed
  *
+ * \details Creates a slider item for numeric value selection. If display
+ * is large enough, mintext and maxtext are shown at slider ends. Set
+ * stepsize to 0 to disable automatic value changing and handle updates
+ * manually. Generates MENUEVENT_PLUS/MENUEVENT_MINUS when moved.
  */
+MenuItem *menuitem_create_slider(char *id, MenuEventFunc(*event_func), char *text, Client *client,
+				 char *mintext, char *maxtext, int minvalue, int maxvalue,
+				 int stepsize, int value);
 
-/** Creates a an action item (a string only).  Generated events:
- * MENUEVENT_SELECT when user selects the item.
+/**
+ * \brief Create a numeric value input menu item
+ * \param id Unique identifier for the numeric item
+ * \param event_func Event handler function (can be NULL)
+ * \param text Display text for the numeric input
+ * \param client Client that owns this menu item
+ * \param minvalue Minimum allowed value
+ * \param maxvalue Maximum allowed value
+ * \param value Initial numeric value
+ * \retval MenuItem* Newly created numeric item
+ * \retval NULL Creation failed
+ *
+ * \details Creates a numeric value input box. Value can range from minvalue to
+ * maxvalue. Triggers MENUEVENT_UPDATE when user finishes entering the value
+ * (no immediate update during editing).
  */
-MenuItem *menuitem_create_action(
-    char *id, MenuEventFunc(*event_func), char *text, Client *client, MenuResult menu_result);
+MenuItem *menuitem_create_numeric(char *id, MenuEventFunc(*event_func), char *text, Client *client,
+				  int minvalue, int maxvalue, int value);
 
-/** Creates a checkbox.
- * Generated events: MENUEVENT_UPDATE when user changes value (immediately).
+/**
+ * \brief Create an alphanumeric text input menu item
+ * \param id Unique identifier for the alpha item
+ * \param event_func Event handler function (can be NULL)
+ * \param text Display text for the text input
+ * \param client Client that owns this menu item
+ * \param password_char Character to display instead of actual input (0 for normal display)
+ * \param minlength Minimum required string length
+ * \param maxlength Maximum allowed string length
+ * \param allow_caps True to allow uppercase letters
+ * \param allow_noncaps True to allow lowercase letters
+ * \param allow_numbers True to allow numeric digits
+ * \param allowed_extra Additional allowed characters (can be NULL)
+ * \param value Initial string value
+ * \retval MenuItem* Newly created alpha item
+ * \retval NULL Creation failed
+ *
+ * \details Creates a text input item with configurable character restrictions.
+ * If password_char is non-zero, displays that character instead of actual
+ * input for password fields. Generates MENUEVENT_UPDATE when user
+ * completes text entry (no immediate updates during editing).
  */
-MenuItem *menuitem_create_checkbox(
-    char *id, MenuEventFunc(*event_func), char *text, Client *client, bool allow_gray, bool value);
+MenuItem *menuitem_create_alpha(char *id, MenuEventFunc(*event_func), char *text, Client *client,
+				char password_char, short minlength, short maxlength,
+				bool allow_caps, bool allow_noncaps, bool allow_numbers,
+				char *allowed_extra, char *value);
 
-/** Creates a ring with the given string, separated by tabs.
- * value is the (initial) index in the strings.
- * eg: if strings="abc\\tdef" the value=1 means that "def" is selected.
- * Generated events: MENUEVENT_UPDATE when user changes value (immediately).
+/**
+ * \brief Create an IP address input menu item
+ * \param id Unique identifier for the IP item
+ * \param event_func Event handler function (can be NULL)
+ * \param text Display text for the IP address input
+ * \param client Client that owns this menu item
+ * \param v6 True for IPv6 address input, false for IPv4
+ * \param value Initial IP address value string
+ * \retval MenuItem* Newly created IP item
+ * \retval NULL Creation failed
+ *
+ * \details Creates an IP address input item supporting both IPv4 and IPv6
+ * formats. Generates MENUEVENT_UPDATE when user completes address entry
+ * (no immediate updates during editing).
  */
-MenuItem *menuitem_create_ring(
-    char *id, MenuEventFunc(*event_func), char *text, Client *client, char *strings, short value);
+MenuItem *menuitem_create_ip(char *id, MenuEventFunc(*event_func), char *text, Client *client,
+			     bool v6, char *value);
 
-/** Creates a slider with the given min and max values.
- * If the display is big enough the mintext and maxtext will be placed
- * at the end positions of the slider.
- * You can set the step size. Make it 0 to disable the automatic value chaning,
- * and update the value yourself.
- * MENUEVENT_PLUS, MENUEVENT_MINUS when slider is moved (immediately).
- */
-MenuItem *menuitem_create_slider(char *id,
-				 MenuEventFunc(*event_func),
-				 char *text,
-				 Client *client,
-				 char *mintext,
-				 char *maxtext,
-				 int minvalue,
-				 int maxvalue,
-				 int stepsize,
-				 int value);
-
-/** Creates a numeric value box.
- * Value can range from minvalue to maxvalue.
- * MENUEVENT_UPDATE when user finishes the value (no immediate update).
- */
-MenuItem *menuitem_create_numeric(char *id,
-				  MenuEventFunc(*event_func),
-				  char *text,
-				  Client *client,
-				  int minvalue,
-				  int maxvalue,
-				  int value);
-
-/** Creates a string value box.
- * Value should have given minimal and maximal length. You can set whether
- * caps, non-caps and numbers are allowed. Also you can alow other characters.
- * If password char is non-zero, you will only see this char, not the actual
- * input.
- * MENUEVENT_UPDATE when user finishes the value (no immediate update).
- */
-MenuItem *menuitem_create_alpha(char *id,
-				MenuEventFunc(*event_func),
-				char *text,
-				Client *client,
-				char password_char,
-				short minlength,
-				short maxlength,
-				bool allow_caps,
-				bool allow_noncaps,
-				bool allow_numbers,
-				char *allowed_extra,
-				char *value);
-
-/** Creates an ip value box.  can be either v4 or v6
- * MENUEVENT_UPDATE when user finishes the value (no immediate update).
- */
-MenuItem *menuitem_create_ip(
-    char *id, MenuEventFunc(*event_func), char *text, Client *client, bool v6, char *value);
-
-/** Deletes item from memory.
- * All allocated extra data (like strings) will be freed.
+/**
+ * \brief Delete menu item from memory and free resources
+ * \param item Menu item to destroy
+ *
+ * \details Destroys the menu item and frees all allocated resources
+ * including strings and type-specific data. The item pointer becomes
+ * invalid after this call.
  */
 void menuitem_destroy(MenuItem *item);
 
-/** Resets the item to the initial state.
- * You should call menuitem_update after this to see the effects.
- * This call is useless on items that have immediate effect, like a slider.
- * Those items do not keep temporary data.
+/**
+ * \brief Reset menu item to initial state
+ * \param item Menu item to reset
+ *
+ * \details Resets the menu item to its initial state. Call menuitem_update_screen()
+ * after this to see the visual effects. This is useless for items with immediate
+ * effects (like sliders) that don't keep temporary data during editing.
  */
 void menuitem_reset(MenuItem *item);
 
-/** (Re)builds the selected menuitem on screen using widgets.
- * Should be re-called if menuitem data has been changed.
- * There are a few (logical) exceptions to this:
- * - the values
- * - the menu scroll and menu index
+/**
+ * \brief Rebuild menu item screen widgets
+ * \param item Menu item to rebuild screen for
+ * \param s Screen to build widgets on
+ *
+ * \details (Re)builds the menu item on screen using widgets. Should be
+ * called when menu item structure changes. Not needed for value changes,
+ * menu scroll, or menu index changes - use menuitem_update_screen() instead.
  */
 void menuitem_rebuild_screen(MenuItem *item, Screen *s);
 
-/** Updates the widgets of the selected menuitem
- * Fills all widget attributes with the corrrect values.
+/**
+ * \brief Update menu item screen widgets with current values
+ * \param item Menu item to update screen for
+ * \param s Screen containing the widgets to update
+ *
+ * \details Updates all widget attributes with current menu item values.
+ * Use this for value changes, position updates, and visual refreshes
+ * without rebuilding the entire widget structure.
  */
 void menuitem_update_screen(MenuItem *item, Screen *s);
 
-/** Does something with the given input.
- * key is only used if token is MENUTOKEN_OTHER.
+/**
+ * \brief Process input for menu item
+ * \param item Menu item to process input for
+ * \param token Input token type
+ * \param key Key string (only used if token is MENUTOKEN_OTHER)
+ * \param keymask Key modifier mask
+ * \retval MenuResult Result of input processing
+ *
+ * \details Processes input events for the menu item based on its type.
+ * Different item types handle input differently (navigation, value changes, etc).
  */
-MenuResult
-menuitem_process_input(MenuItem *item, MenuToken token, const char *key, unsigned int keymask);
+MenuResult menuitem_process_input(MenuItem *item, MenuToken token, const char *key,
+				  unsigned int keymask);
 
-/** returns the Client that owns the MenuItem. item must not be null */
+/**
+ * \brief Get the client that owns a menu item
+ * \param item Menu item to get client for (must not be NULL)
+ * \retval Client* Client that owns the menu item
+ *
+ * \details Returns the client associated with the menu item.
+ * The item parameter must not be NULL.
+ */
 Client *menuitem_get_client(MenuItem *item);
 
-/** Converts a tab-separated list to a LinkedList. */
+/**
+ * \brief Convert tab-separated string to LinkedList
+ * \param strings Tab-separated string list
+ * \retval LinkedList* New LinkedList with string elements
+ * \retval NULL Conversion failed
+ *
+ * \details Converts a tab-separated string into a LinkedList where each
+ * tab-separated segment becomes a separate string element in the list.
+ */
 LinkedList *tablist2linkedlist(char *strings);
 
+/**
+ * \brief Convert menu item type name string to MenuItemType enum
+ * \param name Type name string
+ * \retval MenuItemType Corresponding menu item type
+ * \retval MENUITEM_INVALID Invalid or unknown type name
+ */
 MenuItemType menuitem_typename_to_type(char *name);
 
+/**
+ * \brief Convert MenuItemType enum to type name string
+ * \param type Menu item type enum value
+ * \retval char* Type name string
+ * \retval NULL Invalid type
+ */
 char *menuitem_type_to_typename(MenuItemType type);
 
+/**
+ * \brief Convert menu event type name string to MenuEventType enum
+ * \param name Event type name string
+ * \retval MenuEventType Corresponding menu event type
+ * \retval MENUEVENT_INVALID Invalid or unknown event type name
+ */
 MenuEventType menuitem_eventtypename_to_eventtype(char *name);
 
+/**
+ * \brief Convert MenuEventType enum to event type name string
+ * \param type Menu event type enum value
+ * \retval char* Event type name string
+ * \retval NULL Invalid type
+ */
 char *menuitem_eventtype_to_eventtypename(MenuEventType type);
 
 #endif

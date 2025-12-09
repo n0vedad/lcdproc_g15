@@ -1,14 +1,46 @@
-/** \file server/driver.c
- * This code does all actions on the driver object.
+// SPDX-License-Identifier: GPL-2.0+
+
+/**
+ * \file server/driver.c
+ * \brief Driver management implementation
+ * \author Joris Robijn
+ * \date 2001
+ *
+ *
+ * \features
+ * - Implementation of driver management for LCDd server core
+ * - Dynamic driver loading and unloading with dlopen/dlsym shared library support
+ * - Driver symbol binding and validation with symbol table driven process
+ * - Driver capability detection for input/output support determination
+ * - Fallback implementations for optional driver functions (bars, icons, numbers)
+ * - Alternative drawing functions when driver lacks specific implementations
+ * - Error handling and cleanup with proper resource management
+ * - Configuration file access integration for driver-specific settings
+ * - Display property access functions for driver adaptation
+ * - Version checking and API compatibility validation
+ * - Driver structure memory management and initialization
+ * - Symbol offset mapping for automated driver function binding
+ * - Debug logging throughout all driver operations
+ *
+ * \usage
+ * - Used by LCDd server core for managing LCD driver module lifecycle
+ * - Load drivers at server startup via driver_load() with module identification
+ * - Bind driver symbols and validate API requirements via driver_bind_module()
+ * - Query driver capabilities via capability detection functions
+ * - Provide fallback functionality via driver_alt_* functions for missing features
+ * - Alternative drawing implementations for bars, icons, cursors, and numbers
+ * - Driver cleanup and resource release via driver_unbind_module() and driver_unload()
+ * - Configuration access for driver-specific parameter retrieval
+ * - Display property queries for driver coordination and adaptation
+ *
+ * \details Implementation of driver loading, binding, and management operations
+ * handling dynamic loading of driver modules and fallback implementations.
  */
 
-/* This file is part of LCDd, the lcdproc server.
- *
- * This file is released under the GNU General Public License.
- * Refer to the COPYING file distributed with this package.
- *
- * Copyright (c) 2001, Joris Robijn
- */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#include "shared/posix_wrappers.h"
+#endif
 
 #include <dlfcn.h>
 #include <errno.h>
@@ -17,27 +49,34 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#include "main.h" /* for timer  */
+#include "driver.h"
+#include "drivers.h"
+#include "drivers/lcd.h"
+#include "main.h"
+#include "shared/posix_wrappers.h"
+#include "widget.h"
 
 #include "shared/configfile.h"
+#include "shared/posix_wrappers.h"
 #include "shared/report.h"
 
-#include "./drivers.h"
-#include "./widget.h"
-#include "driver.h"
-#include "drivers/lcd.h"
-
-/** property / method symbols in a Driver structure */
+/**
+ * \brief Driver symbol definition structure
+ * \details Maps driver property/method names to struct offsets for dynamic loading
+ */
 typedef struct driver_symbols {
-	const char *name; /**< symbol name */
-	short offset;	  /**< offset in Driver structure */
-	short required;	  /**< is the symbol mandatory */
+	const char *name; ///< Symbol name
+	short offset;	  ///< Offset in Driver struct
+	short required;	  ///< 1 if required, 0 if optional
 } DriverSymbols;
 
+/** \brief Driver symbol lookup table for dynamic driver loading
+ *
+ * \details Maps driver API symbol names to their offsets in the Driver struct.
+ * Required flag indicates mandatory symbols (1) vs optional (0). Used during
+ * driver module loading to resolve and validate driver entry points. Table is
+ * null-terminated.
+ */
 DriverSymbols driver_symbols[] = {{"api_version", offsetof(Driver, api_version), 1},
 				  {"stay_in_foreground", offsetof(Driver, stay_in_foreground), 1},
 				  {"supports_multiple", offsetof(Driver, supports_multiple), 1},
@@ -72,17 +111,13 @@ DriverSymbols driver_symbols[] = {{"api_version", offsetof(Driver, api_version),
 				  {"get_info", offsetof(Driver, get_info), 0},
 				  {NULL, 0, 0}};
 
-/* Functions for the driver */
+// Internal helper function declarations: display dimension requests and private data storage for
+// driver instances
 static int request_display_width(void);
 static int request_display_height(void);
 static int driver_store_private_ptr(Driver *driver, void *private_data);
 
-/** Create a driver object.
- * Allocate memory for the driver object, load it from file and bind its symbols.
- * \param name      Name under which the driver shall be known further on.
- * \param filename  Name of the file containing the drivers object code.
- * \return          Pointer to the freshly created driver; \c NULL on error.
- */
+// Load driver from shared library file
 Driver *driver_load(const char *name, const char *filename)
 {
 	Driver *driver = NULL;
@@ -90,18 +125,15 @@ Driver *driver_load(const char *name, const char *filename)
 
 	report(RPT_DEBUG, "%s(name=\"%.40s\", filename=\"%.80s\")", __FUNCTION__, name, filename);
 
-	/* fail on wrong / missing parameters */
 	if ((name == NULL) || (filename == NULL))
 		return NULL;
 
-	/* Allocate memory for new driver struct */
 	driver = calloc(1, sizeof(Driver));
 	if (driver == NULL) {
 		report(RPT_ERR, "%s: error allocating driver", __FUNCTION__);
 		return NULL;
 	}
 
-	/* And store its name and filename */
 	driver->name = malloc(strlen(name) + 1);
 	if (driver->name == NULL) {
 		report(RPT_ERR, "%s: error allocating driver name", __FUNCTION__);
@@ -121,7 +153,6 @@ Driver *driver_load(const char *name, const char *filename)
 	strncpy(driver->filename, filename, strlen(filename));
 	driver->filename[strlen(filename)] = '\0';
 
-	/* Load and bind the driver module and locate the symbols */
 	if (driver_bind_module(driver) < 0) {
 		report(RPT_ERR, "Driver [%.40s] binding failed", name);
 		free(driver->name);
@@ -130,7 +161,6 @@ Driver *driver_load(const char *name, const char *filename)
 		return NULL;
 	}
 
-	/* Check module version */
 	if (driver->api_version == NULL || strcmp(*(driver->api_version), API_VERSION) != 0) {
 		report(RPT_ERR, "Driver [%.40s] is of an incompatible version", name);
 		driver_unbind_module(driver);
@@ -140,15 +170,11 @@ Driver *driver_load(const char *name, const char *filename)
 		return NULL;
 	}
 
-	/* Call the init function */
 	debug(RPT_DEBUG, "%s: Calling driver [%.40s] init function", __FUNCTION__, driver->name);
 
 	res = driver->init(driver);
 	if (res < 0) {
 		report(RPT_ERR, "Driver [%.40s] init failed, return code %d", driver->name, res);
-		/* Driver load failed, driver should not be added to list
-		 * Free driver structure again
-		 */
 		driver_unbind_module(driver);
 		free(driver->name);
 		free(driver->filename);
@@ -161,23 +187,16 @@ Driver *driver_load(const char *name, const char *filename)
 	return driver;
 }
 
-/** Unload driver from memory.
- * \param driver  Driver to unload.
- * \retval <0     Error.
- * \retval  0     Success.
- */
+// Unload driver from memory and free all resources
 int driver_unload(Driver *driver)
 {
 	debug(RPT_NOTICE, "Closing driver [%.40s]", driver->name);
 
-	/* close the driver, if its \c close method is [already] defined */
 	if (driver->close != NULL)
 		driver->close(driver);
 
-	/* unload the module */
 	driver_unbind_module(driver);
 
-	/* free its data */
 	free(driver->filename);
 	driver->filename = NULL;
 	free(driver->name);
@@ -190,11 +209,7 @@ int driver_unload(Driver *driver)
 	return 0;
 }
 
-/** Dynamically load a module and bind it to the Driver's symbols.
- * \param driver  Pointer to the Driver object.
- * \retval <0     Error.
- * \retval  0     Success.
- */
+// Dynamically load module and bind all driver symbols
 int driver_bind_module(Driver *driver)
 {
 	int i;
@@ -202,40 +217,37 @@ int driver_bind_module(Driver *driver)
 
 	debug(RPT_DEBUG, "%s(driver=[%.40s])", __FUNCTION__, driver->name);
 
-	/* Load the module */
 	driver->module_handle = dlopen(driver->filename, RTLD_NOW);
 	if (driver->module_handle == NULL) {
-		report(
-		    RPT_ERR, "Could not open driver module %.40s: %s", driver->filename, dlerror());
+		// dlerror() is thread-safe on Linux (glibc uses thread-local storage)
+		const char *err_msg = safe_dlerror();
+		report(RPT_ERR, "Could not open driver module %.40s: %s", driver->filename,
+		       err_msg);
 		return -1;
 	}
 
-	/* And locate the symbols */
 	for (i = 0; driver_symbols[i].name != NULL; i++) {
 		void (**p)();
 
-		p = (void (**)())((size_t)driver + (driver_symbols[i].offset));
+		// Calculate address of function pointer in Driver struct using offset
+		p = (void (**)())((char *)driver + (driver_symbols[i].offset));
 		*p = NULL;
 
-		/* 1) try to retrieve the symbol with the driver's symbol_prefix added */
+		// Try prefixed symbol first (e.g., "g15_init"), then unprefixed ("init")
 		if (driver->symbol_prefix != NULL) {
 			char *s = malloc(strlen(*(driver->symbol_prefix)) +
 					 strlen(driver_symbols[i].name) + 1);
 			snprintf(s,
 				 strlen(*(driver->symbol_prefix)) + strlen(driver_symbols[i].name) +
 				     1,
-				 "%s%s",
-				 *(driver->symbol_prefix),
-				 driver_symbols[i].name);
+				 "%s%s", *(driver->symbol_prefix), driver_symbols[i].name);
 			debug(RPT_DEBUG, "%s: finding symbol: %s", __FUNCTION__, s);
 			*p = dlsym(driver->module_handle, s);
 			free(s);
 		}
-		/* 2) try to retrieve the symbol without the symbol prefix */
+
 		if (*p == NULL) {
-			debug(RPT_DEBUG,
-			      "%s: finding symbol: %s",
-			      __FUNCTION__,
+			debug(RPT_DEBUG, "%s: finding symbol: %s", __FUNCTION__,
 			      driver_symbols[i].name);
 			*p = dlsym(driver->module_handle, driver_symbols[i].name);
 		}
@@ -243,30 +255,21 @@ int driver_bind_module(Driver *driver)
 		if (*p != NULL) {
 			debug(RPT_DEBUG, "%s: found symbol at: %p", __FUNCTION__, *p);
 		} else {
-			/* Was the symbol required but not found ? */
 			if (driver_symbols[i].required) {
-				report(RPT_ERR,
-				       "Driver [%.40s] does not have required symbol: %s",
-				       driver->name,
-				       driver_symbols[i].name);
+				report(RPT_ERR, "Driver [%.40s] does not have required symbol: %s",
+				       driver->name, driver_symbols[i].name);
 				missing_symbols++;
 			}
 		}
 	}
 
-	/* If errors, leave now while we can :) */
 	if (missing_symbols > 0) {
-		report(RPT_ERR,
-		       "Driver [%.40s]  misses %d required symbols",
-		       driver->name,
+		report(RPT_ERR, "Driver [%.40s]  misses %d required symbols", driver->name,
 		       missing_symbols);
 		dlclose(driver->module_handle);
 		return -1;
 	}
 
-	/* Add our exported functions */
-
-	/* Config file functions */
 	driver->config_get_bool = config_get_bool;
 	driver->config_get_int = config_get_int;
 	driver->config_get_float = config_get_float;
@@ -274,21 +277,15 @@ int driver_bind_module(Driver *driver)
 	driver->config_has_section = config_has_section;
 	driver->config_has_key = config_has_key;
 
-	/* Driver private data */
 	driver->store_private_ptr = driver_store_private_ptr;
 
-	/* Display size request */
 	driver->request_display_width = request_display_width;
 	driver->request_display_height = request_display_height;
 
 	return 0;
 }
 
-/** Unload a Driver's module.
- * \param driver  Pointer to the driver object.
- * \retval <0     Error.
- * \retval  0     Success.
- */
+// Unload driver module and close shared library handle
 int driver_unbind_module(Driver *driver)
 {
 	debug(RPT_DEBUG, "%s(driver=[%.40s])", __FUNCTION__, driver->name);
@@ -298,13 +295,7 @@ int driver_unbind_module(Driver *driver)
 	return 0;
 }
 
-/** Determine if the driver is an output driver.
- * This is done by checking whether the driver knows dimensions
- * and supports the methods that write to the screen.
- * \param driver  Pointer to the driver object.
- * \retval 0      No, it is not an output driver.
- * \retval 1      Yes, it is an output driver.
- */
+// Determine if driver supports output operations
 bool driver_does_output(Driver *driver)
 {
 	return (driver->width != NULL || driver->height != NULL || driver->clear != NULL ||
@@ -313,28 +304,25 @@ bool driver_does_output(Driver *driver)
 		   : 0;
 }
 
-/** Determine if the driver is an input driver.
- * This is done by checking whether the driver supports the \c get_key method.
- * \param driver  Pointer to the driver object.
- * \retval 0      No, it is not an input driver.
- * \retval 1      Yes, it is an input driver.
- */
+// Determine if driver supports input operations
 bool driver_does_input(Driver *driver) { return (driver->get_key != NULL) ? 1 : 0; }
 
-/** Tell if the driver needs to stay in the foreground.
- * \param driver  Pointer to the driver object.
- * \retval 0      No, the driver does not need to stay in the foreground.
- * \retval 1      Yes, the driver needs to stay in the foreground.
- */
+// Check if driver requires server to stay in foreground
 bool driver_stay_in_foreground(Driver *driver) { return *driver->stay_in_foreground; }
 
-/** Tell if the driver supports multiple instances.
- * \param driver  Pointer to the driver object.
- * \retval 0      No, it doesn't.
- * \retval 1      Yes, it does.
+/**
+ * \brief Driver supports multiple
+ * \param driver Driver *driver
+ * \return Return value
  */
 bool driver_supports_multiple(Driver *driver) { return *driver->supports_multiple; }
 
+/**
+ * \brief Driver store private ptr
+ * \param driver Driver *driver
+ * \param private_data void *private_data
+ * \return Return value
+ */
 static int driver_store_private_ptr(Driver *driver, void *private_data)
 {
 	debug(RPT_DEBUG, "%s(driver=[%.40s], ptr=%p)", __FUNCTION__, driver->name, private_data);
@@ -343,6 +331,10 @@ static int driver_store_private_ptr(Driver *driver, void *private_data)
 	return 0;
 }
 
+/**
+ * \brief Request display width
+ * \return Return value
+ */
 static int request_display_width(void)
 {
 	if (!display_props)
@@ -350,6 +342,10 @@ static int request_display_width(void)
 	return display_props->width;
 }
 
+/**
+ * \brief Request display height
+ * \return Return value
+ */
 static int request_display_height(void)
 {
 	if (!display_props)
@@ -357,112 +353,65 @@ static int request_display_height(void)
 	return display_props->height;
 }
 
-/** Draw a vertical bar bottom-up.
- * Fallback for the driver's \c vbar method if the driver does not provide one.
- * \param drv      Pointer to driver structure.
- * \param x        Horizontal character position (column) of the starting point.
- * \param y        Vertical character position (row) of the starting point.
- * \param len      Number of characters that the bar is high at 100%
- * \param promille Current height level of the bar in promille.
- * \param options  Options (currently unused).
+/**
+ * \brief Fallback bar drawing for drivers without native bar support
+ * \param drv Driver instance
+ * \param x Starting X coordinate
+ * \param y Starting Y coordinate
+ * \param len Bar length in characters
+ * \param promille Fill level in promille (0-1000)
+ * \param character Character to use for filled portion
+ * \param dx X direction increment (+1 right, -1 left, 0 vertical)
+ * \param dy Y direction increment (+1 down, -1 up, 0 horizontal)
+ *
+ * \details Uses chr() function to emulate bar drawing character-by-character.
+ * Provides fallback when driver lacks native vbar/hbar/pbar support.
  */
+static void driver_alt_bar_internal(Driver *drv, int x, int y, int len, int promille,
+				    char character, int dx, int dy)
+{
+	int pos;
+
+	if (drv->chr == NULL)
+		return;
+
+	for (pos = 0; pos < len; pos++) {
+		if (2 * pos < ((long)promille * len / 500 + 1)) {
+			drv->chr(drv, x + pos * dx, y + pos * dy, character);
+		}
+	}
+}
+
+// Alternative vertical bar implementation for drivers without native support
 void driver_alt_vbar(Driver *drv, int x, int y, int len, int promille, int options)
 {
-	int pos;
+	debug(RPT_DEBUG, "%s(drv=[%.40s], x=%d, y=%d, len=%d, promille=%d, options=%d)",
+	      __FUNCTION__, drv->name, x, y, len, promille, options);
 
-	debug(RPT_DEBUG,
-	      "%s(drv=[%.40s], x=%d, y=%d, len=%d, promille=%d, options=%d)",
-	      __FUNCTION__,
-	      drv->name,
-	      x,
-	      y,
-	      len,
-	      promille,
-	      options);
-
-	/* if the driver does not support output, do nothing */
-	if (drv->chr == NULL)
-		return;
-
-	for (pos = 0; pos < len; pos++) {
-		if (2 * pos < ((long)promille * len / 500 + 1)) {
-			drv->chr(drv, x, y - pos, '|');
-		} else {
-			; /* print nothing */
-		}
-	}
+	driver_alt_bar_internal(drv, x, y, len, promille, '|', 0, -1);
 }
 
-/** Draw a horizontal bar to the right.
- * Fallback for the driver's \c hbar method if the driver does not provide one.
- * \param drv      Pointer to driver structure.
- * \param x        Horizontal character position (column) of the starting point.
- * \param y        Vertical character position (row) of the starting point.
- * \param len      Number of characters that the bar is long at 100%
- * \param promille Current length level of the bar in promille.
- * \param options  Options (currently unused).
- */
+// Alternative horizontal bar implementation for drivers without native support
 void driver_alt_hbar(Driver *drv, int x, int y, int len, int promille, int options)
 {
-	int pos;
+	debug(RPT_DEBUG, "%s(drv=[%.40s], x=%d, y=%d, len=%d, promille=%d, options=%d)",
+	      __FUNCTION__, drv->name, x, y, len, promille, options);
 
-	debug(RPT_DEBUG,
-	      "%s(drv=[%.40s], x=%d, y=%d, len=%d, promille=%d, options=%d)",
-	      __FUNCTION__,
-	      drv->name,
-	      x,
-	      y,
-	      len,
-	      promille,
-	      options);
-
-	/* if the driver does not support output, do nothing */
-	if (drv->chr == NULL)
-		return;
-
-	for (pos = 0; pos < len; pos++) {
-		if (2 * pos < ((long)promille * len / 500 + 1)) {
-			drv->chr(drv, x + pos, y, '-');
-		} else {
-			; /* print nothing */
-		}
-	}
+	driver_alt_bar_internal(drv, x, y, len, promille, '-', 1, 0);
 }
 
-/**
- * Draw a percentage-bar including its (optional) labels.
- * \param drv          Pointer to driver structure.
- * \param x            Horizontal character position (column) of the starting point.
- * \param y            Vertical character position (row) of the starting point.
- * \param width        Width of the widget in characters, including the
- *                     optional begin and end-labels.
- * \param promille     Current length level of the bar in promille.
- * \param begin_label  Optional (may be NULL) text to render in front of /
- *                     at the beginning of the percentage-bar.
- * \param end_label    Optional text to render at the end of the pbar.
- */
-void driver_pbar(
-    Driver *drv, int x, int y, int width, int promille, char *begin_label, char *end_label)
+// Draw percentage bar with optional begin and end labels
+void driver_pbar(Driver *drv, int x, int y, int width, int promille, char *begin_label,
+		 char *end_label)
 {
 	int begin_length, end_length, len;
 
-	debug(RPT_DEBUG,
-	      "%s(drv=[%.40s], x=%d, y=%d, width=%d, promille=%d)",
-	      __FUNCTION__,
-	      drv->name,
-	      x,
-	      y,
-	      width,
-	      promille);
+	debug(RPT_DEBUG, "%s(drv=[%.40s], x=%d, y=%d, width=%d, promille=%d)", __FUNCTION__,
+	      drv->name, x, y, width, promille);
 
-	/* if the driver does not support output, do nothing. */
 	if (drv->chr == NULL || drv->string == NULL)
 		return;
 
-	/* if we are falling back to drawing a hbar because the driver does
-	 * not provide a pbar method *and* no labels are given, draw []
-	 * around the hbar to mark the beginning and end of the bar.
-	 */
 	if (!drv->pbar && begin_label == NULL && end_label == NULL) {
 		begin_label = "[";
 		end_label = "]";
@@ -471,7 +420,6 @@ void driver_pbar(
 	begin_length = begin_label ? strlen(begin_label) : 0;
 	end_length = end_label ? strlen(end_label) : 0;
 
-	/* We want at least 2 chars for the bar itself */
 	if ((begin_length + end_length + 2) > width)
 		begin_length = end_length = 0;
 
@@ -494,73 +442,15 @@ void driver_pbar(
 		drv->string(drv, x, y, end_label);
 }
 
-/** Write a big number to the screen.
- * Fallback for the driver's \c num method if the driver does not provide one.
- * \param drv  Pointer to driver structure.
- * \param x    Horizontal character position (column).
- * \param num  Character to write (0 - 10 with 10 representing ':')
- */
+// Alternative big number display implementation for drivers without native support
 void driver_alt_num(Driver *drv, int x, int num)
 {
-	/* Ugly code extracted by David GLAUDE from lcdm001.c ;)*/
-	/* Moved to driver.c by Joris Robijn */
-	static char num_map[][4][4] = {{/* 0 */
-					" _ ",
-					"| |",
-					"|_|",
-					"   "},
-				       {/* 1 */
-					"   ",
-					"  |",
-					"  |",
-					"   "},
-				       {/* 2 */
-					" _ ",
-					" _|",
-					"|_ ",
-					"   "},
-				       {/* 3 */
-					" _ ",
-					" _|",
-					" _|",
-					"   "},
-				       {/* 4 */
-					"   ",
-					"|_|",
-					"  |",
-					"   "},
-				       {/* 5 */
-					" _ ",
-					"|_ ",
-					" _|",
-					"   "},
-				       {/* 6 */
-					" _ ",
-					"|_ ",
-					"|_|",
-					"   "},
-				       {/* 7 */
-					" _ ",
-					"  |",
-					"  |",
-					"   "},
-				       {/* 8 */
-					" _ ",
-					"|_|",
-					"|_|",
-					"   "},
-				       {/* 9 */
-					" _ ",
-					"|_|",
-					" _|",
-					"   "},
-				       {/* colon */
-					" ",
-					".",
-					".",
-					" "}};
-	/* End of ugly code ;) by Rene Wagner */
-	/* I like this code !  Joris */
+	static char num_map[][4][4] = {{" _ ", "| |", "|_|", "   "}, {"   ", "  |", "  |", "   "},
+				       {" _ ", " _|", "|_ ", "   "}, {" _ ", " _|", " _|", "   "},
+				       {"   ", "|_|", "  |", "   "}, {" _ ", "|_ ", " _|", "   "},
+				       {" _ ", "|_ ", "|_|", "   "}, {" _ ", "  |", "  |", "   "},
+				       {" _ ", "|_|", "|_|", "   "}, {" _ ", "|_|", " _|", "   "},
+				       {" ", ".", ".", " "}};
 
 	int y, dx;
 
@@ -568,7 +458,6 @@ void driver_alt_num(Driver *drv, int x, int num)
 
 	if ((num < 0) || (num > 10))
 		return;
-	/* if the driver does not support output, do nothing */
 	if (drv->chr == NULL)
 		return;
 
@@ -577,11 +466,7 @@ void driver_alt_num(Driver *drv, int x, int num)
 			drv->chr(drv, x + dx, y + 1, num_map[num][y][dx]);
 }
 
-/** Show the heartbeat.
- * Fallback for the driver's \c heartbeat method if the driver does not provide one.
- * \param drv    Pointer to driver structure.
- * \param state  Current heartbeat state.
- */
+// Alternative heartbeat indicator implementation for drivers without native support
 void driver_alt_heartbeat(Driver *drv, int state)
 {
 	int icon;
@@ -590,15 +475,21 @@ void driver_alt_heartbeat(Driver *drv, int state)
 
 	if (state == HEARTBEAT_OFF)
 		return;
-	/* Don't display anything */
 
-	/* if the driver does not support output, do nothing */
 	if (drv->width == NULL)
 		return;
 
-	/* Hmm, is this a good method ?
-	 * Or should we use clock() ? Or ftime ? Or gettimeofday ?
+	/**
+	 * \todo Consider migrating to clock_gettime(CLOCK_MONOTONIC) for more precise
+	 * and system-independent timing instead of the global timer variable.
+	 * Current method works but could be improved with monotonic time for
+	 * heartbeat timing that's independent of main loop performance.
+	 * Alternative: Improve current pattern from (timer & 5) to (timer & 4)
+	 * for more regular 50/50 blink pattern.
+	 *
+	 * \ingroup ToDo_critical
 	 */
+
 	icon = (timer & 5) ? ICON_HEART_FILLED : ICON_HEART_OPEN;
 
 	if (drv->icon)
@@ -607,107 +498,137 @@ void driver_alt_heartbeat(Driver *drv, int state)
 		driver_alt_icon(drv, drv->width(drv), 1, icon);
 }
 
-/** Place an icon on the screen.
- * Fallback for the driver's \c icon method, in case either the driver does not
- * provide one or the driver's method indicates the icon needs to be handled
- * by the server core.
- * \param drv   Pointer to driver structure.
- * \param x     Horizontal character position (column).
- * \param y     Vertical character position (row).
- * \param icon  synbolic value representing the icon.
- *
- * \note Icons used for 'play control' actually are composed of two
- *       characters. Drivers must check for bounds on calls to chr()!
- */
+// Alternative icon display implementation for drivers without native support
 void driver_alt_icon(Driver *drv, int x, int y, int icon)
 {
 	char ch1 = '?';
 	char ch2 = '\0';
 
-	debug(RPT_DEBUG,
-	      "%s(drv=[%.40s], x=%d, y=%d, icon=ICON_%s)",
-	      __FUNCTION__,
-	      drv->name,
-	      x,
-	      y,
+	debug(RPT_DEBUG, "%s(drv=[%.40s], x=%d, y=%d, icon=ICON_%s)", __FUNCTION__, drv->name, x, y,
 	      widget_icon_to_iconname(icon));
 
-	/* if the driver does not support output, do nothing */
 	if (drv->chr == NULL)
 		return;
 
 	switch (icon) {
+
+	// Filled block icon
 	case ICON_BLOCK_FILLED:
 		ch1 = '#';
 		break;
+
+	// Open heart icon
 	case ICON_HEART_OPEN:
 		ch1 = '-';
 		break;
+
+	// Filled heart icon
 	case ICON_HEART_FILLED:
 		ch1 = '#';
 		break;
+
+	// Up arrow icon
 	case ICON_ARROW_UP:
 		ch1 = '^';
 		break;
+
+	// Down arrow icon
 	case ICON_ARROW_DOWN:
 		ch1 = 'v';
 		break;
+
+	// Left arrow icon
 	case ICON_ARROW_LEFT:
 		ch1 = '<';
 		break;
+
+	// Right arrow icon
 	case ICON_ARROW_RIGHT:
 		ch1 = '>';
 		break;
+
+	// Unchecked checkbox icon
 	case ICON_CHECKBOX_OFF:
 		ch1 = 'N';
 		break;
+
+	// Checked checkbox icon
 	case ICON_CHECKBOX_ON:
 		ch1 = 'Y';
 		break;
+
+	default:
+		break;
+
+	// Gray checkbox icon
 	case ICON_CHECKBOX_GRAY:
 		ch1 = 'o';
 		break;
+
+	// Left selector icon
 	case ICON_SELECTOR_AT_LEFT:
 		ch1 = '>';
 		break;
+
+	// Right selector icon
 	case ICON_SELECTOR_AT_RIGHT:
 		ch1 = '<';
 		break;
+
+	// Ellipsis icon
 	case ICON_ELLIPSIS:
 		ch1 = '_';
 		break;
+
+	// Stop icon (two characters)
 	case ICON_STOP:
 		ch1 = '[';
 		ch2 = ']';
 		break;
+
+	// Pause icon (two characters)
 	case ICON_PAUSE:
 		ch1 = '|';
 		ch2 = '|';
 		break;
+
+	// Play icon (two characters)
 	case ICON_PLAY:
 		ch1 = '>';
 		ch2 = ' ';
 		break;
+
+	// Play reverse icon (two characters)
 	case ICON_PLAYR:
 		ch1 = '<';
 		ch2 = ' ';
 		break;
+
+	// Fast forward icon (two characters)
 	case ICON_FF:
 		ch1 = '>';
 		ch2 = '>';
 		break;
+
+	// Fast reverse icon (two characters)
 	case ICON_FR:
 		ch1 = '<';
 		ch2 = '<';
 		break;
+
+	// Next track icon (two characters)
 	case ICON_NEXT:
 		ch1 = '>';
 		ch2 = '|';
 		break;
+
+	// Previous track icon (two characters)
 	case ICON_PREV:
 		ch1 = '|';
 		ch2 = '<';
 		break;
+
+	// Record icon (two characters)
 	case ICON_REC:
 		ch1 = '(';
 		ch2 = ')';
@@ -719,26 +640,25 @@ void driver_alt_icon(Driver *drv, int x, int y, int icon)
 		drv->chr(drv, x + 1, y, ch2);
 }
 
-/** Set cursor position and state.
- * Fallback for the driver's \c cursor method if the driver does not provide one.
- * \param drv    Pointer to driver structure.
- * \param x      Horizontal cursor position (column).
- * \param y      Vertical cursor position (row).
- * \param state  New cursor state.
- */
+// Alternative cursor implementation for drivers without native support
 void driver_alt_cursor(Driver *drv, int x, int y, int state)
 {
-	/* Same question about timer in this function... */
+	/**
+	 * \todo Same question about timer timing applies here: Consider migrating
+	 * to clock_gettime(CLOCK_MONOTONIC) for system-independent cursor blink timing.
+	 * Current method (timer & 2) provides good 50/50 blink pattern but depends on
+	 * main loop performance. Monotonic time would ensure consistent cursor blink
+	 * frequency even under system load or I/O blocking.
+	 *
+	 * \ingroup ToDo_critical
+	 */
 
-	debug(RPT_DEBUG,
-	      "%s(drv=[%.40s], x=%d, y=%d, state=%d)",
-	      __FUNCTION__,
-	      drv->name,
-	      x,
-	      y,
+	debug(RPT_DEBUG, "%s(drv=[%.40s], x=%d, y=%d, state=%d)", __FUNCTION__, drv->name, x, y,
 	      state);
 
 	switch (state) {
+
+	// Blinking block cursor or default cursor
 	case CURSOR_BLOCK:
 	case CURSOR_DEFAULT_ON:
 		if ((timer & 2) && (drv->chr != NULL)) {
@@ -749,10 +669,16 @@ void driver_alt_cursor(Driver *drv, int x, int y, int state)
 			}
 		}
 		break;
+
+	// Blinking underline cursor
 	case CURSOR_UNDER:
 		if ((timer & 2) && (drv->chr != NULL)) {
 			drv->chr(drv, x, y, '_');
 		}
+		break;
+
+	// Handle invalid or off cursor states
+	default:
 		break;
 	}
 }

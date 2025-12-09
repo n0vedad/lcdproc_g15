@@ -14,7 +14,7 @@ This section explains the purpose of each directory and file in the repository:
   - `server/drivers/g15.c` - G15/G510 keyboard hardware driver
   - `server/drivers/hidraw_lib.*` - HID device communication library
   - `server/drivers/debug.c` - Debug driver for testing without hardware
-  - `LCDd.c` - Main daemon entry point
+  - `server/main.c` - Main daemon entry point
 
 - **`services/`** - Systemd service files for automatic startup
   - `lcdd.service` - LCDd daemon service
@@ -71,8 +71,8 @@ This section explains the purpose of each directory and file in the repository:
 - **`INSTALL.md`** - Detailed installation and configuration instructions
 - **`CONTRIBUTING.md`** - Development workflow, coding standards, testing guidelines
 - **`FAQ.md`** - Frequently asked questions and troubleshooting
-- **`tests/README.md`** - Detailed testing documentation and usage guide
 - **`COPYING`** - GPL v2 license full text
+- **`tests/README.md`** - Detailed testing documentation and usage guide
 
 # PREREQUISITES
 
@@ -117,7 +117,7 @@ In order to compile/install LCDproc, you'll need the following programs:
 sudo pacman -S clang make autoconf automake
 
 # Base libraries (available in main repos)
-sudo pacman -S libusb libftdi-compat ydotool
+sudo pacman -S libusb libftdi-compat ydotool popt
 ```
 
 **G15 Hardware Support (AUR packages):**
@@ -158,7 +158,7 @@ makepkg -si
 
 ### Manual Build
 
-#### **Standard Build Process**
+### Build for Development
 
 ```bash
 # Simple one-command build (recommended)
@@ -169,13 +169,16 @@ make setup-autotools
 
 # Standard configuration (production use)
 ./configure \
-  --prefix=/usr \                # Install base directory
---sbindir=/usr/bin \             # Server binaries to /usr/bin (not /usr/sbin)
---sysconfdir=/etc \              # Configuration files to /etc
---enable-libusb \                # Enable libusb support for G15 device communication
---enable-lcdproc-menus \         # Enable menu support in lcdproc client
---enable-stat-smbfs \            # Enable Samba filesystem statistics
---enable-drivers=g15,linux_input # Build G15 and input drivers
+
+| Option                               | Description                                        |
+| ------------------------------------ | -------------------------------------------------- |
+| --prefix=/usr                        | Install base directory                             |
+| --sbindir=/usr/bin                   | Server binaries to /usr/bin (not /usr/sbin)        |
+| --sysconfdir=/etc                    | Configuration files to /etc                        |
+| --enable-libusb                      | Enable libusb support for G15 device communication |
+| --enable-lcdproc-menus               | Enable menu support in lcdproc client              |
+| --enable-stat-smbfs                  | Enable Samba filesystem statistics                 |
+| --enable-drivers=g15,linux_input     | Build G15 and input drivers                        |
 
 # Build
 make
@@ -282,7 +285,8 @@ Once both LCDd server and lcdproc client are running with proper permissions:
 
 ### Macro Storage
 
-- Macros are automatically saved to `~/.config/lcdproc/g15_macros.json`
+- Macros are automatically saved to `/var/lib/lcdproc/.config/lcdproc/g15_macros.json`
+- System-wide storage ensures macros persist across user sessions
 - Pauses and special keys are preserved as separate actions
 
 # RGB BACKLIGHT CONFIGURATION

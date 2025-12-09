@@ -694,7 +694,7 @@ int portable_vsnprintf(char *str, size_t str_m, const char *fmt, va_list ap)
 
 			const char *str_arg; /* string address in case of string argument */
 			size_t str_arg_l;    /* natural field width of arg without padding
-						and sign */
+					   and sign */
 			unsigned char uchar_arg;
 			/* unsigned char argument value - only defined for c conversion.
 			   N.B. standard explicitly states the char argument for
@@ -710,7 +710,6 @@ int portable_vsnprintf(char *str, size_t str_m, const char *fmt, va_list ap)
 			char fmt_spec = '\0';
 			/* current conversion specifier character */
 
-			str_arg = credits; /* just to make compiler happy (defined but not used)*/
 			str_arg = NULL;
 			starting_p = p;
 			p++; /* skip '%' */
@@ -860,8 +859,7 @@ int portable_vsnprintf(char *str, size_t str_m, const char *fmt, va_list ap)
 					else {
 						/* memchr on HP does not like n > 2^31  !!! */
 						const char *const q = (const char *)memchr(
-						    str_arg,
-						    '\0',
+						    str_arg, '\0',
 						    precision <= 0x7fffffff ? precision
 									    : 0x7fffffff);
 						str_arg_l = !q ? precision : (q - str_arg);
@@ -1081,8 +1079,8 @@ int portable_vsnprintf(char *str, size_t str_m, const char *fmt, va_list ap)
 							break;
 #ifdef SNPRINTF_LONGLONG_SUPPORT
 						case '2':
-							sprintf_l = sprintf(
-							    tmp + str_arg_l, f, long_long_arg);
+							sprintf_l = sprintf(tmp + str_arg_l, f,
+									    long_long_arg);
 							break;
 #endif
 						}
@@ -1099,8 +1097,8 @@ int portable_vsnprintf(char *str, size_t str_m, const char *fmt, va_list ap)
 							break;
 #ifdef SNPRINTF_LONGLONG_SUPPORT
 						case '2':
-							sprintf_l = sprintf(
-							    tmp + str_arg_l, f, ulong_long_arg);
+							sprintf_l = sprintf(tmp + str_arg_l, f,
+									    ulong_long_arg);
 							break;
 #endif
 						}
@@ -1220,16 +1218,16 @@ int portable_vsnprintf(char *str, size_t str_m, const char *fmt, va_list ap)
 			}
 			if (*p)
 				p++; /* step over the just processed conversion specifier */
-				     /* insert padding to the left as requested by min_field_width;
-					this does not include the zero padding in case of numerical conversions*/
+			/* insert padding to the left as requested by min_field_width;
+					this does not include the zero padding in case of numerical
+			   conversions*/
 			if (!justify_left) { /* left padding with blank or zero */
 				const int n =
 				    min_field_width - (str_arg_l + number_of_zeros_to_pad);
 				if (n > 0) {
 					if (str_l < str_m) {
 						const size_t avail = str_m - str_l;
-						fast_memset(str + str_l,
-							    (zero_padding ? '0' : ' '),
+						fast_memset(str + str_l, (zero_padding ? '0' : ' '),
 							    ((unsigned int)n > avail
 								 ? avail
 								 : (unsigned int)n));
@@ -1251,8 +1249,7 @@ int portable_vsnprintf(char *str, size_t str_m, const char *fmt, va_list ap)
 					if (n > 0) {
 						if (str_l < str_m) {
 							const size_t avail = str_m - str_l;
-							fast_memcpy(str + str_l,
-								    str_arg,
+							fast_memcpy(str + str_l, str_arg,
 								    ((unsigned int)n > avail
 									 ? avail
 									 : (unsigned int)n));
@@ -1267,8 +1264,7 @@ int portable_vsnprintf(char *str, size_t str_m, const char *fmt, va_list ap)
 					if (n > 0) {
 						if (str_l < str_m) {
 							const size_t avail = str_m - str_l;
-							fast_memset(str + str_l,
-								    '0',
+							fast_memset(str + str_l, '0',
 								    ((unsigned int)n > avail
 									 ? avail
 									 : (unsigned int)n));
@@ -1300,8 +1296,7 @@ int portable_vsnprintf(char *str, size_t str_m, const char *fmt, va_list ap)
 				if (n > 0) {
 					if (str_l < str_m) {
 						const size_t avail = str_m - str_l;
-						fast_memset(str + str_l,
-							    ' ',
+						fast_memset(str + str_l, ' ',
 							    ((unsigned int)n > avail
 								 ? avail
 								 : (unsigned int)n));

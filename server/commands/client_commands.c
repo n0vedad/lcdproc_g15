@@ -1,21 +1,41 @@
-/** \file server/commands/client_commands.c
- * Implements handlers for general client commands.
+// SPDX-License-Identifier: GPL-2.0+
+
+/**
+ * \file server/commands/client_commands.c
+ * \brief Implementation of client command handlers for LCDd server
+ * \author William Ferrell, Selene Scriven, Joris Robijn, n0vedad
+ * \date 1999-2025
  *
- * This contains definitions for all the functions which clients can run.
- * The functions here are to be called only from parse.c's interpreter.
+ * \features
+ * - Client connection establishment (hello command)
+ * - Client termination handling (bye command)
+ * - Client configuration management (client_set command)
+ * - Key event registration and deregistration (client_add_key, client_del_key)
+ * - Display backlight control (backlight command)
+ * - G15 macro LED control (macro_leds command)
+ * - Driver information reporting (info command)
+ * - Debug command testing (test_func_func)
+ * - Socket-based client communication
+ * - Client state validation and management
+ * - Protocol error handling and responses
  *
- * The client's available function set is defined here, as is the syntax
- * for each command.
+ * \usage
+ * - Functions are called by the command parser when clients send commands
+ * - Each function processes specific client command types
+ * - Used by the main LCDd server for client protocol implementation
+ * - Provides standardized command processing interface
+ * - Handles client state transitions and validation
+ *
+ * \details
+ * This file implements handlers for general client commands in the
+ * LCDd server. These functions process commands sent by clients through the
+ * socket connection and manage client communication, configuration, and
+ * interaction with the display hardware.
  */
 
-/* This file is part of LCDd, the lcdproc server.
- *
- * This file is released under the GNU General Public License.
- * Refer to the COPYING file distributed with this package.
- *
- * Copyright (c) 1999, William Ferrell, Selene Scriven
- *               2002, Joris Robijn
- */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #include <ctype.h>
 #include <errno.h>
@@ -33,9 +53,7 @@
 #include "../render.h"
 #include "client_commands.h"
 
-/**
- * Debugging only..  prints out a list of arguments it receives
- */
+// Debug function that prints received command arguments
 int test_func_func(Client *c, int argc, char **argv)
 {
 	int i;
@@ -44,20 +62,11 @@ int test_func_func(Client *c, int argc, char **argv)
 		report(RPT_INFO, "%s: %i -> %s", __FUNCTION__, i, argv[i]);
 		sock_printf(c->sock, "%s:  %i -> %s\n", __FUNCTION__, i, argv[i]);
 	}
+
 	return 0;
 }
 
-/**
- * The client must say "hello" before doing anything else.
- *
- * It sends back a string of info about the server to the client.
- *
- *\verbatim
- * Usage: hello
- *\endverbatim
- *
- * \todo  Give \em real info about the server/lcd
- */
+// Handle client hello command for initial connection
 int hello_func(Client *c, int argc, char **argv)
 {
 	if (argc > 1) {
@@ -66,30 +75,18 @@ int hello_func(Client *c, int argc, char **argv)
 
 	debug(RPT_INFO, "Hello!");
 
+	// Send connection confirmation with display capabilities
 	sock_printf(c->sock,
 		    "connect LCDproc %s protocol %s lcd wid %i hgt %i cellwid %i cellhgt %i\n",
-		    VERSION,
-		    PROTOCOL_VERSION,
-		    display_props->width,
-		    display_props->height,
-		    display_props->cellwidth,
-		    display_props->cellheight);
+		    VERSION, PROTOCOL_VERSION, display_props->width, display_props->height,
+		    display_props->cellwidth, display_props->cellheight);
 
-	/* make note that client has sent hello */
 	c->state = ACTIVE;
 
 	return 0;
 }
 
-/**
- * The client should say "bye" before disconnecting
- *
- * The function does not respond to the client: it simply cuts connection.
- *
- *\verbatim
- * Usage: bye
- *\endverbatim
- */
+// Handle client bye command for connection termination
 int bye_func(Client *c, int argc, char **argv)
 {
 	if (c != NULL) {
@@ -98,16 +95,11 @@ int bye_func(Client *c, int argc, char **argv)
 		c->state = GONE;
 		sock_send_error(c->sock, "\"bye\" is currently ignored\n");
 	}
+
 	return 0;
 }
 
-/**
- * Sets info about the client, such as its name
- *
- *\verbatim
- * Usage: client_set -name <id>
- *\endverbatim
- */
+// Handle client_set command for client configuration
 int client_set_func(Client *c, int argc, char **argv)
 {
 	int i;
@@ -124,11 +116,10 @@ int client_set_func(Client *c, int argc, char **argv)
 	do {
 		char *p = argv[i];
 
-		/* ignore leading '-' in options: we allow both forms */
+		// Allow both -name and name parameter formats
 		if (*p == '-')
 			p++;
 
-		/* Handle the "name" option */
 		if (strcmp(p, "name") == 0) {
 			i++;
 			if (argv[i] == NULL) {
@@ -138,7 +129,6 @@ int client_set_func(Client *c, int argc, char **argv)
 
 			debug(RPT_DEBUG, "client_set: name=\"%s\"", argv[i]);
 
-			/* set the name...*/
 			if (c->name != NULL)
 				free(c->name);
 
@@ -146,7 +136,7 @@ int client_set_func(Client *c, int argc, char **argv)
 				sock_send_error(c->sock, "error allocating memory!\n");
 			} else {
 				sock_send_string(c->sock, "success\n");
-				i++; /* bypass argument (name string)*/
+				i++;
 			}
 		} else {
 			sock_printf_error(c->sock, "invalid parameter (%s)\n", p);
@@ -156,14 +146,7 @@ int client_set_func(Client *c, int argc, char **argv)
 	return 0;
 }
 
-/**
- * Tells the server the client would like to accept keypresses
- * of a particular type
- *
- *\verbatim
- * Usage: client_add_key [-exclusively|-shared] {<key>}+
- *\endverbatim
- */
+// Handle client_add_key command for key event registration
 int client_add_key_func(Client *c, int argc, char **argv)
 {
 	int exclusively = 0;
@@ -188,6 +171,7 @@ int client_add_key_func(Client *c, int argc, char **argv)
 		}
 		argnr++;
 	}
+
 	for (; argnr < argc; argnr++)
 		if (input_reserve_key(argv[argnr], exclusively, c) < 0)
 			sock_printf_error(c->sock, "Could not reserve key \"%s\"\n", argv[argnr]);
@@ -197,14 +181,7 @@ int client_add_key_func(Client *c, int argc, char **argv)
 	return 0;
 }
 
-/**
- * Tells the server the client would NOT like to accept keypresses
- * of a particular type
- *
- *\verbatim
- * Usage: client_del_key {<key>}+
- *\endverbatim
- */
+// Handle client_del_key command for key event deregistration
 int client_del_key_func(Client *c, int argc, char **argv)
 {
 	int argnr;
@@ -225,13 +202,7 @@ int client_del_key_func(Client *c, int argc, char **argv)
 	return 0;
 }
 
-/**
- * Toggles the backlight, if enabled.
- *
- *\verbatim
- * Usage: backlight {on|off|toggle|blink|flash}
- *\endverbatim
- */
+// Handle backlight command for display backlight control
 int backlight_func(Client *c, int argc, char **argv)
 {
 	if (c->state != ACTIVE)
@@ -264,14 +235,7 @@ int backlight_func(Client *c, int argc, char **argv)
 	return 0;
 }
 
-/**
- * Sets the status of macro LEDs (G510 only).
- *
- *\verbatim
- * Usage: macro_leds <m1> <m2> <m3> <mr>
- *        where each parameter is 0 (off) or 1 (on)
- *\endverbatim
- */
+// Handle macro_leds command for G15 macro LED control
 int macro_leds_func(Client *c, int argc, char **argv)
 {
 	if (c->state != ACTIVE)
@@ -284,13 +248,12 @@ int macro_leds_func(Client *c, int argc, char **argv)
 
 	debug(RPT_DEBUG, "macro_leds(%s %s %s %s)", argv[1], argv[2], argv[3], argv[4]);
 
-	/* Parse LED states */
+	// Parse LED states from string arguments to binary values
 	int m1 = (strcmp("1", argv[1]) == 0) ? 1 : 0;
 	int m2 = (strcmp("1", argv[2]) == 0) ? 1 : 0;
 	int m3 = (strcmp("1", argv[3]) == 0) ? 1 : 0;
 	int mr = (strcmp("1", argv[4]) == 0) ? 1 : 0;
 
-	/* Call driver function */
 	if (drivers_set_macro_leds(m1, m2, m3, mr) == 0) {
 		sock_send_string(c->sock, "success\n");
 	} else {
@@ -300,13 +263,7 @@ int macro_leds_func(Client *c, int argc, char **argv)
 	return 0;
 }
 
-/**
- * Sends back information about the loaded drivers.
- *
- *\verbatim
- * Usage: info
- *\endverbatim
- */
+// Handle info command to report driver information
 int info_func(Client *c, int argc, char **argv)
 {
 	if (c->state != ACTIVE)

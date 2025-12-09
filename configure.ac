@@ -1,7 +1,7 @@
 # -*- mode: m4; -*-
 dnl Process this file with autoconf 2.61 (or higher) to produce a configure script.
 AC_PREREQ(2.61)
-AC_INIT([lcdproc], [0.5dev], [https://github.com/lcdproc/lcdproc/issues/])
+AC_INIT([lcdproc], [0.0.4])
 AC_CONFIG_SRCDIR([clients/lcdproc/batt.c])
 AM_INIT_AUTOMAKE
 
@@ -198,6 +198,20 @@ dnl AC_PROG_GCC_TRADITIONAL is obsolete - modern compilers don't need this
 dnl AC_TYPE_SIGNAL is obsolete - signal handlers return void on modern systems
 AC_CHECK_FUNCS(select socket strdup strerror strtol uname cfmakeraw snprintf)
 
+dnl ######################################################################
+dnl popt library (thread-safe command-line parsing)
+dnl ######################################################################
+AC_MSG_CHECKING([for popt library])
+AC_CHECK_LIB(popt, poptGetContext,
+  [
+    AC_DEFINE(HAVE_POPT, [1], [Define to 1 if you have popt])
+    POPT_LIBS="-lpopt"
+  ],
+  [
+    AC_MSG_ERROR([popt library not found. Install popt development package.])
+  ])
+AC_SUBST(POPT_LIBS)
+
 dnl Many people on non-GNU/Linux systems don't have getopt
 AC_CONFIG_LIBOBJ_DIR(shared)
 AC_CHECK_FUNC(getopt,
@@ -230,9 +244,9 @@ AC_ARG_WITH(lcdport,
 )
 AC_DEFINE_UNQUOTED(LCDPORT, $LCDPORT, [Set default port where LCDd should listen])
 
-AC_DEFINE_UNQUOTED(PROTOCOL_VERSION, "0.4", [Define version of lcdproc client-server protocol])
+AC_DEFINE_UNQUOTED(PROTOCOL_VERSION, "0.0.4", [Define version of lcdproc client-server protocol])
 
-AC_DEFINE_UNQUOTED(API_VERSION, "0.5", [Define version of lcdproc API])
+AC_DEFINE_UNQUOTED(API_VERSION, "0.0.4", [Define version of lcdproc API])
 
 
 dnl Check compiler flags to dynamically load modules
@@ -483,5 +497,8 @@ AC_CONFIG_FILES([Makefile
 	clients/lcdproc/Makefile
 	clients/lcdexec/Makefile
 	services/Makefile
+	tests/Makefile
+	docs/Makefile
+	docs/Doxyfile
 ])
 AC_OUTPUT

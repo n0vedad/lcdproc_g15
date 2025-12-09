@@ -1,20 +1,42 @@
-/** \file server/commands/screen_commands.c
- * Implements handlers for the client commands concerning screens.
- *
- * This contains definitions for all the functions which clients can run.
- * The functions here are to be called only from parse.c's interpreter.
- *
- * The client's available function set is defined here, as is the syntax
- * for each command.
- */
+// SPDX-License-Identifier: GPL-2.0+
 
-/* This file is part of LCDd, the lcdproc server.
+/**
+ * \file server/commands/screen_commands.c
+ * \brief Implementation of screen management command handlers for LCDd server
+ * \author William Ferrell, Selene Scriven, Joris Robijn
+ * \date 1999-2025
  *
- * This file is released under the GNU General Public License.
- * Refer to the COPYING file distributed with this package.
+ * \features
+ * - Dynamic screen creation and destruction during client sessions
+ * - Priority-based screen scheduling and rotation management
+ * - Comprehensive screen property configuration (name, size, duration, priority)
+ * - Backlight control per screen (on, off, toggle, blink, flash, open)
+ * - Cursor control and positioning (off, on, under, block)
+ * - Heartbeat indicator management (on, off, open)
+ * - Key event binding and routing for user interaction
+ * - Screen ownership validation and access control
+ * - Detailed error reporting for invalid commands
+ * - Memory management for screen resources and key buffers
+ * - Screen dimension validation and boundary checking
+ * - screen_add: Creates new display screens for client applications
+ * - screen_del: Removes screens and cleans up associated resources
+ * - screen_set: Configures screen properties and display behavior
+ * - key_add/key_del: Manages key bindings for interactive screens
  *
- * Copyright (c) 1999, William Ferrell, Selene Scriven
- *               2002, Joris Robijn
+ * \usage
+ * - Used by the LCDd server protocol parser for screen command dispatch
+ * - Functions are called when clients send screen-related commands
+ * - Provides LCD display screen management for client applications
+ * - Used for dynamic screen creation and configuration
+ * - Handles screen lifecycle from creation to destruction
+ * - Called exclusively from parse.c's command interpreter
+ * - Validates client state and screen existence before operations
+ * - Manages screen ownership and access control
+ *
+ * \details
+ * Implements handlers for client commands concerning display screens.
+ * These functions process screen-related protocol commands and manage the
+ * screen lifecycle within the LCDd server framework.
  */
 
 #include <ctype.h>
@@ -32,13 +54,7 @@
 #include "screen.h"
 #include "screen_commands.h"
 
-/**
- * Tells the server the client has another screen to offer
- *
- *\verbatim
- * Usage: screen_add <id>
- *\endverbatim
- */
+// Handle screen_add command for creating new screens
 int screen_add_func(Client *c, int argc, char **argv)
 {
 	int err = 0;
@@ -74,16 +90,11 @@ int screen_add_func(Client *c, int argc, char **argv)
 		sock_send_error(c->sock, "failed to add screen\n");
 	}
 	report(RPT_INFO, "Client on socket %d added added screen \"%s\"", c->sock, s->id);
+
 	return 0;
 }
 
-/**
- * The client requests that the server forget about a screen
- *
- *\verbatim
- * Usage: screen_del <screenid>
- *\endverbatim
- */
+// Handle screen_del command for removing screens
 int screen_del_func(Client *c, int argc, char **argv)
 {
 	int err = 0;
@@ -115,26 +126,15 @@ int screen_del_func(Client *c, int argc, char **argv)
 	}
 
 	report(RPT_INFO, "Client on socket %d removed screen \"%s\"", c->sock, s->id);
-
 	screen_destroy(s);
+
 	return 0;
 }
 
-/**
- * Configures info about a particular screen, such as its
- *  name, priority, or duration
- *
- *\verbatim
- * Usage: screen_set <id> [-name <name>] [-wid <width>] [-hgt <height>]
- *     [-priority <prio>] [-duration <int>] [-timeout <int>]
- *     [-heartbeat <type>] [-backlight <type>]
- *     [-cursor <type>] [-cursor_x <xpos>] [-cursor_y <ypos>]
- *\endverbatim
- */
+// Handle screen_set command for configuring screen properties
 int screen_set_func(Client *c, int argc, char **argv)
 {
 	int i;
-
 	int number;
 	char *id;
 	Screen *s;
@@ -143,40 +143,41 @@ int screen_set_func(Client *c, int argc, char **argv)
 		return 1;
 
 	if (argc == 1) {
-		sock_send_error(c->sock,
-				"Usage: screen_set <id> [-name <name>]"
-				" [-wid <width>] [-hgt <height>] [-priority <prio>]"
-				" [-duration <int>] [-timeout <int>]"
-				" [-heartbeat <type>] [-backlight <type>]"
-				" [-cursor <type>]"
-				" [-cursor_x <xpos>] [-cursor_y <ypos>]\n");
+		sock_send_error(c->sock, "Usage: screen_set <id> [-name <name>]"
+					 " [-wid <width>] [-hgt <height>] [-priority <prio>]"
+					 " [-duration <int>] [-timeout <int>]"
+					 " [-heartbeat <type>] [-backlight <type>]"
+					 " [-cursor <type>]"
+					 " [-cursor_x <xpos>] [-cursor_y <ypos>]\n");
 		return 0;
+
 	} else if (argc == 2) {
 		sock_send_error(c->sock, "What do you want to set?\n");
 		return 0;
 	}
 
 	id = argv[1];
+
 	s = client_find_screen(c, id);
 	if (s == NULL) {
 		sock_send_error(c->sock, "Unknown screen id\n");
 		return 0;
 	}
-	/* Handle the rest of the parameters*/
+
+	// Process all property configuration parameters
 	for (i = 2; i < argc; i++) {
 		char *p = argv[i];
 
-		/* ignore leading '-' in options: we allow both forms */
+		// Allow both "-name" and "name" parameter formats
 		if (*p == '-')
 			p++;
 
-		/* Handle the "name" parameter*/
+		// Configure screen display name
 		if (strcmp(p, "name") == 0) {
 			if (argc > i + 1) {
 				i++;
 				debug(RPT_DEBUG, "screen_set: name=\"%s\"", argv[i]);
 
-				/* set the name...*/
 				if (s->name != NULL)
 					free(s->name);
 				s->name = strdup(argv[i]);
@@ -185,57 +186,62 @@ int screen_set_func(Client *c, int argc, char **argv)
 				sock_send_error(c->sock, "-name requires a parameter\n");
 			}
 		}
-		/* Handle the "priority" parameter*/
+
+		// Configure screen display priority for scheduling
 		else if (strcmp(p, "priority") == 0) {
 			if (argc > i + 1) {
 				i++;
 				debug(RPT_DEBUG, "screen_set: priority=\"%s\"", argv[i]);
 
-				/* first try to interpret it as a number */
+				// Parse priority as numeric value first
 				number = atoi(argv[i]);
 				if (number > 0) {
+					// Map numeric ranges to priority classes
 					if (number <= 64)
 						number = PRI_FOREGROUND;
 					else if (number < 192)
 						number = PRI_INFO;
 					else
 						number = PRI_BACKGROUND;
+
 				} else {
-					/* Try if it is a priority class */
 					number = screen_pri_name_to_pri(argv[i]);
 				}
 				if (number >= 0) {
 					s->priority = number;
 					sock_send_string(c->sock, "success\n");
+
 				} else {
 					sock_send_error(c->sock, "invalid argument at -priority\n");
 				}
+
 			} else {
 				sock_send_error(c->sock, "-priority requires a parameter\n");
 			}
 		}
-		/* Handle the "duration" parameter*/
+
+		// Configure screen display duration in rotation
 		else if (strcmp(p, "duration") == 0) {
 			if (argc > i + 1) {
 				i++;
 				debug(RPT_DEBUG, "screen_set: duration=\"%s\"", argv[i]);
 
-				/* set the duration...*/
 				number = atoi(argv[i]);
 				if (number > 0)
 					s->duration = number;
 				sock_send_string(c->sock, "success\n");
+
 			} else {
 				sock_send_error(c->sock, "-duration requires a parameter\n");
 			}
 		}
-		/* Handle the "heartbeat" parameter*/
+
+		// Configure heartbeat indicator display mode
 		else if (strcmp(p, "heartbeat") == 0) {
 			if (argc > i + 1) {
 				i++;
 				debug(RPT_DEBUG, "screen_set: heartbeat=\"%s\"", argv[i]);
 
-				/* set the heartbeat type...*/
 				if (0 == strcmp(argv[i], "on"))
 					s->heartbeat = HEARTBEAT_ON;
 				else if (0 == strcmp(argv[i], "off"))
@@ -243,102 +249,103 @@ int screen_set_func(Client *c, int argc, char **argv)
 				else if (0 == strcmp(argv[i], "open"))
 					s->heartbeat = HEARTBEAT_OPEN;
 				sock_send_string(c->sock, "success\n");
+
 			} else {
 				sock_send_error(c->sock, "-heartbeat requires a parameter\n");
 			}
 		}
-		/* Handle the "wid" parameter*/
+
+		// Configure screen width dimension
 		else if (strcmp(p, "wid") == 0) {
 			if (argc > i + 1) {
 				i++;
 				debug(RPT_DEBUG, "screen_set: wid=\"%s\"", argv[i]);
 
-				/* set the duration...*/
 				number = atoi(argv[i]);
 				if (number > 0)
 					s->width = number;
 				sock_send_string(c->sock, "success\n");
+
 			} else {
 				sock_send_error(c->sock, "-wid requires a parameter\n");
 			}
 
 		}
-		/* Handle the "hgt" parameter*/
+
+		// Configure screen height dimension
 		else if (strcmp(p, "hgt") == 0) {
 			if (argc > i + 1) {
 				i++;
 				debug(RPT_DEBUG, "screen_set: hgt=\"%s\"", argv[i]);
 
-				/* set the duration...*/
 				number = atoi(argv[i]);
 				if (number > 0)
 					s->height = number;
 				sock_send_string(c->sock, "success\n");
+
 			} else {
 				sock_send_error(c->sock, "-hgt requires a parameter\n");
 			}
 		}
-		/* Handle the "timeout" parameter*/
+
+		// Configure screen timeout in TIME_UNITS (1/8th second)
 		else if (strcmp(p, "timeout") == 0) {
 			if (argc > i + 1) {
 				i++;
 				debug(RPT_DEBUG, "screen_set: timeout=\"%s\"", argv[i]);
-				/* set the duration...*/
 				number = atoi(argv[i]);
-				/* Add the timeout value (count of TIME_UNITS)
-				 *  to struct,  TIME_UNIT is 1/8th of a second
-				 */
+
 				if (number > 0) {
 					s->timeout = number;
 					report(RPT_NOTICE, "Timeout set.");
 				}
 				sock_send_string(c->sock, "success\n");
+
 			} else {
 				sock_send_error(c->sock, "-timeout requires a parameter\n");
 			}
 		}
-		/* Handle the "backlight" parameter*/
+
+		// Configure screen backlight behavior
 		else if (strcmp(p, "backlight") == 0) {
 			if (argc > i + 1) {
 				i++;
 				debug(RPT_DEBUG, "screen_set: backlight=\"%s\"", argv[i]);
+
 				if (strcmp("on", argv[i]) == 0)
 					s->backlight = BACKLIGHT_ON;
-
 				else if (strcmp("off", argv[i]) == 0)
 					s->backlight = BACKLIGHT_OFF;
 
+				// Toggle between on and off states only
 				else if (strcmp("toggle", argv[i]) == 0) {
 					if (s->backlight == BACKLIGHT_ON)
 						s->backlight = BACKLIGHT_OFF;
-					else if (s - backlight == BACKLIGHT_OFF)
+					else if (s->backlight == BACKLIGHT_OFF)
 						s->backlight = BACKLIGHT_ON;
-				}
 
-				else if (strcmp("blink", argv[i]) == 0)
+				} else if (strcmp("blink", argv[i]) == 0)
 					s->backlight |= BACKLIGHT_BLINK;
-
 				else if (strcmp("flash", argv[i]) == 0)
 					s->backlight |= BACKLIGHT_FLASH;
-
 				else if (strcmp("open", argv[i]) == 0)
 					s->backlight = BACKLIGHT_OPEN;
-
 				else
 					sock_send_error(c->sock, "unknown backlight mode\n");
 
 				sock_send_string(c->sock, "success\n");
+
 			} else {
 				sock_send_error(c->sock, "-backlight requires a parameter\n");
 			}
 		}
-		/* Handle the "cursor" parameter */
+
+		// Configure cursor display type
 		else if (strcmp(p, "cursor") == 0) {
 			if (argc > i + 1) {
 				i++;
 				debug(RPT_DEBUG, "screen_set: cursor=\"%s\"", argv[i]);
 
-				/* set the heartbeat type...*/
 				if (0 == strcmp(argv[i], "off"))
 					s->cursor = CURSOR_OFF;
 				if (0 == strcmp(argv[i], "on"))
@@ -348,62 +355,62 @@ int screen_set_func(Client *c, int argc, char **argv)
 				if (0 == strcmp(argv[i], "block"))
 					s->cursor = CURSOR_BLOCK;
 				sock_send_string(c->sock, "success\n");
+
 			} else {
 				sock_send_error(c->sock, "-cursor requires a parameter\n");
 			}
 		}
-		/* Handle the "cursor_x" parameter */
+
+		// Configure cursor horizontal position
 		else if (strcmp(p, "cursor_x") == 0) {
 			if (argc > i + 1) {
 				i++;
 				debug(RPT_DEBUG, "screen_set: cursor_x=\"%s\"", argv[i]);
 
-				/* set the position...*/
 				number = atoi(argv[i]);
 				if (number > 0 && number <= s->width) {
 					s->cursor_x = number;
 					sock_send_string(c->sock, "success\n");
+
 				} else {
 					sock_send_error(c->sock,
 							"Cursor position outside screen\n");
 				}
+
 			} else {
 				sock_send_error(c->sock, "-cursor_x requires a parameter\n");
 			}
 		}
-		/* Handle the "cursor_y" parameter */
+
+		// Configure cursor vertical position
 		else if (strcmp(p, "cursor_y") == 0) {
 			if (argc > i + 1) {
 				i++;
 				debug(RPT_DEBUG, "screen_set: cursor_y=\"%s\"", argv[i]);
 
-				/* set the position...*/
 				number = atoi(argv[i]);
 				if (number > 0 && number <= s->height) {
 					s->cursor_y = number;
 					sock_send_string(c->sock, "success\n");
+
 				} else {
 					sock_send_error(c->sock,
 							"Cursor position outside screen\n");
 				}
+
 			} else {
 				sock_send_error(c->sock, "-cursor_y requires a parameter\n");
 			}
 		}
-
+		// Report unrecognized parameter
 		else
 			sock_send_error(c->sock, "invalid parameter\n");
-	} /* done checking argv*/
+	}
+
 	return 0;
 }
 
-/**
- * Tells the server which keys the screen uses for interaction
- *
- *\verbatim
- * Usage: key_add screen_id {<key>}+
- *\endverbatim
- */
+// Handle key_add command for binding key events to screens
 int key_add_func(Client *c, int argc, char **argv)
 {
 	Screen *s;
@@ -420,9 +427,15 @@ int key_add_func(Client *c, int argc, char **argv)
 		return 0;
 	}
 
+	// Calculate total length of key arguments to copy
 	len = argv[argc - 1] - argv[2] + strlen(argv[argc - 1]) + 1;
 
-	s->keys = realloc(s->keys, len + s->keys_size);
+	char *new_keys = realloc(s->keys, len + s->keys_size);
+	if (new_keys == NULL) {
+		sock_send_error(c->sock, "memory allocation failed\n");
+		return -1;
+	}
+	s->keys = new_keys;
 	memcpy(&s->keys[s->keys_size], argv[2], len);
 	s->keys_size += len;
 
@@ -431,13 +444,7 @@ int key_add_func(Client *c, int argc, char **argv)
 	return 0;
 }
 
-/**
- * Tells the server the screen is no longer interested in some keys
- *
- *\verbatim
- * Usage: key_del screen_id {<key>}+
- *\endverbatim
- */
+// Handle key_del command for removing key bindings
 int key_del_func(Client *c, int argc, char **argv)
 {
 	Screen *s;
@@ -460,6 +467,7 @@ int key_del_func(Client *c, int argc, char **argv)
 		p = screen_find_key(s, key);
 		if (p) {
 			len = strlen(key) + 1;
+			// Remove key by shifting remaining buffer content
 			memmove(p, p + len, s->keys_size - (p - s->keys));
 			s->keys_size -= len;
 

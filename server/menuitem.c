@@ -1,16 +1,33 @@
-/** \file server/menuitem.c
- * Handles a menuitem and all actions that can be performed on it.
- */
+// SPDX-License-Identifier: GPL-2.0+
 
-/* This file is part of LCDd, the lcdproc server.
+/**
+ * \file server/menuitem.c
+ * \brief Menu item implementation and management functions
+ * \author William Ferrell
+ * \author Selene Scriven
+ * \author Joris Robijn
+ * \author F5 Networks, Inc.
+ * \author Peter Marschall
+ * \date 1999-2005
  *
- * This file is released under the GNU General Public License.
- * Refer to the COPYING file distributed with this package.
+ * \features
+ * - Menu item creation and destruction for all types
+ * - Screen building and updating for interactive items
+ * - Input processing and event handling
+ * - Type conversion utilities
+ * - Validation functions for IP addresses
+ * - Function tables for type-specific operations
  *
- * Copyright (c) 1999, William Ferrell, Selene Scriven
- *               2002, Joris Robijn
- *               2004, F5 Networks, Inc. - IP-address input
- *               2005, Peter Marschall - error checks, ...
+ * \usage
+ * - Used by menu system to handle menu item operations
+ * - Separate functions for each menu item type
+ * - IP address validation for IPv4 and IPv6
+ * - Character input handling for alphanumeric items
+ * - Slider and numeric value management
+ *
+ * \details Handles menu items and all actions that can be performed on them.
+ * Provides implementation for different menu item types including creation,
+ * destruction, screen building, and input processing.
  */
 
 #include <assert.h>
@@ -26,24 +43,49 @@
 #include "menu.h"
 #include "menuitem.h"
 #include "screen.h"
+#include "sock.h"
 #include "widget.h"
 
-/* this is needed for verify_ipv4 and verify_ipv6. */
-#include "sock.h"
-
+/** \brief Maximum buffer size for numeric value string conversion
+ *
+ * \details Size of temporary buffer used when converting numeric menu item
+ * values to strings for display.
+ */
 #define MAX_NUMERIC_LEN 40
 
-extern Menu *main_menu; /* Access to the main menu */
+extern Menu *main_menu;
 
-bool menu_permissive_goto; /* Flag from configuration file */
+/** \brief Enable permissive menu navigation mode
+ *
+ * \details When true, allows navigation to any menu item ID even if not found
+ * in the menu tree. When false, strict validation is enforced.
+ */
+bool menu_permissive_goto;
 
+/** \brief Error message strings for menu validation
+ *
+ * \details Array of user-facing error messages indexed by error code.
+ * Index 0 is empty (no error), followed by range, length, and format errors.
+ */
 char *error_strs[] = {"", "Out of range", "Too long", "Too short", "Invalid Address"};
-char *menuitemtypenames[] = {
-    "menu", "action", "checkbox", "ring", "slider", "numeric", "alpha", "ip"};
+
+/** \brief Menu item type name strings
+ *
+ * \details String names for each MenuItem type, indexed by MenuItemType enum.
+ * Used for protocol messages and debugging output.
+ */
+char *menuitemtypenames[] = {"menu",   "action",  "checkbox", "ring",
+			     "slider", "numeric", "alpha",    "ip"};
+
+/** \brief Menu event type name strings
+ *
+ * \details String names for each menu event type, indexed by MenuEventType enum.
+ * Used for protocol messages and debugging output.
+ */
 char *menueventtypenames[] = {"select", "update", "plus", "minus", "enter", "leave"};
 
-void menuitem_destroy_action(MenuItem *item);
-void menuitem_destroy_checkbox(MenuItem *item);
+// Internal lifecycle management functions for menu item types: destroy, reset, rebuild, and update
+// operations
 void menuitem_destroy_ring(MenuItem *item);
 void menuitem_destroy_slider(MenuItem *item);
 void menuitem_destroy_numeric(MenuItem *item);
@@ -59,49 +101,58 @@ void menuitem_rebuild_screen_numeric(MenuItem *item, Screen *s);
 void menuitem_rebuild_screen_alpha(MenuItem *item, Screen *s);
 void menuitem_rebuild_screen_ip(MenuItem *item, Screen *s);
 
+/**
+ * \brief Update slider menu item's on-screen display
+ * \param item Slider menu item to update
+ * \param s Screen containing the slider widgets
+ *
+ * \details Updates the visual representation of a slider item on screen by
+ * modifying the text and bar widgets to reflect current value.
+ */
 void menuitem_update_screen_slider(MenuItem *item, Screen *s);
 void menuitem_update_screen_numeric(MenuItem *item, Screen *s);
 void menuitem_update_screen_alpha(MenuItem *item, Screen *s);
 void menuitem_update_screen_ip(MenuItem *item, Screen *s);
 
-MenuResult menuitem_process_input_slider(MenuItem *item,
-					 MenuToken token,
-					 const char *key,
+// Internal input processing handlers for interactive menu item types (slider, numeric, alpha, IP)
+MenuResult menuitem_process_input_slider(MenuItem *item, MenuToken token, const char *key,
 					 unsigned int keymask);
-MenuResult menuitem_process_input_numeric(MenuItem *item,
-					  MenuToken token,
-					  const char *key,
-					  unsigned int keymask);
-MenuResult menuitem_process_input_alpha(MenuItem *item,
-					MenuToken token,
-					const char *key,
-					unsigned int keymask);
-MenuResult
-menuitem_process_input_ip(MenuItem *item, MenuToken token, const char *key, unsigned int keymask);
 
-/* information about string representation of IP addresses */
+MenuResult menuitem_process_input_numeric(MenuItem *item, MenuToken token, const char *key,
+					  unsigned int keymask);
+
+MenuResult menuitem_process_input_alpha(MenuItem *item, MenuToken token, const char *key,
+					unsigned int keymask);
+
+MenuResult menuitem_process_input_ip(MenuItem *item, MenuToken token, const char *key,
+				     unsigned int keymask);
+
+/**
+ * \brief IP address string properties structure
+ * \details Configuration for IP address input validation and formatting
+ */
 typedef struct {
-	int maxlen;	 // max length of the string represenation;
-	char sep;	 // separators between numeric strings
-	int base;	 // numeric base
-	int width;	 // width of each numeric string
-	int limit;	 // upper limit of each numeric string
-	int posValue[5]; // digit-value of the digits at the approp. position in the numeric string
-	char format[5];	 // printf-format string to print a numeric string
-	int (*verify)(const char *); // verify function: returns 1 = OK, 0 = error
-	char dummy[16];		     // dummy value (if provided value is no IP address)
+	int maxlen;		     ///< Maximum string length
+	char sep;		     ///< Separator character (e.g., '.' for IPv4)
+	int base;		     ///< Number base for conversion
+	int width;		     ///< Field width for each component
+	int limit;		     ///< Maximum value for each component
+	int posValue[5];	     ///< Positional value multipliers
+	char format[5];		     ///< Format string for display
+	int (*verify)(const char *); ///< Verification function pointer
+	char dummy[16];		     ///< Padding/dummy field
 } IpSstringProperties;
 
+/** \brief IP address formatting configuration table
+ *
+ * \details Array indexed by IP address type (IPv4=0, IPv6=1) containing
+ * formatting rules, validation parameters, and default values for each type.
+ */
 const IpSstringProperties IPinfo[] = {
-    // IPv4: 15 char long '.'-separated sequence of 3-digit decimal strings in range 000 - 255
     {15, '.', 10, 3, 255, {100, 10, 1, 0, 0}, "%03d", verify_ipv4, "0.0.0.0"},
-    // IPv6: 39 char long ':'-separated sequence of 4-digit hex strings in range 0000 - ffff
     {39, ':', 16, 4, 65535, {4096, 256, 16, 1, 0}, "%04x", verify_ipv6, "0:0:0:0:0:0:0:0"}};
 
-/******** MENU UTILITY FUNCTIONS ********/
-
-/** returns default_result if predecessor_id is NULL or the respective value
- * otherwise. */
+// Translate predecessor_id string into MenuResult enum
 MenuResult menuitem_predecessor2menuresult(char *predecessor_id, MenuResult default_result)
 {
 	if (predecessor_id == NULL)
@@ -116,8 +167,7 @@ MenuResult menuitem_predecessor2menuresult(char *predecessor_id, MenuResult defa
 		return MENURESULT_PREDECESSOR;
 }
 
-/** returns default_result if successor_id is NULL or the respective value
- * otherwise. */
+// Translate successor_id string into MenuResult enum
 MenuResult menuitem_successor2menuresult(char *successor_id, MenuResult default_result)
 {
 	if (successor_id == NULL)
@@ -132,9 +182,7 @@ MenuResult menuitem_successor2menuresult(char *successor_id, MenuResult default_
 		return MENURESULT_SUCCESSOR;
 }
 
-/** Returns the MenuItem with the specified id if found or NULL. The search
- * for itemid is restricted to the client's menus if perissive gotos are
- * disabled in the configuration. */
+// Search for a menu item by ID within a client's menus
 MenuItem *menuitem_search(char *menu_id, Client *client)
 {
 	MenuItem *top = menu_permissive_goto ? main_menu : client->menu;
@@ -142,12 +190,12 @@ MenuItem *menuitem_search(char *menu_id, Client *client)
 	return menu_find_item(top, menu_id, true);
 }
 
-/******** FUNCTION TABLES ********/
-/*-
- * Tables with functions to call for all different item types. The order is:
- * "menu", "action", "checkbox", "ring", "slider", "numeric", "alpha", "ip".
+/** \brief Destructor function table for menu item types
+ *
+ * \details Function pointer table indexed by MenuItemType enum. Maps each menu
+ * item type to its destructor function for polymorphic cleanup. NULL entries
+ * indicate types that don't need special cleanup.
  */
-
 void (*destructor_table[NUM_ITEMTYPES])(MenuItem *item) = {menu_destroy,
 							   NULL,
 							   NULL,
@@ -156,14 +204,23 @@ void (*destructor_table[NUM_ITEMTYPES])(MenuItem *item) = {menu_destroy,
 							   menuitem_destroy_numeric,
 							   menuitem_destroy_alpha,
 							   menuitem_destroy_ip};
-void (*reset_table[NUM_ITEMTYPES])(MenuItem *item) = {menu_reset,
-						      NULL,
-						      NULL,
-						      NULL,
-						      NULL,
-						      menuitem_reset_numeric,
-						      menuitem_reset_alpha,
-						      menuitem_reset_ip};
+
+/** \brief Reset function table for menu item types
+ *
+ * \details Function pointer table indexed by MenuItemType enum. Maps each menu
+ * item type to its reset function for restoring default values. NULL entries
+ * indicate types that don't support reset.
+ */
+void (*reset_table[NUM_ITEMTYPES])(MenuItem *item) = {
+    menu_reset,	      NULL, NULL, NULL, NULL, menuitem_reset_numeric, menuitem_reset_alpha,
+    menuitem_reset_ip};
+
+/** \brief Screen build function table for menu item types
+ *
+ * \details Function pointer table indexed by MenuItemType enum. Maps each menu
+ * item type to its screen construction function for creating display widgets.
+ * NULL entries indicate types that don't require widget construction.
+ */
 void (*build_screen_table[NUM_ITEMTYPES])(MenuItem *item,
 					  Screen *s) = {menu_build_screen,
 							NULL,
@@ -173,6 +230,13 @@ void (*build_screen_table[NUM_ITEMTYPES])(MenuItem *item,
 							menuitem_rebuild_screen_numeric,
 							menuitem_rebuild_screen_alpha,
 							menuitem_rebuild_screen_ip};
+
+/** \brief Screen update function table for menu item types
+ *
+ * \details Function pointer table indexed by MenuItemType enum. Maps each menu
+ * item type to its screen update function for dynamic widget refresh. NULL
+ * entries indicate types that don't require dynamic updates.
+ */
 void (*update_screen_table[NUM_ITEMTYPES])(MenuItem *item,
 					   Screen *s) = {menu_update_screen,
 							 NULL,
@@ -183,9 +247,13 @@ void (*update_screen_table[NUM_ITEMTYPES])(MenuItem *item,
 							 menuitem_update_screen_alpha,
 							 menuitem_update_screen_ip};
 
-MenuResult (*process_input_table[NUM_ITEMTYPES])(MenuItem *item,
-						 MenuToken token,
-						 const char *key,
+/** \brief Input processing function table for menu item types
+ *
+ * \details Function pointer table indexed by MenuItemType enum. Maps each menu
+ * item type to its input handler for user interaction processing. NULL entries
+ * indicate types that don't process user input.
+ */
+MenuResult (*process_input_table[NUM_ITEMTYPES])(MenuItem *item, MenuToken token, const char *key,
 						 unsigned int keymask) = {
     menu_process_input,
     NULL,
@@ -196,32 +264,26 @@ MenuResult (*process_input_table[NUM_ITEMTYPES])(MenuItem *item,
     menuitem_process_input_alpha,
     menuitem_process_input_ip};
 
-/******** METHODS ********/
-
-MenuItem *
-menuitem_create(MenuItemType type, char *id, MenuEventFunc(*event_func), char *text, Client *client)
+// Create a generic menu item of specified type
+MenuItem *menuitem_create(MenuItemType type, char *id, MenuEventFunc(*event_func), char *text,
+			  Client *client)
 {
 	MenuItem *new_item;
 
-	debug(RPT_DEBUG,
-	      "%s(type=%d, id=\"%s\", event_func=%p, text=\"%s\")",
-	      __FUNCTION__,
-	      type,
-	      id,
-	      event_func,
-	      text);
+	debug(RPT_DEBUG, "%s(type=%d, id=\"%s\", event_func=%p, text=\"%s\")", __FUNCTION__, type,
+	      id, event_func, text);
 
 	if ((id == NULL) || (text == NULL)) {
 		report(RPT_ERR, "%s: illegal id or text", __FUNCTION__);
 		return NULL;
 	}
 
-	/* Allocate space and fill struct */
 	new_item = malloc(sizeof(MenuItem));
 	if (!new_item) {
 		report(RPT_ERR, "%s: Could not allocate memory", __FUNCTION__);
 		return NULL;
 	}
+
 	new_item->type = type;
 	new_item->id = strdup(id);
 	if (!new_item->id) {
@@ -229,6 +291,7 @@ menuitem_create(MenuItemType type, char *id, MenuEventFunc(*event_func), char *t
 		free(new_item);
 		return NULL;
 	}
+
 	new_item->successor_id = NULL;
 	new_item->predecessor_id = NULL;
 	new_item->parent = NULL;
@@ -240,41 +303,66 @@ menuitem_create(MenuItemType type, char *id, MenuEventFunc(*event_func), char *t
 		free(new_item);
 		return NULL;
 	}
+
 	new_item->client = client;
 	new_item->is_hidden = false;
 
-	/* Clear the type specific data part */
 	memset(&(new_item->data), '\0', sizeof(new_item->data));
 
 	return new_item;
 }
 
-// fixme: the menu_result arg is obsoleted (use char* successor_id)
-MenuItem *menuitem_create_action(
-    char *id, MenuEventFunc(*event_func), char *text, Client *client, MenuResult menu_result)
+// Create an action item (a selectable string)
+MenuItem *menuitem_create_action(char *id, MenuEventFunc(*event_func), char *text, Client *client,
+				 MenuResult menu_result)
 {
+	/**
+	 * \todo the menu_result arg is obsoleted (use char* successor_id)
+	 *
+	 * Function parameter `menu_result` in menuitem_create_action() should be replaced with
+	 * `char* successor_id` for better API design. Current MenuResult enum is limited and
+	 * inflexible compared to using successor IDs directly.
+	 *
+	 * Current: MenuResult enum (CLOSE, QUIT, NONE) limits navigation options
+	 * Desired: char* successor_id allows flexible menu navigation to any menu by ID
+	 *
+	 * Benefits of successor_id:
+	 * - Direct navigation to specific menus
+	 * - Removes dependency on MenuResult enum
+	 * - Consistent with other menuitem functions
+	 * - More flexible menu flow control
+	 *
+	 * Impact: API consistency, code modernization, menu navigation flexibility
+	 *
+	 * \ingroup ToDo_medium
+	 */
+
 	MenuItem *new_item;
 
-	debug(RPT_DEBUG,
-	      "%s(id=[%s], event_func=%p, text=\"%s\", close_menu=%d)",
-	      __FUNCTION__,
-	      id,
-	      event_func,
-	      text,
-	      menu_result);
+	debug(RPT_DEBUG, "%s(id=[%s], event_func=%p, text=\"%s\", close_menu=%d)", __FUNCTION__, id,
+	      event_func, text, menu_result);
 
 	new_item = menuitem_create(MENUITEM_ACTION, id, event_func, text, client);
 	if (new_item != NULL) {
+
 		switch (menu_result) {
+
+		// No action after selection
 		case MENURESULT_NONE:
 			new_item->successor_id = strdup("_none_");
 			break;
+
+		// Close current menu after selection
 		case MENURESULT_CLOSE:
 			new_item->successor_id = strdup("_close_");
 			break;
+
+		// Quit all menus after selection
 		case MENURESULT_QUIT:
 			new_item->successor_id = strdup("_quit_");
 			break;
+
+		// Invalid menu result
 		default:
 			assert(!"unexpected MENURESULT");
 		}
@@ -283,19 +371,14 @@ MenuItem *menuitem_create_action(
 	return new_item;
 }
 
-MenuItem *menuitem_create_checkbox(
-    char *id, MenuEventFunc(*event_func), char *text, Client *client, bool allow_gray, bool value)
+// Create a checkbox menu item
+MenuItem *menuitem_create_checkbox(char *id, MenuEventFunc(*event_func), char *text, Client *client,
+				   bool allow_gray, bool value)
 {
 	MenuItem *new_item;
 
-	debug(RPT_DEBUG,
-	      "%s(id=[%s], event_func=%p, text=\"%s\", allow_gray=%d, value=%d)",
-	      __FUNCTION__,
-	      id,
-	      event_func,
-	      text,
-	      allow_gray,
-	      value);
+	debug(RPT_DEBUG, "%s(id=[%s], event_func=%p, text=\"%s\", allow_gray=%d, value=%d)",
+	      __FUNCTION__, id, event_func, text, allow_gray, value);
 
 	new_item = menuitem_create(MENUITEM_CHECKBOX, id, event_func, text, client);
 	if (new_item != NULL) {
@@ -306,19 +389,14 @@ MenuItem *menuitem_create_checkbox(
 	return new_item;
 }
 
-MenuItem *menuitem_create_ring(
-    char *id, MenuEventFunc(*event_func), char *text, Client *client, char *strings, short value)
+// Create a ring menu item with selectable options
+MenuItem *menuitem_create_ring(char *id, MenuEventFunc(*event_func), char *text, Client *client,
+			       char *strings, short value)
 {
 	MenuItem *new_item;
 
-	debug(RPT_DEBUG,
-	      "%s(id=[%s], event_func=%p, text=\"%s\", strings=\"%s\", value=%d)",
-	      __FUNCTION__,
-	      id,
-	      event_func,
-	      text,
-	      strings,
-	      value);
+	debug(RPT_DEBUG, "%s(id=[%s], event_func=%p, text=\"%s\", strings=\"%s\", value=%d)",
+	      __FUNCTION__, id, event_func, text, strings, value);
 
 	new_item = menuitem_create(MENUITEM_RING, id, event_func, text, client);
 	if (new_item != NULL) {
@@ -329,31 +407,17 @@ MenuItem *menuitem_create_ring(
 	return new_item;
 }
 
-MenuItem *menuitem_create_slider(char *id,
-				 MenuEventFunc(*event_func),
-				 char *text,
-				 Client *client,
-				 char *mintext,
-				 char *maxtext,
-				 int minvalue,
-				 int maxvalue,
-				 int stepsize,
-				 int value)
+// Create a slider menu item with adjustable value
+MenuItem *menuitem_create_slider(char *id, MenuEventFunc(*event_func), char *text, Client *client,
+				 char *mintext, char *maxtext, int minvalue, int maxvalue,
+				 int stepsize, int value)
 {
 	MenuItem *new_item;
 
 	debug(RPT_DEBUG,
 	      "%s(id=[%s], event_func=%p, text=\"%s\", mintext=\"%s\", maxtext=\"%s\", "
 	      "minvalue=%d, maxvalue=%d, stepsize=%d, value=%d)",
-	      __FUNCTION__,
-	      id,
-	      event_func,
-	      text,
-	      mintext,
-	      maxtext,
-	      minvalue,
-	      maxvalue,
-	      stepsize,
+	      __FUNCTION__, id, event_func, text, mintext, maxtext, minvalue, maxvalue, stepsize,
 	      value);
 
 	new_item = menuitem_create(MENUITEM_SLIDER, id, event_func, text, client);
@@ -374,25 +438,15 @@ MenuItem *menuitem_create_slider(char *id,
 	return new_item;
 }
 
-MenuItem *menuitem_create_numeric(char *id,
-				  MenuEventFunc(*event_func),
-				  char *text,
-				  Client *client,
-				  int minvalue,
-				  int maxvalue,
-				  int value)
+// Create a numeric input menu item
+MenuItem *menuitem_create_numeric(char *id, MenuEventFunc(*event_func), char *text, Client *client,
+				  int minvalue, int maxvalue, int value)
 {
 	MenuItem *new_item;
 
 	debug(RPT_DEBUG,
 	      "%s(id=[%s], event_func=%p, text=\"%s\", minvalue=%d, maxvalue=%d, value=%d)",
-	      __FUNCTION__,
-	      id,
-	      event_func,
-	      text,
-	      minvalue,
-	      minvalue,
-	      value);
+	      __FUNCTION__, id, event_func, text, minvalue, minvalue, value);
 
 	new_item = menuitem_create(MENUITEM_NUMERIC, id, event_func, text, client);
 	if (new_item != NULL) {
@@ -409,38 +463,28 @@ MenuItem *menuitem_create_numeric(char *id,
 	return new_item;
 }
 
-MenuItem *menuitem_create_alpha(char *id,
-				MenuEventFunc(*event_func),
-				char *text,
-				Client *client,
-				char password_char,
-				short minlength,
-				short maxlength,
-				bool allow_caps,
-				bool allow_noncaps,
-				bool allow_numbers,
-				char *allowed_extra,
-				char *value)
+// Create an alphanumeric string input menu item
+MenuItem *menuitem_create_alpha(char *id, MenuEventFunc(*event_func), char *text, Client *client,
+				char password_char, short minlength, short maxlength,
+				bool allow_caps, bool allow_noncaps, bool allow_numbers,
+				char *allowed_extra, char *value)
 {
 	MenuItem *new_item;
 
 	debug(RPT_DEBUG,
 	      "%s(id=\"%s\", event_func=%p, text=\"%s\", password_char=%d, maxlength=%d, "
 	      "value=\"%s\")",
-	      __FUNCTION__,
-	      id,
-	      event_func,
-	      text,
-	      password_char,
-	      maxlength,
-	      value);
+	      __FUNCTION__, id, event_func, text, password_char, maxlength, value);
 
 	new_item = menuitem_create(MENUITEM_ALPHA, id, event_func, text, client);
+
 	if (new_item != NULL) {
+		// Configure password masking and length constraints
 		new_item->data.alpha.password_char = password_char;
 		new_item->data.alpha.minlength = minlength;
 		new_item->data.alpha.maxlength = maxlength;
 
+		// Configure allowed character types (caps, noncaps, numbers, extra)
 		new_item->data.alpha.allow_caps = allow_caps;
 		new_item->data.alpha.allow_noncaps = allow_noncaps;
 		new_item->data.alpha.allow_numbers = allow_numbers;
@@ -450,6 +494,7 @@ MenuItem *menuitem_create_alpha(char *id,
 			return NULL;
 		}
 
+		// Allocate value buffer and copy initial string with truncation
 		new_item->data.alpha.value = malloc(maxlength + 1);
 		if (new_item->data.alpha.value == NULL) {
 			menuitem_destroy(new_item);
@@ -459,6 +504,7 @@ MenuItem *menuitem_create_alpha(char *id,
 		strncpy(new_item->data.alpha.value, value, maxlength);
 		new_item->data.alpha.value[maxlength] = 0;
 
+		// Allocate separate edit buffer for input processing
 		new_item->data.alpha.edit_str = malloc(maxlength + 1);
 		if (new_item->data.alpha.edit_str == NULL) {
 			menuitem_destroy(new_item);
@@ -469,30 +515,26 @@ MenuItem *menuitem_create_alpha(char *id,
 	return new_item;
 }
 
-MenuItem *menuitem_create_ip(
-    char *id, MenuEventFunc(*event_func), char *text, Client *client, bool v6, char *value)
+// Create an IP address input menu item
+MenuItem *menuitem_create_ip(char *id, MenuEventFunc(*event_func), char *text, Client *client,
+			     bool v6, char *value)
 {
 	MenuItem *new_item;
 	const IpSstringProperties *ipinfo;
 
-	debug(RPT_DEBUG,
-	      "%s(id=\"%s\", event_func=%p, text=\"%s\", v6=%d, value=\"%s\")",
-	      __FUNCTION__,
-	      id,
-	      event_func,
-	      text,
-	      v6,
-	      value);
+	debug(RPT_DEBUG, "%s(id=\"%s\", event_func=%p, text=\"%s\", v6=%d, value=\"%s\")",
+	      __FUNCTION__, id, event_func, text, v6, value);
 
 	new_item = menuitem_create(MENUITEM_IP, id, event_func, text, client);
 	if (new_item == NULL)
 		return NULL;
 
+	// Select IPv4 or IPv6 format configuration
 	new_item->data.ip.v6 = v6;
 	ipinfo = (v6) ? &IPinfo[1] : &IPinfo[0];
 
+	// Allocate value buffer based on IP version (15 for IPv4, 39 for IPv6)
 	new_item->data.ip.maxlength = ipinfo->maxlen;
-	;
 	new_item->data.ip.value = malloc(new_item->data.ip.maxlength + 1);
 	if (new_item->data.ip.value == NULL) {
 		menuitem_destroy(new_item);
@@ -502,9 +544,11 @@ MenuItem *menuitem_create_ip(
 	strncpy(new_item->data.ip.value, value, new_item->data.ip.maxlength);
 	new_item->data.ip.value[new_item->data.ip.maxlength] = '\0';
 
+	// Normalize and validate IP address format
 	if (ipinfo->verify != NULL) {
 		char *start = new_item->data.ip.value;
 
+		// Strip leading spaces and zeros from each field
 		while (start != NULL) {
 			char *skip = start;
 
@@ -516,18 +560,17 @@ MenuItem *menuitem_create_ip(
 			start = (skip != NULL) ? (skip + 1) : NULL;
 		}
 
+		// Replace invalid IP address with dummy value
 		if (!ipinfo->verify(new_item->data.ip.value)) {
-			report(RPT_WARNING,
-			       "%s(id=\"%s\") ip address not verified: \"%s\"",
-			       __FUNCTION__,
-			       id,
-			       value);
-			strncpy(
-			    new_item->data.ip.value, ipinfo->dummy, new_item->data.ip.maxlength);
+			report(RPT_WARNING, "%s(id=\"%s\") ip address not verified: \"%s\"",
+			       __FUNCTION__, id, value);
+			strncpy(new_item->data.ip.value, ipinfo->dummy,
+				new_item->data.ip.maxlength);
 			new_item->data.ip.value[new_item->data.ip.maxlength] = '\0';
 		}
 	}
 
+	// Allocate separate edit buffer for input processing
 	new_item->data.ip.edit_str = malloc(new_item->data.ip.maxlength + 1);
 	if (new_item->data.ip.edit_str == NULL) {
 		menuitem_destroy(new_item);
@@ -537,6 +580,7 @@ MenuItem *menuitem_create_ip(
 	return new_item;
 }
 
+// Delete menu item from memory
 void menuitem_destroy(MenuItem *item)
 {
 	debug(RPT_DEBUG, "%s(item=[%s])", __FUNCTION__, ((item != NULL) ? item->id : "(null)"));
@@ -544,20 +588,22 @@ void menuitem_destroy(MenuItem *item)
 	if (item != NULL) {
 		void (*destructor)(MenuItem *);
 
-		/* First destroy type specific data */
 		destructor = destructor_table[item->type];
 		if (destructor)
 			destructor(item);
 
-		/* Following strings should always be allocated */
 		free(item->text);
 		free(item->id);
-
-		/* And finally...*/
 		free(item);
 	}
 }
 
+/**
+ * \brief Destroy ring menu item
+ * \param item Menu item to destroy
+ *
+ * \details Frees ring strings list and list structure.
+ */
 void menuitem_destroy_ring(MenuItem *item)
 {
 	debug(RPT_DEBUG, "%s(item=[%s])", __FUNCTION__, ((item != NULL) ? item->id : "(null)"));
@@ -565,49 +611,68 @@ void menuitem_destroy_ring(MenuItem *item)
 	if (item != NULL) {
 		char *s;
 
-		/* deallocate the strings */
 		for (s = LL_GetFirst(item->data.ring.strings); s != NULL;
 		     s = LL_GetNext(item->data.ring.strings)) {
 			free(s);
 		}
-		/* and the list */
 		LL_Destroy(item->data.ring.strings);
 	}
 }
 
+/**
+ * \brief Destroy slider menu item
+ * \param item Menu item to destroy
+ *
+ * \details Frees min/max text strings.
+ */
 void menuitem_destroy_slider(MenuItem *item)
 {
 	debug(RPT_DEBUG, "%s(item=[%s])", __FUNCTION__, ((item != NULL) ? item->id : "(null)"));
 
 	if (item != NULL) {
-		/* These strings should always be allocated */
 		free(item->data.slider.mintext);
 		free(item->data.slider.maxtext);
 	}
 }
 
+/**
+ * \brief Destroy numeric menu item
+ * \param item Menu item to destroy
+ *
+ * \details Frees numeric edit buffer.
+ */
 void menuitem_destroy_numeric(MenuItem *item)
 {
 	debug(RPT_DEBUG, "%s(item=[%s])", __FUNCTION__, ((item != NULL) ? item->id : "(null)"));
 
 	if (item != NULL) {
-		/* This string should always be allocated */
 		free(item->data.numeric.edit_str);
 	}
 }
 
+/**
+ * \brief Destroy alpha menu item
+ * \param item Menu item to destroy
+ *
+ * \details Frees allowed characters, value, and edit buffer.
+ */
 void menuitem_destroy_alpha(MenuItem *item)
 {
 	debug(RPT_DEBUG, "%s(item=[%s])", __FUNCTION__, ((item != NULL) ? item->id : "(null)"));
 
 	if (item != NULL) {
-		/* These strings should always be allocated */
 		free(item->data.alpha.allowed_extra);
 		free(item->data.alpha.value);
 		free(item->data.alpha.edit_str);
 	}
 }
 
+/**
+ * \brief Destroy IP address menu item
+ * \param item Menu item to destroy
+ *
+ * \details Frees IP field edit buffers.
+ */
 void menuitem_destroy_ip(MenuItem *item)
 {
 	debug(RPT_DEBUG, "%s(item=[%s])", __FUNCTION__, ((item != NULL) ? item->id : "(null)"));
@@ -615,27 +680,29 @@ void menuitem_destroy_ip(MenuItem *item)
 	if (item == NULL)
 		return;
 
-	/* These strings should always be allocated */
 	free(item->data.ip.value);
 	free(item->data.ip.edit_str);
 }
 
-/******** MENU ITEM RESET FUNCTIONS ********/
-
+// Reset menu item to initial state
 void menuitem_reset(MenuItem *item)
 {
 	debug(RPT_DEBUG, "%s(item=[%s])", __FUNCTION__, ((item != NULL) ? item->id : "(null)"));
 
 	if (item != NULL) {
 		void (*func)(MenuItem *);
-
-		/* First destroy type specific data */
 		func = reset_table[item->type];
 		if (func)
 			func(item);
 	}
 }
 
+/**
+ * \brief Reset numeric item to default value
+ * \param item Menu item to reset
+ *
+ * \details Sets edit buffer to current value, resets cursor position.
+ */
 void menuitem_reset_numeric(MenuItem *item)
 {
 	debug(RPT_DEBUG, "%s(item=[%s])", __FUNCTION__, ((item != NULL) ? item->id : "(null)"));
@@ -643,21 +710,25 @@ void menuitem_reset_numeric(MenuItem *item)
 	if (item != NULL) {
 		item->data.numeric.edit_pos = 0;
 		item->data.numeric.edit_offs = 0;
+
 		memset(item->data.numeric.edit_str, '\0', MAX_NUMERIC_LEN);
+
 		if (item->data.numeric.minvalue < 0) {
-			snprintf(item->data.numeric.edit_str,
-				 MAX_NUMERIC_LEN,
-				 "%+d",
+			snprintf(item->data.numeric.edit_str, MAX_NUMERIC_LEN, "%+d",
 				 item->data.numeric.value);
 		} else {
-			snprintf(item->data.numeric.edit_str,
-				 MAX_NUMERIC_LEN,
-				 "%d",
+			snprintf(item->data.numeric.edit_str, MAX_NUMERIC_LEN, "%d",
 				 item->data.numeric.value);
 		}
 	}
 }
 
+/**
+ * \brief Reset alpha item to default value
+ * \param item Menu item to reset
+ *
+ * \details Copies current value to edit buffer, resets cursor.
+ */
 void menuitem_reset_alpha(MenuItem *item)
 {
 	debug(RPT_DEBUG, "%s(item=[%s])", __FUNCTION__, ((item != NULL) ? item->id : "(null)"));
@@ -665,13 +736,22 @@ void menuitem_reset_alpha(MenuItem *item)
 	if (item != NULL) {
 		item->data.alpha.edit_pos = 0;
 		item->data.alpha.edit_offs = 0;
+
 		memset(item->data.alpha.edit_str, '\0', item->data.alpha.maxlength + 1);
-		strncpy(
-		    item->data.alpha.edit_str, item->data.alpha.value, item->data.alpha.maxlength);
+
+		strncpy(item->data.alpha.edit_str, item->data.alpha.value,
+			item->data.alpha.maxlength);
+
 		item->data.alpha.edit_str[item->data.alpha.maxlength] = '\0';
 	}
 }
 
+/**
+ * \brief Reset IP item to default value
+ * \param item Menu item to reset
+ *
+ * \details Parses current IP, formats to edit buffer, resets cursor.
+ */
 void menuitem_reset_ip(MenuItem *item)
 {
 	char *start = item->data.ip.value;
@@ -681,92 +761,87 @@ void menuitem_reset_ip(MenuItem *item)
 
 	item->data.ip.edit_pos = 0;
 	item->data.ip.edit_offs = 0;
+
 	memset(item->data.ip.edit_str, '\0', item->data.ip.maxlength + 1);
 
-	// normalize IP address string to e.g. 010.002.250.002 /
-	// 0001:0203:0405:0607:0809:0a0b:0c0d:0e0f
+	// Parse and format IP address components: convert each numeric segment to string format,
+	// append to edit_str with separator, iterate through all segments until end of string
 	while (start != NULL) {
 		char *end;
 		char tmpstr[5];
 		int num = (int)strtol(start, (char **)NULL, ipinfo->base);
 
 		snprintf(tmpstr, 5, ipinfo->format, num);
-		strncat(item->data.ip.edit_str,
-			tmpstr,
+		strncat(item->data.ip.edit_str, tmpstr,
 			item->data.ip.maxlength - strlen(item->data.ip.edit_str) - 1);
+
 		end = strchr(start, ipinfo->sep);
 		start = (end != NULL) ? (end + 1) : NULL;
+
 		if (start != NULL) {
 			tmpstr[0] = ipinfo->sep;
 			tmpstr[1] = '\0';
-			strncat(item->data.ip.edit_str,
-				tmpstr,
+			strncat(item->data.ip.edit_str, tmpstr,
 				item->data.ip.maxlength - strlen(item->data.ip.edit_str) - 1);
 		}
 	}
 }
 
-/******** MENU SCREEN BUILD FUNCTIONS ********/
-
+// Rebuild menu item screen widgets
 void menuitem_rebuild_screen(MenuItem *item, Screen *s)
 {
 	Widget *w;
 	void (*build_screen)(MenuItem *item, Screen *s);
 
-	debug(RPT_DEBUG,
-	      "%s(item=[%s], screen=[%s])",
-	      __FUNCTION__,
-	      ((item != NULL) ? item->id : "(null)"),
-	      ((s != NULL) ? s->id : "(null)"));
+	debug(RPT_DEBUG, "%s(item=[%s], screen=[%s])", __FUNCTION__,
+	      ((item != NULL) ? item->id : "(null)"), ((s != NULL) ? s->id : "(null)"));
 
 	if (!display_props) {
-		/* Nothing to build if no display size is known */
 		report(RPT_ERR, "%s: display size unknown", __FUNCTION__);
 		return;
 	}
 
 	if (s != NULL) {
-		/* First remove all widgets from the screen */
 		while ((w = screen_getfirst_widget(s)) != NULL) {
-			/* We know these widgets don't have subwidgets, so we can
-			 * easily remove them
-			 */
+
 			screen_remove_widget(s, w);
 			widget_destroy(w);
 		}
 
 		if (item != NULL) {
-			/* Call type specific screen building function */
 			build_screen = build_screen_table[item->type];
 			if (build_screen) {
 				build_screen(item, s);
+
 			} else {
-				report(
-				    RPT_ERR, "%s: given menuitem cannot be active", __FUNCTION__);
+				report(RPT_ERR, "%s: given menuitem cannot be active",
+				       __FUNCTION__);
 				return;
 			}
 
-			/* Also always call update_screen */
 			menuitem_update_screen(item, s);
 		}
 	}
 }
 
+/**
+ * \brief Rebuild screen for slider item
+ * \param item Menu item
+ * \param s Screen to build on
+ *
+ * \details Creates title, value bar, and numeric value widgets.
+ */
 void menuitem_rebuild_screen_slider(MenuItem *item, Screen *s)
 {
 	Widget *w;
 
-	debug(RPT_DEBUG,
-	      "%s(item=[%s], screen=[%s])",
-	      __FUNCTION__,
-	      ((item != NULL) ? item->id : "(null)"),
-	      ((s != NULL) ? s->id : "(null)"));
+	debug(RPT_DEBUG, "%s(item=[%s], screen=[%s])", __FUNCTION__,
+	      ((item != NULL) ? item->id : "(null)"), ((s != NULL) ? s->id : "(null)"));
 
 	if ((item == NULL) || (s == NULL))
 		return;
 
 	if (display_props->height >= 2) {
-		/* Only add a title if enough space... */
 		w = widget_create("text", WID_STRING, s);
 		screen_add_widget(s, w);
 		w->text = strdup(item->text);
@@ -777,10 +852,8 @@ void menuitem_rebuild_screen_slider(MenuItem *item, Screen *s)
 	w = widget_create("bar", WID_HBAR, s);
 	screen_add_widget(s, w);
 	w->width = display_props->width;
+
 	if (display_props->height > 2) {
-		/* This is option 1: we have enought space, so the bar and
-		 * min/max texts can be on separate lines.
-		 */
 		w->x = 2;
 		w->y = display_props->height / 2 + 1;
 		w->width = display_props->width - 2;
@@ -807,21 +880,24 @@ void menuitem_rebuild_screen_slider(MenuItem *item, Screen *s)
 	}
 }
 
+/**
+ * \brief Rebuild screen for numeric item
+ * \param item Menu item
+ * \param s Screen to build on
+ *
+ * \details Creates title, value text, and optional error message widgets.
+ */
 void menuitem_rebuild_screen_numeric(MenuItem *item, Screen *s)
 {
 	Widget *w;
 
-	debug(RPT_DEBUG,
-	      "%s(item=[%s], screen=[%s])",
-	      __FUNCTION__,
-	      ((item != NULL) ? item->id : "(null)"),
-	      ((s != NULL) ? s->id : "(null)"));
+	debug(RPT_DEBUG, "%s(item=[%s], screen=[%s])", __FUNCTION__,
+	      ((item != NULL) ? item->id : "(null)"), ((s != NULL) ? s->id : "(null)"));
 
 	if ((item == NULL) || (s == NULL))
 		return;
 
 	if (display_props->height >= 2) {
-		/* Only add a title if enough space... */
 		w = widget_create("text", WID_STRING, s);
 		screen_add_widget(s, w);
 		w->text = strdup(item->text);
@@ -835,7 +911,6 @@ void menuitem_rebuild_screen_numeric(MenuItem *item, Screen *s)
 	w->x = 2;
 	w->y = display_props->height / 2 + 1;
 
-	/* Only display error string if enough space... */
 	if (display_props->height > 2) {
 		w = widget_create("error", WID_STRING, s);
 		screen_add_widget(s, w);
@@ -845,21 +920,24 @@ void menuitem_rebuild_screen_numeric(MenuItem *item, Screen *s)
 	}
 }
 
+/**
+ * \brief Rebuild screen for alpha item
+ * \param item Menu item
+ * \param s Screen to build on
+ *
+ * \details Creates title and text edit widgets with cursor support.
+ */
 void menuitem_rebuild_screen_alpha(MenuItem *item, Screen *s)
 {
 	Widget *w;
 
-	debug(RPT_DEBUG,
-	      "%s(item=[%s], screen=[%s])",
-	      __FUNCTION__,
-	      ((item != NULL) ? item->id : "(null)"),
-	      ((s != NULL) ? s->id : "(null)"));
+	debug(RPT_DEBUG, "%s(item=[%s], screen=[%s])", __FUNCTION__,
+	      ((item != NULL) ? item->id : "(null)"), ((s != NULL) ? s->id : "(null)"));
 
 	if ((item == NULL) || (s == NULL))
 		return;
 
 	if (display_props->height >= 2) {
-		/* Only add a title if enough space... */
 		w = widget_create("text", WID_STRING, s);
 		screen_add_widget(s, w);
 		w->text = strdup(item->text);
@@ -873,7 +951,6 @@ void menuitem_rebuild_screen_alpha(MenuItem *item, Screen *s)
 	w->x = 2;
 	w->y = display_props->height / 2 + 1;
 
-	/* Only display error string if enough space... */
 	if (display_props->height > 2) {
 		w = widget_create("error", WID_STRING, s);
 		screen_add_widget(s, w);
@@ -883,21 +960,24 @@ void menuitem_rebuild_screen_alpha(MenuItem *item, Screen *s)
 	}
 }
 
+/**
+ * \brief Rebuild screen for IP address item
+ * \param item Menu item
+ * \param s Screen to build on
+ *
+ * \details Creates title and IP field widgets with cursor support.
+ */
 void menuitem_rebuild_screen_ip(MenuItem *item, Screen *s)
 {
 	Widget *w;
 
-	debug(RPT_DEBUG,
-	      "%s(item=[%s], screen=[%s])",
-	      __FUNCTION__,
-	      ((item != NULL) ? item->id : "(null)"),
-	      ((s != NULL) ? s->id : "(null)"));
+	debug(RPT_DEBUG, "%s(item=[%s], screen=[%s])", __FUNCTION__,
+	      ((item != NULL) ? item->id : "(null)"), ((s != NULL) ? s->id : "(null)"));
 
 	if ((item == NULL) || (s == NULL))
 		return;
 
 	if (display_props->height >= 2) {
-		/* Only add a title if enough space... */
 		w = widget_create("text", WID_STRING, s);
 		screen_add_widget(s, w);
 		w->text = strdup(item->text);
@@ -911,7 +991,6 @@ void menuitem_rebuild_screen_ip(MenuItem *item, Screen *s)
 	w->x = 2;
 	w->y = display_props->height / 2 + 1;
 
-	/* Only display error string if enough space... */
 	if (display_props->height > 2) {
 		w = widget_create("error", WID_STRING, s);
 		screen_add_widget(s, w);
@@ -921,26 +1000,20 @@ void menuitem_rebuild_screen_ip(MenuItem *item, Screen *s)
 	}
 }
 
-/******** MENU SCREEN UPDATE FUNCTIONS ********/
-
+// Update menu item screen widgets with current values
 void menuitem_update_screen(MenuItem *item, Screen *s)
 {
 	void (*update_screen)(MenuItem *item, Screen *s);
 
-	debug(RPT_DEBUG,
-	      "%s(item=[%s], screen=[%s])",
-	      __FUNCTION__,
-	      ((item != NULL) ? item->id : "(null)"),
-	      ((s != NULL) ? s->id : "(null)"));
+	debug(RPT_DEBUG, "%s(item=[%s], screen=[%s])", __FUNCTION__,
+	      ((item != NULL) ? item->id : "(null)"), ((s != NULL) ? s->id : "(null)"));
 
 	if ((item == NULL) || (s == NULL))
 		return;
 
-	/* Disable the cursor by default */
 	s->cursor = CURSOR_OFF;
-
-	/* Call type specific screen building function */
 	update_screen = update_screen_table[item->type];
+
 	if (update_screen) {
 		update_screen(item, s);
 	} else {
@@ -949,38 +1022,51 @@ void menuitem_update_screen(MenuItem *item, Screen *s)
 	}
 }
 
+// Update screen widgets for slider menu item
 void menuitem_update_screen_slider(MenuItem *item, Screen *s)
 {
 	Widget *w;
 	int min_len, max_len;
 
-	debug(RPT_DEBUG,
-	      "%s(item=[%s], screen=[%s])",
-	      __FUNCTION__,
-	      ((item != NULL) ? item->id : "(null)"),
-	      ((s != NULL) ? s->id : "(null)"));
+	debug(RPT_DEBUG, "%s(item=[%s], screen=[%s])", __FUNCTION__,
+	      ((item != NULL) ? item->id : "(null)"), ((s != NULL) ? s->id : "(null)"));
 
 	if ((item == NULL) || (s == NULL))
 		return;
 
-	/* Calculate the bar position and length by filling buffers */
 	min_len = strlen(item->data.slider.mintext);
 	max_len = strlen(item->data.slider.maxtext);
-
-	/* And adjust the data */
-
 	w = screen_find_widget(s, "bar");
+
 	if (display_props->height <= 2) {
-		/* This is option 2: we're tight on lines, so we put the bar
-		 * and min/max texts on the same line.
-		 */
 		w->x = 1 + min_len;
 		w->y = display_props->height;
 		w->width = display_props->width - min_len - max_len;
 	}
-	/* FUTURE: w->promille = 1000 * (item->data.slider.value - item->data.slider.minvalue) /
-	   (item->data.slider.maxvalue - item->data.slider.minvalue) */
-	;
+
+	/**
+	 * \todo Use promille calculation for slider rendering instead of direct pixel calculation
+	 *
+	 * Current implementation calculates widget length directly in pixels, but should use
+	 * promille (per-thousand) value for hardware-independent rendering:
+	 *
+	 * Proposed formula:
+	 * ```
+	 * w->promille = 1000 * (item->data.slider.value - item->data.slider.minvalue) /
+	 *                      (item->data.slider.maxvalue - item->data.slider.minvalue)
+	 * ```
+	 *
+	 * Benefits:
+	 * - Hardware-independent rendering (drivers handle pixel conversion)
+	 * - More accurate for different display sizes
+	 * - Consistent with other widget types (bars, etc.)
+	 * - Better precision than percentage (1000 steps vs 100 steps)
+	 *
+	 * Impact: Slider widget rendering accuracy, cross-driver compatibility
+	 *
+	 * \ingroup ToDo_medium
+	 */
+
 	w->length = w->width * display_props->cellwidth *
 		    (item->data.slider.value - item->data.slider.minvalue) /
 		    (item->data.slider.maxvalue - item->data.slider.minvalue);
@@ -997,22 +1083,25 @@ void menuitem_update_screen_slider(MenuItem *item, Screen *s)
 	w->text = strdup(item->data.slider.maxtext);
 }
 
+/**
+ * \brief Update screen for numeric item
+ * \param item Menu item
+ * \param s Screen to update
+ *
+ * \details Updates value display, cursor position, and error message.
+ */
 void menuitem_update_screen_numeric(MenuItem *item, Screen *s)
 {
 	Widget *w;
 
-	debug(RPT_DEBUG,
-	      "%s(item=[%s], screen=[%s])",
-	      __FUNCTION__,
-	      ((item != NULL) ? item->id : "(null)"),
-	      ((s != NULL) ? s->id : "(null)"));
+	debug(RPT_DEBUG, "%s(item=[%s], screen=[%s])", __FUNCTION__,
+	      ((item != NULL) ? item->id : "(null)"), ((s != NULL) ? s->id : "(null)"));
 
 	if ((item == NULL) || (s == NULL))
 		return;
 
 	w = screen_find_widget(s, "value");
-	strncpy(w->text,
-		item->data.numeric.edit_str + item->data.numeric.edit_offs,
+	strncpy(w->text, item->data.numeric.edit_str + item->data.numeric.edit_offs,
 		MAX_NUMERIC_LEN - 1);
 	w->text[MAX_NUMERIC_LEN - 1] = '\0';
 
@@ -1020,7 +1109,6 @@ void menuitem_update_screen_numeric(MenuItem *item, Screen *s)
 	s->cursor_x = w->x + item->data.numeric.edit_pos - item->data.numeric.edit_offs;
 	s->cursor_y = w->y;
 
-	/* Only display error string if enough space... */
 	if (display_props->height > 2) {
 		w = screen_find_widget(s, "error");
 		free(w->text);
@@ -1028,25 +1116,29 @@ void menuitem_update_screen_numeric(MenuItem *item, Screen *s)
 	}
 }
 
+/**
+ * \brief Update screen for alpha item
+ * \param item Menu item
+ * \param s Screen to update
+ *
+ * \details Updates text (or password chars), cursor position, and error message.
+ */
 void menuitem_update_screen_alpha(MenuItem *item, Screen *s)
 {
 	Widget *w;
 
-	debug(RPT_DEBUG,
-	      "%s(item=[%s], screen=[%s])",
-	      __FUNCTION__,
-	      ((item != NULL) ? item->id : "(null)"),
-	      ((s != NULL) ? s->id : "(null)"));
+	debug(RPT_DEBUG, "%s(item=[%s], screen=[%s])", __FUNCTION__,
+	      ((item != NULL) ? item->id : "(null)"), ((s != NULL) ? s->id : "(null)"));
 
 	if ((item == NULL) || (s == NULL))
 		return;
 
 	w = screen_find_widget(s, "value");
 	if (item->data.alpha.password_char == '\0') {
-		strncpy(w->text,
-			item->data.alpha.edit_str + item->data.alpha.edit_offs,
+		strncpy(w->text, item->data.alpha.edit_str + item->data.alpha.edit_offs,
 			item->data.alpha.maxlength);
 		w->text[item->data.alpha.maxlength] = '\0';
+
 	} else {
 		int len = strlen(item->data.alpha.edit_str) - item->data.alpha.edit_offs;
 
@@ -1058,7 +1150,6 @@ void menuitem_update_screen_alpha(MenuItem *item, Screen *s)
 	s->cursor_x = w->x + item->data.alpha.edit_pos - item->data.alpha.edit_offs;
 	s->cursor_y = w->y;
 
-	/* Only display error string if enough space... */
 	if (display_props->height > 2) {
 		w = screen_find_widget(s, "error");
 		free(w->text);
@@ -1066,23 +1157,26 @@ void menuitem_update_screen_alpha(MenuItem *item, Screen *s)
 	}
 }
 
+/**
+ * \brief Update screen for IP address item
+ * \param item Menu item
+ * \param s Screen to update
+ *
+ * \details Updates IP field displays, cursor position, and error message.
+ */
 void menuitem_update_screen_ip(MenuItem *item, Screen *s)
 {
 	Widget *w;
 
-	debug(RPT_DEBUG,
-	      "%s(item=[%s], screen=[%s])",
-	      __FUNCTION__,
-	      ((item != NULL) ? item->id : "(null)"),
-	      ((s != NULL) ? s->id : "(null)"));
+	debug(RPT_DEBUG, "%s(item=[%s], screen=[%s])", __FUNCTION__,
+	      ((item != NULL) ? item->id : "(null)"), ((s != NULL) ? s->id : "(null)"));
 
 	if ((item == NULL) || (s == NULL))
 		return;
 
 	w = screen_find_widget(s, "value");
 	if (w != NULL) {
-		strncpy(w->text,
-			item->data.ip.edit_str + item->data.ip.edit_offs,
+		strncpy(w->text, item->data.ip.edit_str + item->data.ip.edit_offs,
 			item->data.ip.maxlength);
 		w->text[item->data.ip.maxlength] = '\0';
 
@@ -1091,7 +1185,6 @@ void menuitem_update_screen_ip(MenuItem *item, Screen *s)
 		s->cursor_y = w->y;
 	}
 
-	/* Only display error string if enough space... */
 	if (display_props->height > 2) {
 		w = screen_find_widget(s, "error");
 		free(w->text);
@@ -1099,61 +1192,63 @@ void menuitem_update_screen_ip(MenuItem *item, Screen *s)
 	}
 }
 
-/******** MENU SCREEN INPUT HANDLING FUNCTIONS ********/
-
-MenuResult
-menuitem_process_input(MenuItem *item, MenuToken token, const char *key, unsigned int keymask)
+// Process input events for menu items
+MenuResult menuitem_process_input(MenuItem *item, MenuToken token, const char *key,
+				  unsigned int keymask)
 {
-	MenuResult (*process_input)(
-	    MenuItem *item, MenuToken token, const char *key, unsigned int keymask);
+	MenuResult (*process_input)(MenuItem *item, MenuToken token, const char *key,
+				    unsigned int keymask);
 
-	debug(RPT_DEBUG,
-	      "%s(item=[%s], token=%d, key=\"%s\")",
-	      __FUNCTION__,
-	      ((item != NULL) ? item->id : "(null)"),
-	      token,
-	      key);
+	debug(RPT_DEBUG, "%s(item=[%s], token=%d, key=\"%s\")", __FUNCTION__,
+	      ((item != NULL) ? item->id : "(null)"), token, key);
 
 	if (item == NULL)
 		return MENURESULT_ERROR;
 
-	/* Call type specific screen building function */
 	process_input = process_input_table[item->type];
 	if (process_input) {
 		return process_input(item, token, key, keymask);
+
 	} else {
 		report(RPT_ERR, "%s: given menuitem cannot be active", __FUNCTION__);
 		return MENURESULT_ERROR;
 	}
 }
 
-MenuResult menuitem_process_input_slider(MenuItem *item,
-					 MenuToken token,
-					 const char *key,
+/**
+ * \brief Process user input for slider menu item
+ * \param item Slider menu item
+ * \param token Input token (key press, enter, etc.)
+ * \param key Key string from input
+ * \param keymask Key modifier mask
+ * \return MenuResult indicating action taken
+ *
+ * \details Handles Up/Down to adjust value, Enter to confirm.
+ */
+MenuResult menuitem_process_input_slider(MenuItem *item, MenuToken token, const char *key,
 					 unsigned int keymask)
 {
-	debug(RPT_DEBUG,
-	      "%s(item=[%s], token=%d, key=\"%s\")",
-	      __FUNCTION__,
-	      ((item != NULL) ? item->id : "(null)"),
-	      token,
-	      key);
+	debug(RPT_DEBUG, "%s(item=[%s], token=%d, key=\"%s\")", __FUNCTION__,
+	      ((item != NULL) ? item->id : "(null)"), token, key);
 
 	if (item == NULL)
 		return MENURESULT_ERROR;
 
 	switch (token) {
+
+	// Handle menu key
 	case MENUTOKEN_MENU:
 		return menuitem_predecessor2menuresult(item->predecessor_id, MENURESULT_CLOSE);
+
+	// Handle enter key
 	case MENUTOKEN_ENTER:
 		return menuitem_successor2menuresult(item->successor_id, MENURESULT_CLOSE);
+
+	// Handle up key
 	case MENUTOKEN_UP:
+
+	// Handle right key
 	case MENUTOKEN_RIGHT:
-		/* Wrap slider around if max value is reached.
-		 * Note: The max value is actually reached,
-		 * because of min(maxvalue, value + stepsize) below.
-		 * Wrapping then happens on the next key press.
-		 */
 		if ((!(keymask & (MENUTOKEN_LEFT | MENUTOKEN_DOWN))) &&
 		    (item->data.slider.value == item->data.slider.maxvalue))
 			item->data.slider.value = item->data.slider.minvalue;
@@ -1163,8 +1258,13 @@ MenuResult menuitem_process_input_slider(MenuItem *item,
 				item->data.slider.value + item->data.slider.stepsize);
 		if (item->event_func)
 			item->event_func(item, MENUEVENT_PLUS);
+
 		return MENURESULT_NONE;
+
+	// Handle down key
 	case MENUTOKEN_DOWN:
+
+	// Handle left key
 	case MENUTOKEN_LEFT:
 		if ((!(keymask & (MENUTOKEN_RIGHT | MENUTOKEN_UP))) &&
 		    (item->data.slider.value == item->data.slider.minvalue))
@@ -1175,7 +1275,10 @@ MenuResult menuitem_process_input_slider(MenuItem *item,
 				item->data.slider.value - item->data.slider.stepsize);
 		if (item->event_func)
 			item->event_func(item, MENUEVENT_MINUS);
+
 		return MENURESULT_NONE;
+
+	// Handle other keys
 	case MENUTOKEN_OTHER:
 	default:
 		break;
@@ -1184,9 +1287,17 @@ MenuResult menuitem_process_input_slider(MenuItem *item,
 	return MENURESULT_ERROR;
 }
 
-MenuResult menuitem_process_input_numeric(MenuItem *item,
-					  MenuToken token,
-					  const char *key,
+/**
+ * \brief Process user input for numeric entry menu item
+ * \param item Numeric menu item
+ * \param token Input token (key press, enter, etc.)
+ * \param key Key string from input
+ * \param keymask Key modifier mask
+ * \return MenuResult indicating action taken
+ *
+ * \details Handles digit entry, backspace, Enter to confirm.
+ */
+MenuResult menuitem_process_input_numeric(MenuItem *item, MenuToken token, const char *key,
 					  unsigned int keymask)
 {
 	char buf1[MAX_NUMERIC_LEN];
@@ -1194,15 +1305,10 @@ MenuResult menuitem_process_input_numeric(MenuItem *item,
 
 	int max_len;
 
-	debug(RPT_DEBUG,
-	      "%s(item=[%s], token=%d, key=\"%s\")",
-	      __FUNCTION__,
-	      ((item != NULL) ? item->id : "(null)"),
-	      token,
-	      key);
+	debug(RPT_DEBUG, "%s(item=[%s], token=%d, key=\"%s\")", __FUNCTION__,
+	      ((item != NULL) ? item->id : "(null)"), token, key);
 
 	if (item != NULL) {
-		/* To make life easy... */
 		char *str = item->data.numeric.edit_str;
 		int pos = item->data.numeric.edit_pos;
 		int allow_signed = (item->data.numeric.minvalue < 0);
@@ -1213,68 +1319,64 @@ MenuResult menuitem_process_input_numeric(MenuItem *item,
 
 		max_len = max(strlen(buf1), strlen(buf2));
 
-		/* Clear the error */
 		item->data.numeric.error_code = 0;
 
 		switch (token) {
+
+		// Handle menu key
 		case MENUTOKEN_MENU:
 			if (pos == 0) {
 				return menuitem_predecessor2menuresult(item->predecessor_id,
 								       MENURESULT_CLOSE);
 			} else {
-				/* Reset data */
 				menuitem_reset_numeric(item);
 			}
 			return MENURESULT_NONE;
+
+		// Handle enter key
 		case MENUTOKEN_ENTER:
 			if ((keymask & MENUTOKEN_RIGHT) || (str[pos] == '\0')) {
 				int value;
-				/* The user completed his input */
 
-				/* ...scan it */
 				if (sscanf(str, "%d", &value) != 1) {
 					return MENURESULT_ERROR;
 				}
-				/* Test the value */
 				if ((value < item->data.numeric.minvalue) ||
 				    (value > item->data.numeric.maxvalue)) {
-					/* Out of range !
-					 * We can't exit this screen now
-					 */
 					item->data.numeric.error_code = 1;
 					item->data.numeric.edit_pos = 0;
 					item->data.numeric.edit_offs = 0;
+
 					return MENURESULT_NONE;
 				}
 
-				/* OK, store value */
 				item->data.numeric.value = value;
 
-				/* Inform client */
 				if (item->event_func)
 					item->event_func(item, MENUEVENT_UPDATE);
 
 				return menuitem_successor2menuresult(item->successor_id,
 								     MENURESULT_CLOSE);
+
 			} else {
-				/* The user wants to go to next digit */
 				if (pos < max_len) {
 					item->data.numeric.edit_pos++;
 					if (pos >= display_props->width - 2)
 						item->data.numeric.edit_offs++;
 				}
 			}
+
 			return MENURESULT_NONE;
+
+		// Handle up key
 		case MENUTOKEN_UP:
 			if (pos >= max_len) {
-				/* We're not allowed to add anything anymore */
 				item->data.numeric.error_code = 2;
 				item->data.numeric.edit_pos = 0;
 				item->data.numeric.edit_offs = 0;
 				return MENURESULT_NONE;
 			}
 			if (allow_signed && pos == 0) {
-				/* make negative */
 				str[0] = (str[0] == '-') ? '+' : '-';
 			} else {
 				if (str[pos] >= '0' && str[pos] < '9') {
@@ -1285,17 +1387,19 @@ MenuResult menuitem_process_input_numeric(MenuItem *item,
 					str[pos] = '0';
 				}
 			}
+
 			return MENURESULT_NONE;
+
+		// Handle down key
 		case MENUTOKEN_DOWN:
 			if (pos >= max_len) {
-				/* We're not allowed to add anything anymore */
 				item->data.numeric.error_code = 2;
 				item->data.numeric.edit_pos = 0;
 				item->data.numeric.edit_offs = 0;
+
 				return MENURESULT_NONE;
 			}
 			if (allow_signed && pos == 0) {
-				/* make negative */
 				str[0] = (str[0] == '-') ? '+' : '-';
 			} else {
 				if (str[pos] > '0' && str[pos] <= '9') {
@@ -1306,38 +1410,44 @@ MenuResult menuitem_process_input_numeric(MenuItem *item,
 					str[pos] = '9';
 				}
 			}
+
 			return MENURESULT_NONE;
+
+		// Handle right key
 		case MENUTOKEN_RIGHT:
-			/* The user wants to go to next digit */
 			if (str[pos] != '\0' && pos < max_len) {
 				item->data.numeric.edit_pos++;
 				if (pos >= display_props->width - 2)
 					item->data.numeric.edit_offs++;
 			}
+
 			return MENURESULT_NONE;
+
+		// Handle left key
 		case MENUTOKEN_LEFT:
-			/* The user wants to go to back a digit */
 			if (pos > 0) {
 				item->data.numeric.edit_pos--;
 				if (item->data.numeric.edit_offs > item->data.numeric.edit_pos)
 					item->data.numeric.edit_offs = item->data.numeric.edit_pos;
 			}
+
 			return MENURESULT_NONE;
+
+		// Handle other keys
 		case MENUTOKEN_OTHER:
 			if (pos >= max_len) {
-				/* We're not allowed to add anything anymore */
 				item->data.numeric.error_code = 2;
 				item->data.numeric.edit_pos = 0;
 				item->data.numeric.edit_offs = 0;
 				return MENURESULT_NONE;
 			}
-			/* process numeric keys */
 			if ((strlen(key) == 1) && isdigit(key[0])) {
 				str[pos] = key[0];
 				item->data.numeric.edit_pos++;
 				if (pos >= display_props->width - 2)
 					item->data.numeric.edit_offs++;
 			}
+
 		default:
 			return MENURESULT_NONE;
 		}
@@ -1345,153 +1455,168 @@ MenuResult menuitem_process_input_numeric(MenuItem *item,
 	return MENURESULT_ERROR;
 }
 
-MenuResult
-menuitem_process_input_alpha(MenuItem *item, MenuToken token, const char *key, unsigned int keymask)
+/**
+ * \brief Process user input for alphanumeric text entry menu item
+ * \param item Alpha menu item
+ * \param token Input token (key press, enter, etc.)
+ * \param key Key string from input
+ * \param keymask Key modifier mask
+ * \return MenuResult indicating action taken
+ *
+ * \details Handles character entry, backspace, allowed character filtering, Enter to confirm.
+ */
+MenuResult menuitem_process_input_alpha(MenuItem *item, MenuToken token, const char *key,
+					unsigned int keymask)
 {
 	char *p;
 	static char *chars = NULL;
 
-	debug(RPT_DEBUG,
-	      "%s(item=[%s], token=%d, key=\"%s\")",
-	      __FUNCTION__,
-	      ((item != NULL) ? item->id : "(null)"),
-	      token,
-	      key);
+	debug(RPT_DEBUG, "%s(item=[%s], token=%d, key=\"%s\")", __FUNCTION__,
+	      ((item != NULL) ? item->id : "(null)"), token, key);
 
 	if (item != NULL) {
-		/* To make life easy... */
 		char *str = item->data.alpha.edit_str;
 		int pos = item->data.alpha.edit_pos;
 
-		/* Create list of allowed chars */
 		size_t chars_size = 26 + 26 + 10 + strlen(item->data.alpha.allowed_extra) + 1;
-		chars = realloc(chars, chars_size);
-		chars[0] = '\0'; /* clear string */
+		char *new_chars = realloc(chars, chars_size);
+		if (new_chars == NULL) {
+			return MENURESULT_ERROR;
+		}
+		chars = new_chars;
+		chars[0] = '\0';
+
 		if (item->data.alpha.allow_caps)
-			strncat(
-			    chars, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", chars_size - strlen(chars) - 1);
+			strncat(chars, "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+				chars_size - strlen(chars) - 1);
 		if (item->data.alpha.allow_noncaps)
-			strncat(
-			    chars, "abcdefghijklmnopqrstuvwxyz", chars_size - strlen(chars) - 1);
+			strncat(chars, "abcdefghijklmnopqrstuvwxyz",
+				chars_size - strlen(chars) - 1);
 		if (item->data.alpha.allow_numbers)
 			strncat(chars, "0123456789", chars_size - strlen(chars) - 1);
 		strncat(chars, item->data.alpha.allowed_extra, chars_size - strlen(chars) - 1);
 
-		/* Clear the error */
 		item->data.alpha.error_code = 0;
 
 		switch (token) {
+
+		// Handle menu key
 		case MENUTOKEN_MENU:
 			if (pos == 0) {
 				return menuitem_predecessor2menuresult(item->predecessor_id,
 								       MENURESULT_CLOSE);
 			} else {
-				/* Reset data */
 				menuitem_reset_alpha(item);
 			}
+
 			return MENURESULT_NONE;
+
+		// Handle enter key
 		case MENUTOKEN_ENTER:
 			if ((keymask & MENUTOKEN_RIGHT) ||
 			    (str[item->data.alpha.edit_pos] == '\0')) {
-				/* The user completed his input */
 
-				/* It's not too short ? */
 				if (strlen(item->data.alpha.edit_str) <
 				    item->data.alpha.minlength) {
 					item->data.alpha.error_code = 3;
+
 					return MENURESULT_NONE;
 				}
 
-				/* Store value */
-				strncpy(item->data.alpha.value,
-					item->data.alpha.edit_str,
+				strncpy(item->data.alpha.value, item->data.alpha.edit_str,
 					item->data.alpha.maxlength);
 				item->data.alpha.value[item->data.alpha.maxlength] = '\0';
 
-				/* Inform client */
 				if (item->event_func)
 					item->event_func(item, MENUEVENT_UPDATE);
 
 				return menuitem_successor2menuresult(item->successor_id,
 								     MENURESULT_CLOSE);
+
 			} else {
-				/* The user wants to go to next digit */
 				if (pos < item->data.alpha.maxlength) {
 					item->data.alpha.edit_pos++;
 					if (pos >= display_props->width - 2)
 						item->data.alpha.edit_offs++;
 				}
 			}
+
 			return MENURESULT_NONE;
+
+		// Handle up key
 		case MENUTOKEN_UP:
 			if (pos >= item->data.alpha.maxlength) {
-				/* We're not allowed to add anything anymore */
 				item->data.alpha.error_code = 2;
 				item->data.alpha.edit_pos = 0;
 				item->data.alpha.edit_offs = 0;
+
 				return MENURESULT_NONE;
 			}
 			if (str[pos] == '\0') {
-				/* User goes past EOL */
 				str[pos] = chars[0];
 			} else {
-				/* We should have a symbol from our list */
 				p = strchr(chars, str[pos]);
 				if (p != NULL) {
-					str[pos] = *(++p); /* next symbol on list */
-							   /* Might be '\0' now */
+					str[pos] = *(++p);
 				} else {
 					str[pos] = '\0';
 				}
 			}
+
 			return MENURESULT_NONE;
+
+		// Handle down key
 		case MENUTOKEN_DOWN:
 			if (pos >= item->data.alpha.maxlength) {
-				/* We're not allowed to add anything anymore */
 				item->data.alpha.error_code = 2;
 				item->data.alpha.edit_pos = 0;
 				item->data.alpha.edit_offs = 0;
+
 				return MENURESULT_NONE;
 			}
+
 			if (str[pos] == '\0') {
-				/* User goes past EOL */
 				str[pos] = chars[strlen(chars) - 1];
 			} else {
-				/* We should have a symbol from our list */
 				p = strchr(chars, str[pos]);
 				if ((p != NULL) && (p != chars)) {
-					str[pos] = *(--p); /* previous symbol on list */
+					str[pos] = *(--p);
 				} else {
 					str[pos] = '\0';
 				}
 			}
+
 			return MENURESULT_NONE;
+
+		// Handle right key
 		case MENUTOKEN_RIGHT:
-			/* The user wants to go to next digit */
 			if (str[item->data.alpha.edit_pos] != '\0' &&
 			    pos < item->data.alpha.maxlength - 1) {
 				item->data.alpha.edit_pos++;
 				if (pos >= display_props->width - 2)
 					item->data.alpha.edit_offs++;
 			}
+
 			return MENURESULT_NONE;
+
+		// Handle left key
 		case MENUTOKEN_LEFT:
-			/* The user wants to go to back a digit */
 			if (pos > 0) {
 				item->data.alpha.edit_pos--;
 				if (item->data.alpha.edit_offs > item->data.alpha.edit_pos)
 					item->data.alpha.edit_offs = item->data.alpha.edit_pos;
 			}
+
 			return MENURESULT_NONE;
+
+		// Handle other keys
 		case MENUTOKEN_OTHER:
 			if (pos >= item->data.alpha.maxlength) {
-				/* We're not allowed to add anything anymore */
 				item->data.alpha.error_code = 2;
 				item->data.alpha.edit_pos = 0;
 				item->data.alpha.edit_offs = 0;
 				return MENURESULT_NONE;
 			}
-			/* process other keys */
 			if ((strlen(key) == 1) && (key[0] >= ' ') &&
 			    (strchr(chars, key[0]) != NULL)) {
 				str[pos] = key[0];
@@ -1499,6 +1624,7 @@ menuitem_process_input_alpha(MenuItem *item, MenuToken token, const char *key, u
 				if (pos >= display_props->width - 2)
 					item->data.alpha.edit_offs++;
 			}
+
 		default:
 			return MENURESULT_NONE;
 		}
@@ -1506,40 +1632,47 @@ menuitem_process_input_alpha(MenuItem *item, MenuToken token, const char *key, u
 	return MENURESULT_ERROR;
 }
 
-MenuResult
-menuitem_process_input_ip(MenuItem *item, MenuToken token, const char *key, unsigned int keymask)
+/**
+ * \brief Process user input for IP address entry menu item
+ * \param item IP menu item
+ * \param token Input token (key press, enter, etc.)
+ * \param key Key string from input
+ * \param keymask Key modifier mask
+ * \return MenuResult indicating action taken
+ *
+ * \details Handles IP address entry with field navigation, digit entry, and validation.
+ */
+MenuResult menuitem_process_input_ip(MenuItem *item, MenuToken token, const char *key,
+				     unsigned int keymask)
 {
-	/* To make life easy... */
 	char *str = item->data.ip.edit_str;
 	char numstr[5];
 	int num;
 	int pos = item->data.ip.edit_pos;
 	const IpSstringProperties *ipinfo = (item->data.ip.v6) ? &IPinfo[1] : &IPinfo[0];
 
-	debug(RPT_DEBUG,
-	      "%s(item=[%s], token=%d, key=\"%s\")",
-	      __FUNCTION__,
-	      ((item != NULL) ? item->id : "(null)"),
-	      token,
-	      key);
+	debug(RPT_DEBUG, "%s(item=[%s], token=%d, key=\"%s\")", __FUNCTION__,
+	      ((item != NULL) ? item->id : "(null)"), token, key);
 
-	/* Clear the error */
 	item->data.ip.error_code = 0;
 
 	switch (token) {
+
+	// Handle menu key
 	case MENUTOKEN_MENU:
 		if (pos == 0) {
 			return menuitem_predecessor2menuresult(item->predecessor_id,
 							       MENURESULT_CLOSE);
 		} else {
-			/* Reset data */
 			menuitem_reset_ip(item);
 		}
+
 		return MENURESULT_NONE;
+
+	// Handle enter key
 	case MENUTOKEN_ENTER:
 		if ((keymask & MENUTOKEN_RIGHT) || (pos >= item->data.ip.maxlength - 1)) {
-			// remove the leading spaces/zeros in each octet-representing string
-			char tmp[40]; // 40 = max. length of IPv4 & IPv6 addresses incl. '\0'
+			char tmp[40];
 			char *start = tmp;
 
 			memccpy(tmp, str, '\0', sizeof(tmp));
@@ -1556,26 +1689,22 @@ menuitem_process_input_ip(MenuItem *item, MenuToken token, const char *key, unsi
 				start = (skip != NULL) ? (skip + 1) : NULL;
 			}
 
-			// check IP address entered
 			if ((ipinfo->verify != NULL) && (!ipinfo->verify(tmp))) {
-				report(RPT_WARNING,
-				       "%s(id=\"%s\") ip address not verified: \"%s\"",
-				       __FUNCTION__,
-				       item->id,
-				       tmp);
+				report(RPT_WARNING, "%s(id=\"%s\") ip address not verified: \"%s\"",
+				       __FUNCTION__, item->id, tmp);
 				item->data.ip.error_code = 4;
+
 				return MENURESULT_NONE;
 			}
 
-			// store value
 			strncpy(item->data.ip.value, tmp, item->data.ip.maxlength);
 			item->data.ip.value[item->data.ip.maxlength] = '\0';
 
-			// Inform client
 			if (item->event_func)
 				item->event_func(item, MENUEVENT_UPDATE);
 
 			return menuitem_successor2menuresult(item->successor_id, MENURESULT_CLOSE);
+
 		} else {
 			item->data.ip.edit_pos++;
 			if (str[item->data.ip.edit_pos] == ipinfo->sep)
@@ -1583,32 +1712,35 @@ menuitem_process_input_ip(MenuItem *item, MenuToken token, const char *key, unsi
 			while (item->data.ip.edit_pos - item->data.ip.edit_offs >
 			       display_props->width - 2)
 				item->data.ip.edit_offs++;
+
 			return MENURESULT_NONE;
 		}
+
+	// Handle up key
 	case MENUTOKEN_UP:
-		// convert string starting at the beginning / previous dot into a number
-		num = (int)strtol(
-		    &str[pos - (pos % (ipinfo->width + 1))], (char **)NULL, ipinfo->base);
-		// increase the number depending on the position
+		num = (int)strtol(&str[pos - (pos % (ipinfo->width + 1))], (char **)NULL,
+				  ipinfo->base);
 		num += ipinfo->posValue[(pos - (pos / (ipinfo->width + 1))) % ipinfo->width];
-		// wrap around upper limit
 		if (num > ipinfo->limit)
 			num = 0;
 		snprintf(numstr, 5, ipinfo->format, num);
 		memcpy(&str[pos - (pos % (ipinfo->width + 1))], numstr, ipinfo->width);
+
 		return MENURESULT_NONE;
+
+	// Handle down key
 	case MENUTOKEN_DOWN:
-		// convert string starting at the beginning / previous dot into a number
-		num = (int)strtol(
-		    &str[pos - (pos % (ipinfo->width + 1))], (char **)NULL, ipinfo->base);
-		// decrease the number depending on the position
+		num = (int)strtol(&str[pos - (pos % (ipinfo->width + 1))], (char **)NULL,
+				  ipinfo->base);
 		num -= ipinfo->posValue[(pos - (pos / (ipinfo->width + 1))) % ipinfo->width];
-		// wrap around lower limit 0
 		if (num < 0)
 			num = ipinfo->limit;
 		snprintf(numstr, 5, ipinfo->format, num);
 		memcpy(&str[pos - (pos % (ipinfo->width + 1))], numstr, ipinfo->width);
+
 		return MENURESULT_NONE;
+
+	// Handle right key
 	case MENUTOKEN_RIGHT:
 		if (pos < item->data.ip.maxlength - 1) {
 			item->data.ip.edit_pos++;
@@ -1618,9 +1750,11 @@ menuitem_process_input_ip(MenuItem *item, MenuToken token, const char *key, unsi
 			       display_props->width - 2)
 				item->data.ip.edit_offs++;
 		}
+
 		return MENURESULT_NONE;
+
+	// Handle left key
 	case MENUTOKEN_LEFT:
-		/* The user wants to go to back a digit */
 		if (pos > 0) {
 			item->data.ip.edit_pos--;
 			if (str[item->data.ip.edit_pos] == ipinfo->sep)
@@ -1628,9 +1762,11 @@ menuitem_process_input_ip(MenuItem *item, MenuToken token, const char *key, unsi
 			if (item->data.ip.edit_offs > item->data.ip.edit_pos)
 				item->data.ip.edit_offs = item->data.ip.edit_pos;
 		}
+
 		return MENURESULT_NONE;
+
+	// Handle other keys
 	case MENUTOKEN_OTHER:
-		/* process other keys */
 		if ((strlen(key) == 1) &&
 		    ((item->data.ip.v6) ? isxdigit(key[0]) : isdigit(key[0]))) {
 			str[pos] = tolower(key[0]);
@@ -1643,26 +1779,23 @@ menuitem_process_input_ip(MenuItem *item, MenuToken token, const char *key, unsi
 					item->data.ip.edit_offs++;
 			}
 		}
-		/* FALLTHROUGH */
+	// FALLTHROUGH
 	default:
 		return MENURESULT_NONE;
 	}
-	/* NOTREACHED */
 	return MENURESULT_ERROR;
 }
 
-/**
- * get the Client that owns item. extracted from menu_commands_handler().
- */
+// Return the Client that owns the MenuItem
 Client *menuitem_get_client(MenuItem *item) { return item->client; }
 
+// Convert tab-separated string to LinkedList
 LinkedList *tablist2linkedlist(char *strings)
 {
 	LinkedList *list;
 
 	list = LL_new();
 
-	/* Parse strings */
 	if (strings != NULL) {
 		char *p = strings;
 		char *tabptr, *new_s;
@@ -1670,7 +1803,6 @@ LinkedList *tablist2linkedlist(char *strings)
 		while ((tabptr = strchr(p, '\t')) != NULL) {
 			int len = (int)(tabptr - p);
 
-			/* Alloc and copy substring */
 			new_s = malloc(len + 1);
 			if (new_s != NULL) {
 				strncpy(new_s, p, len);
@@ -1679,10 +1811,8 @@ LinkedList *tablist2linkedlist(char *strings)
 				LL_Push(list, new_s);
 			}
 
-			/* Go to next string */
 			p = tabptr + 1;
 		}
-		/* Add last string */
 		new_s = strdup(p);
 		if (new_s != NULL)
 			LL_Push(list, new_s);
@@ -1691,6 +1821,7 @@ LinkedList *tablist2linkedlist(char *strings)
 	return list;
 }
 
+// Convert menu item type name to MenuItemType enum
 MenuItemType menuitem_typename_to_type(char *name)
 {
 	if (name != NULL) {
@@ -1702,14 +1833,17 @@ MenuItemType menuitem_typename_to_type(char *name)
 			}
 		}
 	}
+
 	return MENUITEM_INVALID;
 }
 
+// Convert MenuItemType enum to type name string
 char *menuitem_type_to_typename(MenuItemType type)
 {
 	return ((type >= 0 && type < NUM_ITEMTYPES) ? menuitemtypenames[type] : NULL);
 }
 
+// Convert menu event type name to MenuEventType enum
 MenuEventType menuitem_eventtypename_to_eventtype(char *name)
 {
 	if (name != NULL) {
@@ -1721,9 +1855,11 @@ MenuEventType menuitem_eventtypename_to_eventtype(char *name)
 			}
 		}
 	}
+
 	return MENUEVENT_INVALID;
 }
 
+// Convert MenuEventType enum to event type name string
 char *menuitem_eventtype_to_eventtypename(MenuEventType type)
 {
 	return ((type >= 0 && type < NUM_EVENTTYPES) ? menueventtypenames[type] : NULL);

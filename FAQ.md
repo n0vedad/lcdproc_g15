@@ -27,8 +27,8 @@ A: Yes! The system uses `ydotool` for Wayland compatibility. The `ydotoold.servi
 **Q: How many macros can I record?**  
 A: 54 total macros (18 G-keys × 3 modes: M1, M2, M3).
 
-**Q: Where are macros stored?**  
-A: In `~/.config/lcdproc/g15_macros.json` with automatic saving.
+**Q: Where are macros stored?**
+A: In `/var/lib/lcdproc/.config/lcdproc/g15_macros.json` with automatic saving (system-wide storage).
 
 **Q: Are G-Key macros device-specific?**  
 A: Yes! This macro implementation is optimized for **G510s** key layout. Other supported devices (G15/G15v2/G510) may have different key mappings and require manual adjustment.
@@ -71,5 +71,5 @@ A: For normal rebuild: `make clean && make`. For complete reset after configure 
 **Q: Can I uninstall LCDproc?**  
 A: PKGBUILD: `sudo pacman -R lcdproc-g15` (or `-Rns` to include configs). Manual: `sudo make uninstall` from the original build directory.
 
-**Q: Where are the configuration files?**  
-A: Main configs in `/etc/`: `LCDd.conf` (server), `lcdproc.conf` (client), `lcdexec.conf` (executor). User macros: `~/.config/lcdproc/g15_macros.json`.
+**Q: Where are the configuration files?**
+A: Main configs in `/etc/`: `LCDd.conf` (server), `lcdproc.conf` (client), `lcdexec.conf` (executor). Macros: `/var/lib/lcdproc/.config/lcdproc/g15_macros.json`.

@@ -1,22 +1,35 @@
-/** \file server/commands/menu_commands.c
- * Implements handlers for client commands concerning menus.
- *
- * This contains definitions for all the functions which clients can run.
- * The functions here are to be called only from parse.c's interpreter.
- *
- * The client's available function set is defined here, as is the syntax
- * for each command.
- */
+// SPDX-License-Identifier: GPL-2.0+
 
-/* This file is part of LCDd, the lcdproc server.
+/**
+ * \file server/commands/menu_commands.c
+ * \brief Implementation of menu system command handlers for LCDd server
+ * \author William Ferrell, Selene Scriven, Joris Robijn, Peter Marschall, n0vedad
+ * \date 1999-2025
  *
- * This file is released under the GNU General Public License.
- * Refer to the COPYING file distributed with this package.
+ * \features
+ * - Hierarchical menu structure with parent-child relationships
+ * - Multiple item types: menu, action, checkbox, ring, slider, numeric, alpha, IP
+ * - Dynamic menu creation and modification during runtime
+ * - Client-specific menu management and isolation
+ * - Event-driven navigation and interaction handling
+ * - Comprehensive option table for menu item configuration
+ * - Menu validation and error handling with detailed error messages
+ * - Automatic client menu creation when first item is added
+ * - Menu cleanup when last item is removed
+ * - Navigation with predecessor/successor relationships
+ * - Special menu actions (_quit_, _close_, _none_)
  *
- * Copyright (c) 1999, William Ferrell, Selene Scriven
- *               2002, Joris Robijn
- *               2004, F5 Networks, Inc. - IP-address input
- *               2005, Peter Marschall - error checks, ...
+ * \usage
+ * - Used by the LCDd server protocol parser for menu command dispatch
+ * - Functions are called when clients send menu-related commands
+ * - Provides interactive menu system for LCD display navigation
+ * - Used for client application configuration and control interfaces
+ * - Handles menu event callbacks and client notification
+ *
+ * \details
+ * Implements handlers for client commands concerning the interactive
+ * menu system. These functions process menu-related protocol commands and
+ * manage the hierarchical menu structure for client applications.
  */
 
 #include <assert.h>
@@ -37,38 +50,14 @@
 #include "menuitem.h"
 #include "menuscreens.h"
 
-/* Local functions */
+// Internal function declarations: menu event handler and functions to set predecessor/successor
+/** @cond */
 MenuEventFunc(menu_commands_handler);
+/** @endcond */
 int set_predecessor(MenuItem *item, char *itemid, Client *client);
 int set_successor(MenuItem *item, char *itemid, Client *client);
 
-/**
- * Adds an item to a menu.
- *
- *\verbatim
- * Usage: menu_add_item <menuid> <newitemid> <type> [<text>] {<option>}+
- *\endverbatim
- *
- * You should use "" as id for the client's main menu. This menu will be
- * created automatically when you add an item to it the first time.
- *
- * You cannot create a menu in the main level yourself, unless you replace the
- * main menu with the client's menu.
- * The names you use for items should be unique for your client.
- * The text is the visible text for the item.
- *
- * The following types are available:
- * - menu
- * - action
- * - checkbox
- * - ring (a kind of listbox of one line)
- * - slider
- * - numeric
- * - alpha
- * - ip
- *
- * For the list of supported options see menu_set_item_func.
- */
+// Handle menu_add_item command for creating menu items
 int menu_add_item_func(Client *c, int argc, char **argv)
 {
 	char *menu_id;
@@ -79,6 +68,7 @@ int menu_add_item_func(Client *c, int argc, char **argv)
 	MenuItemType itemtype;
 
 	debug(RPT_DEBUG, "%s(Client [%d], %s, %s)", __FUNCTION__, c->sock, argv[1], argv[2]);
+
 	if (c->state != ACTIVE)
 		return 1;
 
@@ -97,9 +87,8 @@ int menu_add_item_func(Client *c, int argc, char **argv)
 	menu_id = argv[1];
 	item_id = argv[2];
 
-	/* Does the client have a menu already ? */
+	// Automatic client menu creation on first item addition
 	if (c->menu == NULL) {
-		/* We need to create it */
 		report(RPT_INFO, "Client [%d] is using the menu", c->sock);
 		c->menu = menu_create("_client_menu_", menu_commands_handler, c->name, c);
 		if (c->menu == NULL) {
@@ -109,7 +98,7 @@ int menu_add_item_func(Client *c, int argc, char **argv)
 		menu_add_item(main_menu, c->menu);
 	}
 
-	/* use either the given menu or the client's main menu if none was specified */
+	// Use either the given menu or the client's main menu if none was specified
 	menu = (menu_id[0] != '\0') ? menu_find_item(c->menu, menu_id, true) : c->menu;
 	if (menu == NULL) {
 		sock_send_error(c->sock, "Cannot find menu id\n");
@@ -122,106 +111,103 @@ int menu_add_item_func(Client *c, int argc, char **argv)
 		return 0;
 	}
 
-	/* Find menuitem type */
 	itemtype = menuitem_typename_to_type(argv[3]);
 	if (itemtype == MENUITEM_INVALID) {
 		sock_send_error(c->sock, "Invalid menuitem type\n");
 		return 0;
 	}
 
-	/* Is a text given (options don't count)? */
+	// Text parameter: use empty string if not provided or starts with '-'
 	if ((argc >= 5) && (argv[4][0] != '-')) {
 		text = argv[4];
 	} else {
 		text = "";
 	}
 
-	/* Create the menuitem */
+	// Create menu item with type-specific defaults
 	switch (itemtype) {
+
+	// Create submenu container
 	case MENUITEM_MENU:
 		item = menu_create(item_id, menu_commands_handler, text, c);
 		break;
+
+	// Create action item with no default result
 	case MENUITEM_ACTION:
-		item = menuitem_create_action(
-		    item_id, menu_commands_handler, text, c, MENURESULT_NONE);
+		item = menuitem_create_action(item_id, menu_commands_handler, text, c,
+					      MENURESULT_NONE);
 		break;
+
+	// Create checkbox: unchecked, no gray state
 	case MENUITEM_CHECKBOX:
 		item =
 		    menuitem_create_checkbox(item_id, menu_commands_handler, text, c, false, false);
 		break;
+
+	// Create ring: empty, first item selected
 	case MENUITEM_RING:
 		item = menuitem_create_ring(item_id, menu_commands_handler, text, c, "", 0);
 		break;
+
+	// Create slider: 0-100, step 1, position 25
 	case MENUITEM_SLIDER:
-		item = menuitem_create_slider(
-		    item_id, menu_commands_handler, text, c, "", "", 0, 100, 1, 25);
+		item = menuitem_create_slider(item_id, menu_commands_handler, text, c, "", "", 0,
+					      100, 1, 25);
 		break;
+
+	// Create numeric input: range 0-100, starts at 0
 	case MENUITEM_NUMERIC:
 		item = menuitem_create_numeric(item_id, menu_commands_handler, text, c, 0, 100, 0);
 		break;
+
+	// Create text input: max 10 chars, caps/numbers, common symbols
 	case MENUITEM_ALPHA:
-		item = menuitem_create_alpha(item_id,
-					     menu_commands_handler,
-					     text,
-					     c,
-					     0,
-					     0,
-					     10,
-					     true,
-					     false,
-					     true,
-					     "-./",
-					     "");
+		item = menuitem_create_alpha(item_id, menu_commands_handler, text, c, 0, 0, 10,
+					     true, false, true, "-./", "");
 		break;
+
+	// Create IP address input: IPv4, example placeholder
 	case MENUITEM_IP:
 		item =
 		    menuitem_create_ip(item_id, menu_commands_handler, text, c, 0, "192.168.1.245");
 		break;
+
+	// This should never happen
 	default:
 		assert(!"unexpected menuitem type");
 	}
+
 	menu_add_item(menu, item);
 	menuscreen_inform_item_modified(menu);
 
-	/* call menu_set_item() with a temporarily allocated argv
-	 * to process the remaining options */
+	// Delegate remaining options to menu_set_item for processing
 	if ((argc > 5) || ((argc == 5) && (argv[4][0] == '-'))) {
-		// menu_add_item <menuid> <newitemid> <type> [<text>] [<option>]+
-		// menu_set_item <menuid> <itemid> {<option>}+
 		int i, j;
-		char **tmp_argv = malloc(argc * sizeof(char *));
+		char **tmp_argv = (char **)malloc(argc * sizeof(char *));
 
 		assert(tmp_argv);
 		tmp_argv[0] = "menu_set_item";
+
 		for (i = j = 1; i < argc; i++) {
-			/* skip "type" */
+			// Skip "type" parameter
 			if (i == 3)
 				continue;
-			/* skip "text" */
+
+			// Skip "text" parameter if present
 			if ((i == 4) && (argv[4][0] != '-'))
 				continue;
 
 			tmp_argv[j++] = argv[i];
 		}
-		// call menu_set_item() and let it send result to client
 		menu_set_item_func(c, j, tmp_argv);
-		free(tmp_argv);
-	} else // make sure the client gets informed
+		free((void *)tmp_argv);
+	} else
 		sock_send_string(c->sock, "success\n");
 
 	return 0;
 }
 
-/**
- * Deletes an item from a menu
- *
- *\verbatim
- * Usage: menu_del_item [ignored] <itemid>
- *\endverbatim
- *
- * The given item in the given menu will be deleted. If you have deleted all
- * the items from your client menu, that menu will automatically be removed.
- */
+// Handle menu_del_item command for removing menu items
 int menu_del_item_func(Client *c, int argc, char **argv)
 {
 	MenuItem *item;
@@ -237,13 +223,11 @@ int menu_del_item_func(Client *c, int argc, char **argv)
 
 	item_id = argv[argc - 1];
 
-	/* Does the client have a menu already ? */
 	if (c->menu == NULL) {
 		sock_send_error(c->sock, "Client has no menu\n");
 		return 0;
 	}
 
-	/* use either the given menu or the client's main menu if none was specified */
 	item = menu_find_item(c->menu, item_id, true);
 	if (item == NULL) {
 		sock_send_error(c->sock, "Cannot find item\n");
@@ -254,7 +238,7 @@ int menu_del_item_func(Client *c, int argc, char **argv)
 	menuscreen_inform_item_modified(item->parent);
 	menuitem_destroy(item);
 
-	/* Was it the last item in the client's menu ? */
+	// Automatic menu cleanup when last item removed
 	if (menu_getfirst_item(c->menu) == NULL) {
 		menuscreen_inform_item_destruction(c->menu);
 		menu_remove_item(main_menu, c->menu);
@@ -263,97 +247,11 @@ int menu_del_item_func(Client *c, int argc, char **argv)
 		c->menu = NULL;
 	}
 	sock_send_string(c->sock, "success\n");
+
 	return 0;
 }
 
-/**
- * Sets the info about a menu item.
- *
- * For example, text displayed, value, etc...
- *
- *\verbatim
- * Usage: menu_set_item "" <itemid> {<option>}+
- *
- * The following parameters can be set per item:
- * (you should include the - in the option)
- *
- * For all types:
- * -text "text"			("")
- *	Sets the visible text.
- * -is_hidden false|true	(false)
- *	If the item currently should not appear in a menu.
- * -prev id			()
- *	Sets the predecessor of this item (what happens after "Escape")
- *
- * For all except menus:
- * -next id			()
- *	Sets the successor of this item (what happens after "Enter")
- *
- * action:
- * -menu_result none|close|quit	(none)
- *	Sets what to do with the menu when this action is selected:
- *	- none: the menu stays as it is.
- *	- close: the menu closes and returns to a higher level.
- *	- quit: quits the menu completely so you can foreground your app.
- *
- * checkbox:
- * -value off|on|gray		(off)
- *	Sets its current value.
- * -allow_gray false|true	(false)
- *	Sets if a grayed checkbox is allowed.
- *
- * ring:
- * -value <int>			(0)
- *	Sets the index in the stringlist that is currently selected.
- * -strings <string>		(empty)
- *	The subsequent strings that can be selected. They should be
- *	tab-separated in ONE string.
- *
- * slider:
- * -value <int>			(0)
- *	Sets its current value.
- * -mintext <string>		("")
- * -maxtex <string>		("")
- *	Text at the minimal and maximal side. On small displays these might
- *	not be displayed.
- * -minvalue <int>		(0)
- * -maxvalue <int>		(100)
- *	The minimum and maximum value of the slider.
- * -stepsize <int>		(1)
- *	The stepsize of the slider. If you use 0, you can control it yourself
- *	completely.
- *
- * numeric:
- * -value <int>			(0)
- *	Sets its current value.
- * -minvalue <int>		(0)
- * -maxvalue <int>		(100)
- *	The minimum and maximum value that are allowed. If you make one of
- *	them negative, the user will be able to enter negative numbers too.
- * Maybe floats will work too in the future.
- *
- * alpha:
- * -value <string>
- *	Sets its current value.	("")
- * -password_char <char>	(none)
- * -minlength <int>		(0)
- * -maxlength <int>		(10)
- *	Set the minimum and maximum allowed length.
- * -allow_caps false|true	(true)
- * -allow_noncaps false|true	(false)
- * -allow_numbers false|true	(true)
- *	Allows these groups of characters.
- * -allowed_extra <string>	("")
- *	The chars in this string are also allowed.
- *
- * ip:
- * -value <string>
- *	Sets its current value.	("")
- * -v6 false|true
- *\endverbatim
- *
- * Hmm, this is getting very big. We might need a some real parser after all.
- */
+// Handle menu_set_item command for modifying menu item properties
 int menu_set_item_func(Client *c, int argc, char **argv)
 {
 	typedef enum AttrType {
@@ -366,35 +264,24 @@ int menu_set_item_func(Client *c, int argc, char **argv)
 		STRING
 	} AttrType;
 
-	/* This table generalizes the options.
-	 * The table lists which options can exist for which menu items,
-	 * what kind of parameter they should have and where this scanned
-	 * parameter should be stored.
-	 */
+	// Menu item attribute mapping table: defines all configurable properties for each menu item
+	// type with attribute name, type, and struct field offset for direct memory access
 	struct OptionTable {
-		MenuItemType menuitem_type; /* For what MenuItem type is
-					       the option ?
-					       Use -1 for ALL types. */
-		char *name;		    /* The option concerned */
-		AttrType attr_type;	    /* Type of value */
-		int attr_offset;	    /* Where to put the value
-					       in the structure.
-					       Use -1 to process it
-					       yourself. */
-		/* Watch out with STRING, it will free() the current value
-		 * and reallocate for the new value !! If you don't want
-		 * that, use -1 for offset, to process it yourself. */
+		MenuItemType menuitem_type;
+		char *name;
+		AttrType attr_type;
+		int attr_offset;
 	} option_table[] = {
 	    {-1, "text", STRING, offsetof(MenuItem, text)},
 	    {-1, "is_hidden", BOOLEAN, offsetof(MenuItem, is_hidden)},
 	    {-1, "prev", STRING, -1},
 	    {-1, "next", STRING, -1},
+
 	    {MENUITEM_ACTION, "menu_result", STRING, -1},
 	    {MENUITEM_CHECKBOX, "value", CHECKBOX_VALUE, offsetof(MenuItem, data.checkbox.value)},
-	    {MENUITEM_CHECKBOX,
-	     "allow_gray",
-	     BOOLEAN,
+	    {MENUITEM_CHECKBOX, "allow_gray", BOOLEAN,
 	     offsetof(MenuItem, data.checkbox.allow_gray)},
+
 	    {MENUITEM_RING, "value", SHORT, offsetof(MenuItem, data.ring.value)},
 	    {MENUITEM_RING, "strings", STRING, -1},
 	    {MENUITEM_SLIDER, "value", INT, offsetof(MenuItem, data.slider.value)},
@@ -406,24 +293,21 @@ int menu_set_item_func(Client *c, int argc, char **argv)
 	    {MENUITEM_NUMERIC, "value", INT, offsetof(MenuItem, data.numeric.value)},
 	    {MENUITEM_NUMERIC, "minvalue", INT, offsetof(MenuItem, data.numeric.minvalue)},
 	    {MENUITEM_NUMERIC, "maxvalue", INT, offsetof(MenuItem, data.numeric.maxvalue)},
-	    /*{ MENUITEM_NUMERIC,	"allow_decimals",BOOLEAN,
-	       offsetof(MenuItem,data.numeric.allow_decimals) },*/
-	    {MENUITEM_ALPHA, "value", STRING, -1 /*offsetof(MenuItem,data.alpha.value)*/},
+
+	    {MENUITEM_ALPHA, "value", STRING, -1},
 	    {MENUITEM_ALPHA, "minlength", SHORT, offsetof(MenuItem, data.alpha.minlength)},
 	    {MENUITEM_ALPHA, "maxlength", SHORT, offsetof(MenuItem, data.alpha.maxlength)},
 	    {MENUITEM_ALPHA, "password_char", STRING, -1},
 	    {MENUITEM_ALPHA, "allow_caps", BOOLEAN, offsetof(MenuItem, data.alpha.allow_caps)},
-	    {MENUITEM_ALPHA,
-	     "allow_noncaps",
-	     BOOLEAN,
+	    {MENUITEM_ALPHA, "allow_noncaps", BOOLEAN,
 	     offsetof(MenuItem, data.alpha.allow_noncaps)},
-	    {MENUITEM_ALPHA,
-	     "allow_numbers",
-	     BOOLEAN,
+
+	    {MENUITEM_ALPHA, "allow_numbers", BOOLEAN,
 	     offsetof(MenuItem, data.alpha.allow_numbers)},
 	    {MENUITEM_ALPHA, "allowed_extra", STRING, offsetof(MenuItem, data.alpha.allowed_extra)},
 	    {MENUITEM_IP, "v6", BOOLEAN, offsetof(MenuItem, data.ip.v6)},
-	    {MENUITEM_IP, "value", STRING, -1 /*offsetof(MenuItem,data.ip.value)*/},
+
+	    {MENUITEM_IP, "value", STRING, -1},
 	    {0, NULL, NOVALUE, -1}};
 
 	bool bool_value = false;
@@ -441,9 +325,8 @@ int menu_set_item_func(Client *c, int argc, char **argv)
 		return 1;
 
 	if (argc < 4) {
-		sock_send_error(c->sock,
-				"Usage: menu_set_item "
-				" <itemid> {<option>}+\n");
+		sock_send_error(c->sock, "Usage: menu_set_item "
+					 " <itemid> {<option>}+\n");
 		return 0;
 	}
 
@@ -455,7 +338,7 @@ int menu_set_item_func(Client *c, int argc, char **argv)
 		return 0;
 	}
 
-	/* Scan all arguments */
+	// Process all option arguments
 	for (argnr = 3; argnr < argc; argnr++) {
 		int option_nr = -1;
 		int found_option_name = 0;
@@ -463,7 +346,7 @@ int menu_set_item_func(Client *c, int argc, char **argv)
 		void *location;
 		char *p;
 
-		/* Find the option in the table */
+		// Find the option in the table
 		if (argv[argnr][0] == '-') {
 			int i;
 
@@ -476,9 +359,10 @@ int menu_set_item_func(Client *c, int argc, char **argv)
 					}
 				}
 			}
+
 		} else {
 			sock_printf_error(c->sock, "Found non-option: \"%.40s\"\n", argv[argnr]);
-			continue; /* Skip to next arg */
+			continue;
 		}
 		if (option_nr == -1) {
 			if (found_option_name) {
@@ -486,27 +370,30 @@ int menu_set_item_func(Client *c, int argc, char **argv)
 						  "Option not valid for menuitem type: \"%.40s\"\n",
 						  argv[argnr]);
 			} else {
-				sock_printf_error(
-				    c->sock, "Unknown option: \"%.40s\"\n", argv[argnr]);
+				sock_printf_error(c->sock, "Unknown option: \"%.40s\"\n",
+						  argv[argnr]);
 			}
-			continue; /* Skip to next arg */
+			continue;
 		}
 
-		/* OK, we now know we have an option that is valid for the item type. */
-
-		/* Check for value */
+		// Check for value
 		if (option_table[option_nr].attr_type != NOVALUE) {
 			if (argnr + 1 >= argc) {
-				sock_printf_error(
-				    c->sock, "Missing value at option: \"%.40s\"\n", argv[argnr]);
-				continue; /* Skip to next arg (probably is not existing :) */
+				sock_printf_error(c->sock, "Missing value at option: \"%.40s\"\n",
+						  argv[argnr]);
+				continue;
 			}
 		}
-		/* Process the value that goes with the option */
 		location = (void *)item + option_table[option_nr].attr_offset;
+
+		// Parse value based on type
 		switch (option_table[option_nr].attr_type) {
+
+		// Options without values
 		case NOVALUE:
 			break;
+
+		// Boolean options accept "true" or "false"
 		case BOOLEAN:
 			if (strcmp(argv[argnr + 1], "false") == 0) {
 				bool_value = false;
@@ -520,6 +407,8 @@ int menu_set_item_func(Client *c, int argc, char **argv)
 				*(bool *)location = bool_value;
 			}
 			break;
+
+		// Checkbox values support "off", "on", and "gray"
 		case CHECKBOX_VALUE:
 			if (strcmp(argv[argnr + 1], "off") == 0) {
 				checkbox_value = CHECKBOX_OFF;
@@ -535,6 +424,8 @@ int menu_set_item_func(Client *c, int argc, char **argv)
 				*(CheckboxValue *)location = checkbox_value;
 			}
 			break;
+
+		// Short integer values parsed with strtol()
 		case SHORT:
 			short_value = strtol(argv[argnr + 1], &p, 0);
 			if ((argv[argnr + 1][0] == '\0') || (*p != '\0')) {
@@ -545,6 +436,8 @@ int menu_set_item_func(Client *c, int argc, char **argv)
 				*(short *)location = short_value;
 			}
 			break;
+
+		// Integer values parsed with strtol()
 		case INT:
 			int_value = strtol(argv[argnr + 1], &p, 0);
 			if ((argv[argnr + 1][0] == '\0') || (*p != '\0')) {
@@ -555,6 +448,8 @@ int menu_set_item_func(Client *c, int argc, char **argv)
 				*(int *)location = int_value;
 			}
 			break;
+
+		// Float values parsed with strtod()
 		case FLOAT:
 			float_value = strtod(argv[argnr + 1], &p);
 			if ((argv[argnr + 1][0] == '\0') || (*p != '\0')) {
@@ -565,6 +460,8 @@ int menu_set_item_func(Client *c, int argc, char **argv)
 				*(float *)location = float_value;
 			}
 			break;
+
+		// String values handle memory allocation and navigation options
 		case STRING:
 			string_value = argv[argnr + 1];
 			if (option_table[option_nr].attr_offset != -1) {
@@ -577,18 +474,26 @@ int menu_set_item_func(Client *c, int argc, char **argv)
 			}
 			break;
 		}
+
 		switch (error) {
+
+		// Value parsing error occurred
 		case 1:
 			sock_printf_error(c->sock,
 					  "Could not interpret value at option: \"%.40s\"\n",
 					  argv[argnr]);
 			argnr++;
-			continue; /* Skip current option and the invalid value */
+			continue;
+
+		// No error or unknown error code
+		default:
+			break;
 		}
 
-		/* And at last process extra things for certain options.
-		 * Most useful for the attr_offset==-1 stuff. */
+		// Item-specific post-processing
 		switch (item->type) {
+
+		// Action items process menu_result parameter
 		case MENUITEM_ACTION:
 			if (strcmp(argv[argnr] + 1, "menu_result") == 0) {
 				if (strcmp(argv[argnr + 1], "none") == 0) {
@@ -602,6 +507,8 @@ int menu_set_item_func(Client *c, int argc, char **argv)
 				}
 			}
 			break;
+
+		// Slider items validate and clamp values to range
 		case MENUITEM_SLIDER:
 			if (item->data.slider.value < item->data.slider.minvalue) {
 				item->data.slider.value = item->data.slider.minvalue;
@@ -609,6 +516,8 @@ int menu_set_item_func(Client *c, int argc, char **argv)
 				item->data.slider.value = item->data.slider.maxvalue;
 			}
 			break;
+
+		// Ring items process string lists and validate index
 		case MENUITEM_RING:
 			if (strcmp(argv[argnr] + 1, "strings") == 0) {
 				free(item->data.ring.strings);
@@ -616,9 +525,13 @@ int menu_set_item_func(Client *c, int argc, char **argv)
 			}
 			item->data.ring.value %= LL_Length(item->data.ring.strings);
 			break;
+
+		// Numeric items reset cursor position
 		case MENUITEM_NUMERIC:
 			menuitem_reset(item);
 			break;
+
+		// Alpha items handle password masking and buffer reallocation
 		case MENUITEM_ALPHA:
 			if (strcmp(argv[argnr] + 1, "password_char") == 0) {
 				item->data.alpha.password_char = string_value[0];
@@ -630,90 +543,87 @@ int menu_set_item_func(Client *c, int argc, char **argv)
 				}
 				new_buf = malloc(short_value + 1);
 				strncpy(new_buf, item->data.alpha.value, short_value);
-				new_buf[short_value] = '\0'; /* terminate */
+				new_buf[short_value] = '\0';
 				free(item->data.alpha.value);
 				item->data.alpha.value = new_buf;
 				free(item->data.alpha.edit_str);
 				item->data.alpha.edit_str = malloc(short_value + 1);
 				item->data.alpha.edit_str[0] = '\0';
+
 			} else if (strcmp(argv[argnr] + 1, "value") == 0) {
-				strncpy(item->data.alpha.value,
-					string_value,
+				strncpy(item->data.alpha.value, string_value,
 					item->data.alpha.maxlength);
-				item->data.alpha.value[item->data.alpha.maxlength] =
-				    0; /* terminate */
+				item->data.alpha.value[item->data.alpha.maxlength] = 0;
 			}
 			menuitem_reset(item);
 			break;
+
+		// IP items adjust buffer size for IPv4/IPv6 format
 		case MENUITEM_IP:
 			if (strcmp(argv[argnr] + 1, "v6") == 0) {
 				char *new_buf;
-				/* set max lenth depending ob boolean option v6 */
 				item->data.ip.maxlength = (bool_value == 0) ? 15 : 39;
 
 				new_buf = malloc(item->data.ip.maxlength + 1);
 				strncpy(new_buf, item->data.ip.value, item->data.ip.maxlength);
-
-				new_buf[item->data.ip.maxlength] = '\0'; /* terminate */
+				new_buf[item->data.ip.maxlength] = '\0';
 				free(item->data.ip.value);
 				item->data.ip.value = new_buf;
 				free(item->data.ip.edit_str);
 				item->data.ip.edit_str = malloc(item->data.ip.maxlength + 1);
 				item->data.ip.edit_str[0] = '\0';
+
 			} else if (strcmp(argv[argnr] + 1, "value") == 0) {
 				strncpy(item->data.ip.value, string_value, item->data.ip.maxlength);
-				item->data.ip.value[item->data.ip.maxlength] = '\0'; /* terminate */
+				item->data.ip.value[item->data.ip.maxlength] = '\0';
 			}
 			menuitem_reset(item);
 			break;
+
+		// Unhandled menu item types
 		default:
 			break;
 		}
 		switch (error) {
+
+		// Value interpretation error
 		case 1:
 			sock_printf_error(c->sock,
 					  "Could not interpret value at option: \"%.40s\"\n",
 					  argv[argnr]);
-			continue; /* Skip to next arg and retry it as an option */
+			continue;
+
+		// Value out of range error
 		case 2:
-			sock_printf_error(
-			    c->sock, "Value out of range at option: \"%.40s\"\n", argv[argnr]);
+			sock_printf_error(c->sock, "Value out of range at option: \"%.40s\"\n",
+					  argv[argnr]);
 			argnr++;
-			continue; /* Skip current option and the invalid value */
+			continue;
+
+		// No error or unknown error code
+		default:
+			break;
 		}
+
 		menuscreen_inform_item_modified(item);
 		if (option_table[option_nr].attr_type != NOVALUE) {
-			/* Skip the now used argument */
 			argnr++;
 		}
 	}
 	sock_send_string(c->sock, "success\n");
+
 	return 0;
 }
 
-/**
- * Requests the menu system to display the given menu screen.
- *
- * Depending on
- * the setting of the LCDPROC_PERMISSIVE_MENU_GOTO it is impossible
- * to go to a menu of another client (or the server menus). Same
- * restriction applies to the optional predecessor_id
- *
- *\verbatim
- * Usage: menu_goto <id> [<predecessor_id>]
- *\endverbatim
- */
+// Handle menu_goto command for menu navigation
 int menu_goto_func(Client *c, int argc, char **argv)
 {
 	char *menu_id;
 	Menu *menu;
 
-	debug(RPT_DEBUG,
-	      "%s(Client [%d], %s, %s)",
-	      __FUNCTION__,
-	      c->sock,
-	      ((argc > 1) ? argv[1] : "<null>"),
-	      ((argc > 2) ? argv[2] : "<null>"));
+	debug(RPT_DEBUG, "%s(Client [%d], %s, %s)", __FUNCTION__, c->sock,
+	      ((argc > 1) ? argv[1] : "<null>"), ((argc > 2) ? argv[2] : "<null>"));
+
 	if (c->state != ACTIVE)
 		return 1;
 
@@ -725,10 +635,8 @@ int menu_goto_func(Client *c, int argc, char **argv)
 	menu_id = argv[1];
 
 	if (strcmp("_quit_", menu_id) == 0) {
-		/* quit client menu */
 		menu = NULL;
 	} else {
-		/* use either the given menu or the client's main menu if none was specified */
 		menu = (menu_id[0] != '\0') ? menuitem_search(menu_id, c) : c->menu;
 		if (menu == NULL) {
 			sock_send_error(c->sock, "Cannot find menu id\n");
@@ -740,23 +648,29 @@ int menu_goto_func(Client *c, int argc, char **argv)
 	}
 
 	menuscreen_goto(menu);
-	/* Failure is not returned (Robijn) */
 	sock_send_string(c->sock, "success\n");
+
 	return 0;
 }
 
-/** Sets the predecessor of a Menuitem item to itemid (for wizzards).
- * For example the menuitem to go to after hitting "Enter" on item.
+/**
+ * \brief Set the predecessor of a menu item for wizard navigation
+ * \param item Menu item to configure
+ * \param itemid ID of predecessor item (or "_quit_", "_close_", "_none_")
+ * \param c Client owning the menu item
+ * \retval 0 Predecessor set successfully
+ * \retval -1 Error setting predecessor (item not found)
  *
- * \return 0 on success and -1 otherwise
+ * \details Configures menu navigation for wizard-style menus. Supports special
+ * navigation commands (_quit_, _close_, _none_) and validates that predecessor
+ * menu item exists.
  */
 int set_predecessor(MenuItem *item, char *itemid, Client *c)
 {
-	// no sense to call this function on a null item
 	assert(item != NULL);
 	debug(RPT_DEBUG, "%s(%s, %s, %d)", __FUNCTION__, item->id, itemid, c->sock);
 
-	// handle these special
+	// Validate special navigation commands
 	if ((strcmp("_quit_", itemid) != 0) && (strcmp("_close_", itemid) != 0) &&
 	    (strcmp("_none_", itemid) != 0)) {
 		MenuItem *predecessor = menuitem_search(itemid, c);
@@ -765,40 +679,41 @@ int set_predecessor(MenuItem *item, char *itemid, Client *c)
 			sock_printf_error(c->sock,
 					  "Cannot find predecessor '%s'"
 					  " for item '%s'\n",
-					  itemid,
-					  item->id);
+					  itemid, item->id);
 			return -1;
 		}
 	}
+
 	debug(RPT_DEBUG,
 	      "%s(Client [%d], ...)"
 	      " setting '%s's predecessor from '%s' to '%s'",
-	      __FUNCTION__,
-	      c->sock,
-	      item->id,
-	      item->predecessor_id,
-	      itemid);
+	      __FUNCTION__, c->sock, item->id, item->predecessor_id, itemid);
+
 	if (item->predecessor_id != NULL)
 		free(item->predecessor_id);
 	item->predecessor_id = strdup(itemid);
+
 	return 0;
 }
 
-/** Sets the successor of a Menuitem item to itemid (for wizzards). For example the
- * menuitem to go to after hitting "Enter" on item. Checks that a matching
- * menu item can be found. Checks if item is not a menu. (If you would
- * redefine the meaning of "Enter" for a menu it would not be useful
- * anymore.)
+/**
+ * \brief Set the successor of a menu item for wizard navigation
+ * \param item Menu item to configure
+ * \param itemid ID of successor item (or "_quit_", "_close_", "_none_")
+ * \param c Client owning the menu item
+ * \retval 0 Successor set successfully
+ * \retval -1 Error setting successor (item not found)
  *
- * \return 0 on success and -1 otherwise
+ * \details Configures forward navigation for wizard-style menus. Supports special
+ * navigation commands (_quit_, _close_, _none_) and validates that successor
+ * menu item exists.
  */
 int set_successor(MenuItem *item, char *itemid, Client *c)
 {
-	// no sense to call this function on a null item
 	assert(item != NULL);
 	debug(RPT_DEBUG, "%s(%s, %s, %d)", __FUNCTION__, item->id, itemid, c->sock);
 
-	// handle these special
+	// Validate special navigation commands
 	if ((strcmp("_quit_", itemid) != 0) && (strcmp("_close_", itemid) != 0) &&
 	    (strcmp("_none_", itemid) != 0)) {
 		MenuItem *successor = menuitem_search(itemid, c);
@@ -807,51 +722,40 @@ int set_successor(MenuItem *item, char *itemid, Client *c)
 			sock_printf_error(c->sock,
 					  "Cannot find successor '%s'"
 					  " for item '%s'\n",
-					  itemid,
-					  item->id);
+					  itemid, item->id);
 			return -1;
 		}
 	}
+
+	// Menu items cannot have successors
 	if (item->type == MENUITEM_MENU) {
 		sock_printf_error(c->sock,
 				  "Cannot set successor of '%s':"
 				  " wrong type '%s'\n",
-				  item->id,
-				  menuitem_type_to_typename(item->type));
+				  item->id, menuitem_type_to_typename(item->type));
 		return -1;
 	}
 	debug(RPT_DEBUG,
 	      "%s(Client [%d], ...)"
 	      " setting '%s's successor from '%s' to '%s'",
-	      __FUNCTION__,
-	      c->sock,
-	      item->id,
-	      item->successor_id,
-	      itemid);
+	      __FUNCTION__, c->sock, item->id, item->successor_id, itemid);
+
 	if (item->successor_id != NULL)
 		free(item->successor_id);
 	item->successor_id = strdup(itemid);
+
 	return 0;
 }
 
-/**
- * Requests the menu system to set the entry point into the menu system.
- *
- *\verbatim
- * Usage: menu_set_main <id>
- *\endverbatim
- */
+// Handle menu_set_main command for setting the root menu
 int menu_set_main_func(Client *c, int argc, char **argv)
 {
 	char *menu_id;
 	Menu *menu;
 
-	debug(RPT_DEBUG,
-	      "%s(Client [%d], %s, %s)",
-	      __FUNCTION__,
-	      c->sock,
-	      ((argc > 1) ? argv[1] : "<null>"),
-	      ((argc > 2) ? argv[2] : "<null>"));
+	debug(RPT_DEBUG, "%s(Client [%d], %s, %s)", __FUNCTION__, c->sock,
+	      ((argc > 1) ? argv[1] : "<null>"), ((argc > 2) ? argv[2] : "<null>"));
+
 	if (c->state != ACTIVE)
 		return 1;
 
@@ -863,12 +767,10 @@ int menu_set_main_func(Client *c, int argc, char **argv)
 	menu_id = argv[1];
 
 	if (menu_id[0] == '\0') {
-		/* No menu specified = client's main menu */
 		menu = c->menu;
 	} else if (strcmp(menu_id, "_main_") == 0) {
 		menu = NULL;
 	} else {
-		/* A specified menu */
 		menu = menu_find_item(c->menu, menu_id, true);
 		if (menu == NULL) {
 			sock_send_error(c->sock, "Cannot find menu id\n");
@@ -877,90 +779,83 @@ int menu_set_main_func(Client *c, int argc, char **argv)
 	}
 
 	menuscreen_set_main(menu);
-
 	sock_send_string(c->sock, "success\n");
+
 	return 0;
 }
 
-/**
- * This function catches the event for the menus that have been
- * created on behalf of the clients. It informs the client with
- * an event message.
- */
+/** @cond */
 MenuEventFunc(menu_commands_handler)
+/** @endcond */
 {
+	/** @cond */
 	Client *c;
 
-	/* Where should the message go to ? */
 	c = menuitem_get_client(item);
 	if (c == NULL) {
 		report(RPT_ERR, "%s: Could not find client of item \"%s\"", __FUNCTION__, item->id);
 		return -1;
 	}
 
-	/* Compose & send message */
+	// Send event-specific messages to client
 	if ((event == MENUEVENT_UPDATE) || (event == MENUEVENT_MINUS) ||
 	    (event == MENUEVENT_PLUS)) {
 		switch (item->type) {
+
+		// Checkbox events report current state as text
 		case MENUITEM_CHECKBOX:
-			sock_printf(c->sock,
-				    "menuevent %s %.40s %s\n",
-				    menuitem_eventtype_to_eventtypename(event),
-				    item->id,
+			sock_printf(c->sock, "menuevent %s %.40s %s\n",
+				    menuitem_eventtype_to_eventtypename(event), item->id,
 				    ((char *[]){"off", "on", "gray"})[item->data.checkbox.value]);
 			break;
+
+		// Slider events report current numeric value
 		case MENUITEM_SLIDER:
-			sock_printf(c->sock,
-				    "menuevent %s %.40s %d\n",
-				    menuitem_eventtype_to_eventtypename(event),
-				    item->id,
+			sock_printf(c->sock, "menuevent %s %.40s %d\n",
+				    menuitem_eventtype_to_eventtypename(event), item->id,
 				    item->data.slider.value);
 			break;
+
+		// Ring events report selected index
 		case MENUITEM_RING:
-			sock_printf(c->sock,
-				    "menuevent %s %.40s %d\n",
-				    menuitem_eventtype_to_eventtypename(event),
-				    item->id,
+			sock_printf(c->sock, "menuevent %s %.40s %d\n",
+				    menuitem_eventtype_to_eventtypename(event), item->id,
 				    item->data.ring.value);
 			break;
+
+		// Numeric events report current integer value
 		case MENUITEM_NUMERIC:
-			sock_printf(c->sock,
-				    "menuevent %s %.40s %d\n",
-				    menuitem_eventtype_to_eventtypename(event),
-				    item->id,
+			sock_printf(c->sock, "menuevent %s %.40s %d\n",
+				    menuitem_eventtype_to_eventtypename(event), item->id,
 				    item->data.numeric.value);
 			break;
+
+		// Alpha events report current text string
 		case MENUITEM_ALPHA:
-			sock_printf(c->sock,
-				    "menuevent %s %.40s %.40s\n",
-				    menuitem_eventtype_to_eventtypename(event),
-				    item->id,
+			sock_printf(c->sock, "menuevent %s %.40s %.40s\n",
+				    menuitem_eventtype_to_eventtypename(event), item->id,
 				    item->data.alpha.value);
 			break;
+
+		// IP events report current IP address string
 		case MENUITEM_IP:
-			sock_printf(c->sock,
-				    "menuevent %s %.40s %.40s\n",
-				    menuitem_eventtype_to_eventtypename(event),
-				    item->id,
+			sock_printf(c->sock, "menuevent %s %.40s %.40s\n",
+				    menuitem_eventtype_to_eventtypename(event), item->id,
 				    item->data.ip.value);
 			break;
+
+		// Default events for unsupported item types
 		default:
-			sock_printf(c->sock,
-				    "menuevent %s %.40s\n",
-				    menuitem_eventtype_to_eventtypename(event),
-				    item->id);
+			sock_printf(c->sock, "menuevent %s %.40s\n",
+				    menuitem_eventtype_to_eventtypename(event), item->id);
 		}
-	} else if ((event == MENUEVENT_ENTER) || (event == MENUEVENT_LEAVE)) {
-		sock_printf(c->sock,
-			    "menuevent %s %.40s\n",
-			    menuitem_eventtype_to_eventtypename(event),
-			    item->id);
+
+		// MENUEVENT_ENTER, MENUEVENT_LEAVE, and other events without specific values
 	} else {
-		sock_printf(c->sock,
-			    "menuevent %s %.40s\n",
-			    menuitem_eventtype_to_eventtypename(event),
-			    item->id);
+		sock_printf(c->sock, "menuevent %s %.40s\n",
+			    menuitem_eventtype_to_eventtypename(event), item->id);
 	}
 
 	return 0;
+	/** @endcond */
 }

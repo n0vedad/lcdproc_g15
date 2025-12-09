@@ -3,7 +3,7 @@
 ## set automake strictness to 'foreign'
 AUTOMAKE_OPTIONS = foreign
 
-SUBDIRS = shared clients server services .
+SUBDIRS = shared clients server services tests docs .
 
 EXTRA_DIST =
 
@@ -27,11 +27,11 @@ distclean-local:
 	-rm -f test-driver stamp-h1
 	-rm -f Makefile.am.backup configure.ac.backup
 	-if [ -f .git/hooks/pre-commit ]; then \
-		echo -e "\033[0;34m🧹 Removing git hooks...\033[0m"; \
+		printf "\033[0;34m🧹 Removing git hooks...\033[0m\n"; \
 		rm -f .git/hooks/pre-commit; \
-		echo -e "\033[0;32m✓ Git hooks removed\033[0m"; \
+		printf "\033[0;32m✓ Git hooks removed\033[0m\n"; \
 	else \
-		echo -e "\033[1;33m⚠ No git hooks to remove\033[0m"; \
+		printf "\033[1;33m⚠ No git hooks to remove\033[0m\n"; \
 	fi
 	-rm -f tests/Makefile.am tests/Makefile.in tests/Makefile tests/test-driver
 	-rm -f tests/test_g15 tests/*.o tests/*.log tests/*.trs tests/test-suite.log
@@ -66,13 +66,13 @@ install-clients: clients
 ## Code formatting targets
 format:
 	@if [ ! -f .git/hooks/pre-commit ]; then \
-		echo -e "\033[0;31m❌ Code formatting is not enabled\033[0m"; \
-		echo -e "\033[1;33m💡 Enable with: make distclean && make dev\033[0m"; \
+		printf "\033[0;31m❌ Code formatting is not enabled\033[0m\n"; \
+		printf "\033[1;33m💡 Enable with: make distclean && make dev\033[0m\n"; \
 		exit 1; \
 	fi
 	@if ! command -v clang-format >/dev/null 2>&1; then \
-		echo -e "\033[0;31m❌ clang-format not available\033[0m"; \
-		echo -e "\033[1;33m💡 Install with: sudo pacman -S clang\033[0m"; \
+		printf "\033[0;31m❌ clang-format not available\033[0m\n"; \
+		printf "\033[1;33m💡 Install with: sudo pacman -S clang\033[0m\n"; \
 		exit 1; \
 	fi
 	@echo "🔍 Checking if formatting is needed..."
@@ -106,8 +106,8 @@ format:
 
 format-check:
 	@if [ ! -f .git/hooks/pre-commit ]; then \
-		echo -e "\033[0;31m❌ Code formatting is not enabled\033[0m"; \
-		echo -e "\033[1;33m💡 Enable with: make distclean && make dev\033[0m"; \
+		printf "\033[0;31m❌ Code formatting is not enabled\033[0m\n"; \
+		printf "\033[1;33m💡 Enable with: make distclean && make dev\033[0m\n"; \
 		exit 1; \
 	fi
 	@echo "Checking C code formatting..."
@@ -125,7 +125,7 @@ format-check:
 	prettier_exit=0; \
 	if [ ! -f package-lock.json ]; then \
 		echo "❌ Prettier dependencies missing (no package-lock.json found)"; \
-		echo -e "\033[1;33m💡 Install with: make distclean && make dev\033[0m"; \
+		printf "\033[1;33m💡 Install with: make distclean && make dev\033[0m\n"; \
 		prettier_exit=1; \
 	elif ! command -v npx >/dev/null 2>&1; then \
 		echo "❌ npx command not available"; \
@@ -149,8 +149,8 @@ format-check:
 ## Static analysis targets
 lint:
 	@if [ ! -f .git/hooks/pre-commit ]; then \
-		echo -e "\033[0;31m❌ Code formatting is not enabled\033[0m"; \
-		echo -e "\033[1;33m💡 Enable with: make distclean && make dev\033[0m"; \
+		printf "\033[0;31m❌ Code formatting is not enabled\033[0m\n"; \
+		printf "\033[1;33m💡 Enable with: make distclean && make dev\033[0m\n"; \
 		exit 1; \
 	fi
 	@echo "Running clang-tidy static analysis..."
@@ -177,8 +177,8 @@ lint:
 
 lint-fix:
 	@if [ ! -f .git/hooks/pre-commit ]; then \
-		echo -e "\033[0;31m❌ Code formatting is not enabled\033[0m"; \
-		echo -e "\033[1;33m💡 Enable with: make distclean && make dev\033[0m"; \
+		printf "\033[0;31m❌ Code formatting is not enabled\033[0m\n"; \
+		printf "\033[1;33m💡 Enable with: make distclean && make dev\033[0m\n"; \
 		exit 1; \
 	fi
 	@echo "Auto-fixing clang-tidy issues..."

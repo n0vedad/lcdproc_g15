@@ -68,14 +68,14 @@ Type `make help` for further informations.
 
 ```bash
 # Daily development (fast feedback)
-make check # Basic unit tests (~3 seconds)
+make check # Basic unit tests
 
 # Before commits (thorough validation)
-make test-full # Unit tests + memory leak detection (~30-60 seconds)
+make test-full # Unit tests + memory leak detection
 # Non-destructive, safe for daily use
 
 # Before releases (complete validation)
-make test-ci # Full + multi-compiler testing (~2-5 minutes)
+make test-ci # Full + multi-compiler testing
 # ⚠️ DESTRUCTIVE: Rebuilds entire project!
 ```
 
@@ -115,10 +115,28 @@ make test-scenario-failures  # Only error handling (device failures)
 
 # Advanced diagnostics
 make test-verbose   # Run tests with detailed output
-make test-memcheck  # Memory leak detection only (requires valgrind)
+make test-memcheck  # Sanitizer checks (ASan, LSan, UBSan)
 make test-compilers # Multi-compiler build testing only
 # ⚠️ DESTRUCTIVE: Rebuilds with clang + gcc
 ```
+
+**Understanding Test Targets:**
+
+All unit test targets execute the same binary (`test_unit_g15`) with different command-line flags:
+
+- **`test-g15`/`test-g510`**: Filter tests by hardware type (useful for hardware-specific debugging)
+- **`test-scenario-*`**: Run isolated test categories (device detection, RGB, macros, failures)
+- **`test-scenarios`**: Convenience wrapper that runs all four `test-scenario-*` targets sequentially
+- **`test-verbose`**: Runs all tests with detailed progress output (same coverage as `make check`)
+- **Coverage**: Full test suite (`make check`) achieves 91%+ code coverage (19 tests)
+
+**Sanitizers Active:**
+
+Tests are compiled with three sanitizers for comprehensive error detection:
+
+- **ASan** (AddressSanitizer): Detects memory errors (buffer overflows, use-after-free, double-free)
+- **LSan** (LeakSanitizer): Detects memory leaks
+- **UBSan** (Undefined Behavior Sanitizer): Detects undefined behavior (integer overflow, null deref, division by zero)
 
 ## Code Formatting
 
@@ -172,6 +190,36 @@ make lint-fix     # Run clang-tidy with automatic fixes
 # Test Coverage Analysis
 make test-coverage # Generate detailed test coverage analysis report
 ```
+
+## ThreadSanitizer (TSan) - Race Condition Detection
+
+ThreadSanitizer is a dynamic analysis tool that detects data races at runtime. It's particularly useful for the G-Key macro system which uses pthread for input recording.
+
+**When to use TSan:**
+
+- Testing the G-Key macro recording functionality
+- Debugging potential race conditions in multi-threaded code
+- Verifying thread safety of shared data structures
+- Before releasing new versions with threading changes
+
+**Running TSan:**
+
+```bash
+# Full TSan build and test (requires rebuild)
+make test-tsan
+
+# Quick test on existing TSan build
+make test-tsan-quick
+
+# Manual testing with TSan-enabled binary
+./clients/lcdproc/lcdproc -f # Run in foreground to see TSan output
+```
+
+**Important Notes:**
+
+- Reports race conditions to stderr with detailed stack traces
+- Requires full rebuild with `-fsanitize=thread` flag
+- Only detects actual races that occur during execution (not potential ones)
 
 ## Git Hooks
 

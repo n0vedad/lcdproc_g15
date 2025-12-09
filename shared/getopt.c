@@ -314,8 +314,7 @@ static void exchange(argv) char **argv;
 		else {
 			memset(
 			    __mempcpy(new_str, __getopt_nonoption_flags, nonoption_flags_max_len),
-			    '\0',
-			    top + 1 - nonoption_flags_max_len);
+			    '\0', top + 1 - nonoption_flags_max_len);
 			nonoption_flags_max_len = top + 1;
 			__getopt_nonoption_flags = new_str;
 		}
@@ -408,8 +407,7 @@ const char *optstring;
 					nonoption_flags_max_len = -1;
 				else
 					memset(__mempcpy(__getopt_nonoption_flags, orig_str, len),
-					       '\0',
-					       nonoption_flags_max_len - len);
+					       '\0', nonoption_flags_max_len - len);
 			}
 		}
 		nonoption_flags_len = nonoption_flags_max_len;
@@ -627,9 +625,7 @@ int long_only;
 
 		if (ambig && !exact) {
 			if (opterr)
-				fprintf(stderr,
-					_("%s: option `%s' is ambiguous\n"),
-					argv[0],
+				fprintf(stderr, _("%s: option `%s' is ambiguous\n"), argv[0],
 					argv[optind]);
 			nextchar += strlen(nextchar);
 			optind++;
@@ -652,15 +648,13 @@ int long_only;
 							fprintf(stderr,
 								_("%s: option `--%s' doesn't allow "
 								  "an argument\n"),
-								argv[0],
-								pfound->name);
+								argv[0], pfound->name);
 						else
 							/* +option or -option */
 							fprintf(stderr,
 								_("%s: option `%c%s' doesn't allow "
 								  "an argument\n"),
-								argv[0],
-								argv[optind - 1][0],
+								argv[0], argv[optind - 1][0],
 								pfound->name);
 					}
 
@@ -676,8 +670,7 @@ int long_only;
 					if (opterr)
 						fprintf(stderr,
 							_("%s: option `%s' requires an argument\n"),
-							argv[0],
-							argv[optind - 1]);
+							argv[0], argv[optind - 1]);
 					nextchar += strlen(nextchar);
 					optopt = pfound->val;
 					return optstring[0] == ':' ? ':' : '?';
@@ -702,17 +695,12 @@ int long_only;
 			if (opterr) {
 				if (argv[optind][1] == '-')
 					/* --option */
-					fprintf(stderr,
-						_("%s: unrecognized option `--%s'\n"),
-						argv[0],
-						nextchar);
+					fprintf(stderr, _("%s: unrecognized option `--%s'\n"),
+						argv[0], nextchar);
 				else
 					/* +option or -option */
-					fprintf(stderr,
-						_("%s: unrecognized option `%c%s'\n"),
-						argv[0],
-						argv[optind][0],
-						nextchar);
+					fprintf(stderr, _("%s: unrecognized option `%c%s'\n"),
+						argv[0], argv[optind][0], nextchar);
 			}
 			nextchar = (char *)"";
 			optind++;
@@ -735,11 +723,11 @@ int long_only;
 			if (opterr) {
 				if (posixly_correct)
 					/* 1003.2 specifies the format of this message.  */
-					fprintf(
-					    stderr, _("%s: illegal option -- %c\n"), argv[0], c);
+					fprintf(stderr, _("%s: illegal option -- %c\n"), argv[0],
+						c);
 				else
-					fprintf(
-					    stderr, _("%s: invalid option -- %c\n"), argv[0], c);
+					fprintf(stderr, _("%s: invalid option -- %c\n"), argv[0],
+						c);
 			}
 			optopt = c;
 			return '?';
@@ -765,8 +753,7 @@ int long_only;
 					/* 1003.2 specifies the format of this message.  */
 					fprintf(stderr,
 						_("%s: option requires an argument -- %c\n"),
-						argv[0],
-						c);
+						argv[0], c);
 				}
 				optopt = c;
 				if (optstring[0] == ':')
@@ -805,10 +792,8 @@ int long_only;
 				}
 			if (ambig && !exact) {
 				if (opterr)
-					fprintf(stderr,
-						_("%s: option `-W %s' is ambiguous\n"),
-						argv[0],
-						argv[optind]);
+					fprintf(stderr, _("%s: option `-W %s' is ambiguous\n"),
+						argv[0], argv[optind]);
 				nextchar += strlen(nextchar);
 				optind++;
 				return '?';
@@ -822,11 +807,9 @@ int long_only;
 						optarg = nameend + 1;
 					else {
 						if (opterr)
-							fprintf(stderr,
-								_("\
+							fprintf(stderr, _("\
 %s: option `-W %s' doesn't allow an argument\n"),
-								argv[0],
-								pfound->name);
+								argv[0], pfound->name);
 
 						nextchar += strlen(nextchar);
 						return '?';
@@ -839,8 +822,7 @@ int long_only;
 							fprintf(stderr,
 								_("%s: option `%s' requires an "
 								  "argument\n"),
-								argv[0],
-								argv[optind - 1]);
+								argv[0], argv[optind - 1]);
 						nextchar += strlen(nextchar);
 						return optstring[0] == ':' ? ':' : '?';
 					}
@@ -879,8 +861,7 @@ int long_only;
 						fprintf(
 						    stderr,
 						    _("%s: option requires an argument -- %c\n"),
-						    argv[0],
-						    c);
+						    argv[0], c);
 					}
 					optopt = c;
 					if (optstring[0] == ':')

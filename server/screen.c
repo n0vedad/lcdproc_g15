@@ -1,17 +1,36 @@
-/** \file server/screen.c
- * This file stores all the screen definition-handling code. Functions here
+// SPDX-License-Identifier: GPL-2.0+
+
+/**
+ * \file server/screen.c
+ * \brief Screen management implementation
+ * \author William Ferrell
+ * \author Selene Scriven
+ * \author Joris Robijn
+ * \author Peter Marschall
+ * \date 1999-2008
+ *
+ * \features
+ * - Screen creation and destruction
+ * - Widget management within screens
+ * - Priority system implementation
+ * - Key reservation and lookup
+ * - Client association and ownership
+ * - Menu system integration
+ *
+ * \usage
+ * - Screen lifecycle management functions
+ * - Widget list operations and iteration
+ * - Priority name conversion utilities
+ * - Key list search functionality
+ * - Screen property initialization
+ *
+ * \details This file stores all the screen definition-handling code. Functions here
  * provide means to create new screens and destroy existing ones. Screens are
  * identified by client and by the client's own identifiers for screens.
- */
-
-/* This file is part of LCDd, the lcdproc server.
+ * Screens are managed through linked lists, each screen maintains its own widget list,
+ * priority names are mapped to enumeration values, key lists are stored as
+ * null-terminated string arrays, and automatic integration with menu system is provided.
  *
- * This file is released under the GNU General Public License.
- * Refer to the COPYING file distributed with this package.
- *
- * Copyright (c) 1999, William Ferrell, Selene Scriven
- *		 2003, Joris Robijn
- *               2008, Peter Marschall
  */
 
 #include <stdio.h>
@@ -20,48 +39,43 @@
 
 #include "shared/report.h"
 
-#include "drivers.h"
-
 #include "clients.h"
+#include "drivers.h"
 #include "main.h"
 #include "menuscreens.h"
 #include "render.h"
 #include "screenlist.h"
 #include "widget.h"
 
-int default_duration = 0;
-int default_timeout = -1;
+/** \name Global Screen Defaults
+ * Default duration and timeout settings for new screens
+ */
+///@{
+int default_duration = 0; ///< Default screen display duration (0 = infinite)
+int default_timeout = -1; ///< Default screen timeout (-1 = never timeout)
+///@}
 
+/** \brief Priority level name strings
+ *
+ * \details Array of string names for priority levels, indexed by Priority enum.
+ * Null-terminated for iteration. Used for protocol messages and configuration.
+ */
 char *pri_names[] = {
-    "hidden",
-    "background",
-    "info",
-    "foreground",
-    "alert",
-    "input",
-    NULL,
+    "hidden", "background", "info", "foreground", "alert", "input", NULL,
 };
 
-/** Create a screen.
- * \param id      Screen id; it's name.
- * \param client  Client, the screen belongs to.
- * \return        Pointer to freshly created screen.
- */
+// Create new screen with default properties and menu integration
 Screen *screen_create(char *id, Client *client)
 {
 	Screen *s;
 
-	debug(RPT_DEBUG,
-	      "%s(id=\"%.40s\", client=[%d])",
-	      __FUNCTION__,
-	      id,
+	debug(RPT_DEBUG, "%s(id=\"%.40s\", client=[%d])", __FUNCTION__, id,
 	      (client ? client->sock : -1));
 
 	if (!id) {
 		report(RPT_ERR, "%s: Need id string", __FUNCTION__);
 		return NULL;
 	}
-	/* Client can be NULL for serverscreens and other client-less screens */
 
 	s = calloc(sizeof(Screen), 1);
 	if (s == NULL) {
@@ -82,9 +96,8 @@ Screen *screen_create(char *id, Client *client)
 	s->width = display_props->width;
 	s->height = display_props->height;
 	s->client = client;
-	s->timeout = default_timeout;  /*ignored unless greater than 0.*/
-	s->backlight = BACKLIGHT_OPEN; /*Lets the screen do it's own*/
-				       /*or do what the client says.*/
+	s->timeout = default_timeout;
+	s->backlight = BACKLIGHT_OPEN;
 	s->cursor = CURSOR_OFF;
 	s->cursor_x = 1;
 	s->cursor_y = 1;
@@ -102,9 +115,7 @@ Screen *screen_create(char *id, Client *client)
 	return s;
 }
 
-/** Destroy a screen.
- * \param s    Screen to destroy.
- */
+// Destroy screen and free all associated resources
 void screen_destroy(Screen *s)
 {
 	Widget *w;
@@ -112,11 +123,9 @@ void screen_destroy(Screen *s)
 	debug(RPT_DEBUG, "%s(s=[%.40s])", __FUNCTION__, s->id);
 
 	menuscreen_remove_screen(s);
-
 	screenlist_remove(s);
 
 	for (w = LL_GetFirst(s->widgetlist); w; w = LL_GetNext(s->widgetlist)) {
-		/* Free a widget...*/
 		widget_destroy(w);
 	}
 	LL_Destroy(s->widgetlist);
@@ -133,12 +142,7 @@ void screen_destroy(Screen *s)
 	free(s);
 }
 
-/** Add a widget to a screen.
- * \param s  Screen to add the widget \c w to.
- * \param w  Widget to be added to \c s.
- * \retval <0  Error.
- * \retval  0  Success.
- */
+// Add widget to screen's widget list
 int screen_add_widget(Screen *s, Widget *w)
 {
 	debug(RPT_DEBUG, "%s(s=[%.40s], widget=[%.40s])", __FUNCTION__, s->id, w->id);
@@ -148,12 +152,7 @@ int screen_add_widget(Screen *s, Widget *w)
 	return 0;
 }
 
-/** Remove a widget from a screen.
- * \param s  Screen to remove the widget \c w from.
- * \param w  Widget to be removed from \c s.
- * \retval <0  Error.
- * \retval  0  Success.
- */
+// Remove widget from screen's widget list (does not destroy widget)
 int screen_remove_widget(Screen *s, Widget *w)
 {
 	debug(RPT_DEBUG, "%s(s=[%.40s], widget=[%.40s])", __FUNCTION__, s->id, w->id);
@@ -163,11 +162,7 @@ int screen_remove_widget(Screen *s, Widget *w)
 	return 0;
 }
 
-/** Find a widget on a screen by its id.
- * \param s   Screen where to look for the widget.
- * \param id  Identifier of the widget.
- * \return    Pointerr to the widget; \c NULL if widget was not found or error.
- */
+// Find widget by ID (searches recursively in frame widgets)
 Widget *screen_find_widget(Screen *s, char *id)
 {
 	Widget *w;
@@ -179,12 +174,12 @@ Widget *screen_find_widget(Screen *s, char *id)
 
 	debug(RPT_DEBUG, "%s(s=[%.40s], id=\"%.40s\")", __FUNCTION__, s->id, id);
 
+	// Widget search loop with recursive frame traversal for nested container support
 	for (w = LL_GetFirst(s->widgetlist); w != NULL; w = LL_GetNext(s->widgetlist)) {
 		if (0 == strcmp(w->id, id)) {
 			debug(RPT_DEBUG, "%s: Found %s", __FUNCTION__, id);
 			return w;
 		}
-		/* Search subscreens recursively */
 		if (w->type == WID_FRAME) {
 			w = widget_search_subs(w, id);
 			if (w != NULL)
@@ -195,11 +190,7 @@ Widget *screen_find_widget(Screen *s, char *id)
 	return NULL;
 }
 
-/** Test if a key is used by a screen.
- * \param s   Screen
- * \param key Name of the key
- * \return    Pointer to the entry in the key list; \c NULL if key is not used.
- */
+// Test if key is reserved by screen
 char *screen_find_key(Screen *s, const char *key)
 {
 	char *start = s->keys, *end;
@@ -208,6 +199,8 @@ char *screen_find_key(Screen *s, const char *key)
 	if (!start)
 		return NULL;
 
+	// Search null-terminated key string list for matching key, skipping to next string boundary
+	// on mismatch
 	end = start + s->keys_size - len;
 	while (start < end) {
 		if (start[len] == 0) {
@@ -217,7 +210,7 @@ char *screen_find_key(Screen *s, const char *key)
 				start += len;
 		}
 
-		while (*start) /* Get to start of next string */
+		while (*start)
 			++start;
 		++start;
 	}
@@ -225,11 +218,7 @@ char *screen_find_key(Screen *s, const char *key)
 	return NULL;
 }
 
-/** Convert a priority name to the priority id.
- * \param priname  Name of the screen priority.
- * \return  Priority id associated with \c priname, -1 if no matching priority
- *          id could be found.
- */
+// Convert priority name string to priority enumeration value
 Priority screen_pri_name_to_pri(char *priname)
 {
 	Priority pri = PRI_HIDDEN;
@@ -238,14 +227,12 @@ Priority screen_pri_name_to_pri(char *priname)
 	for (i = 0; pri_names[i]; i++) {
 		if (strcmp(pri_names[i], priname) == 0) {
 			pri = i;
-			break; /* it's valid: skip out...*/
+			break;
 		}
 	}
+
 	return pri;
 }
 
-/** Convert a priority id to the associated name.
- * \param pri  Priority id.
- * \return     Priority name associated with \c pri.
- */
+// Convert priority enumeration value to name string
 char *screen_pri_to_pri_name(Priority pri) { return pri_names[pri]; }
