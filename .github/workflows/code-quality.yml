@@ -217,7 +217,7 @@ jobs:
     - name: Install dependencies including coverage tools
       run: |
         # Sync database WITHOUT system upgrade to avoid ICU breakage
-        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear lcov llvm libusb libftdi-compat
+        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear lcov llvm gcovr libusb libftdi-compat
 
         # Create non-root user for AUR builds
         useradd -m -s /bin/bash builder
