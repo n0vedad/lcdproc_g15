@@ -77,10 +77,10 @@ jobs:
           git add .
           git commit -m "Initial commit for CI environment"
         fi
-        # Install formatting hooks (creates .git/hooks/pre-commit)
-        make setup-hooks-install
-        # Setup development build with debug drivers
+        # Setup development build with debug drivers FIRST (creates Makefile)
         CI=true make dev
+        # Install formatting hooks AFTER dev setup (uses updated template)
+        make setup-hooks-install
     
     - name: Run format check
       run: |

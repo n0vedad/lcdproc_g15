@@ -123,14 +123,9 @@ format-check:
 	fi; \
 	echo "Checking Markdown/JSON/Shell formatting..."; \
 	prettier_exit=0; \
-	if [ ! -f package-lock.json ]; then \
-		echo "❌ Prettier dependencies missing (no package-lock.json found)"; \
-		printf "\033[1;33m💡 Install with: make distclean && make dev\033[0m\n"; \
-		prettier_exit=1; \
-	elif ! command -v npx >/dev/null 2>&1; then \
-		echo "❌ npx command not available"; \
-		echo "💡 Install npm: sudo pacman -S npm"; \
-		prettier_exit=1; \
+	if ! command -v npx >/dev/null 2>&1; then \
+		echo "ℹ️  Skipping Markdown/JSON formatting (npx not available - optional)"; \
+		prettier_exit=0; \
 	else \
 		prettier_issues=$$(npx prettier --check "**/*.{md,json,sh}" 2>&1 | grep -E "\.md$$|\.json$$|\.sh$$" || true); \
 		if [ -z "$$prettier_issues" ]; then \

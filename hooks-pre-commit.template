@@ -57,7 +57,7 @@ fi
 # Check Markdown/JSON/Shell formatting if prettier is available
 if command -v npx >/dev/null 2>&1; then
     staged_other_files=$(git diff --cached --name-only --diff-filter=AM | grep -E '\.(md|json|sh)$' || true)
-    
+
     if [ -n "$staged_other_files" ]; then
         echo "Checking Markdown/JSON/Shell files with prettier..."
         if ! npx prettier --check $staged_other_files 2>/dev/null; then
@@ -66,6 +66,9 @@ if command -v npx >/dev/null 2>&1; then
             exit 1
         fi
     fi
+else
+    # npx not available - skip Markdown/JSON formatting (optional)
+    :  # No-op, prettier is optional
 fi
 
 printf "${GREEN}✓ All code properly formatted${NC}\n"
