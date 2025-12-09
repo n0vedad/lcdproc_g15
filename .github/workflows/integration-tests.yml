@@ -148,6 +148,8 @@ jobs:
           git add .
           git commit -m "Initial commit for CI environment"
         fi
+        # Setup development build for testing
+        make dev
 
     - name: Run ThreadSanitizer tests
       run: |
