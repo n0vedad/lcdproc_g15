@@ -84,7 +84,7 @@ See [tests/README.md](tests/README.md) for detailed testing documentation.
 
 ## Code Coverage
 
-**Current Coverage:** ~90% (635/702 lines)
+**Current Coverage:** ~89% (648/722 lines)
 
 For detailed coverage setup and analysis, see [tests/README.md](tests/README.md#coverage-analysis) section below.
 
