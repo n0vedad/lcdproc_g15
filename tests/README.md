@@ -221,21 +221,52 @@ make test-tsan-quick
 - Requires full rebuild with `-fsanitize=thread` flag
 - Only detects actual races that occur during execution (not potential ones)
 
-## Git Hooks
+## GitHub Actions CI/CD Workflows
 
-### **Two Different Workflows**
+### **Three Comprehensive Workflows**
 
-**Code Quality Workflow** (`.github/workflows/code-quality.yml`):
+**1. Code Quality Workflow** (`.github/workflows/code-quality.yml`):
 
-- Triggers on: All C/H files, build configs, formatting configs
-- Does: Code formatting checks, static analysis, linting
-- Fast execution: ~2-3 minutes
+- **Triggers on**: All C/H files, build configs, formatting configs
+- **Jobs**:
+  - `formatting`: Code formatting checks (clang-format, prettier optional)
+  - `static-analysis`: clang-tidy static analysis
+  - `arch-build-test`: Production build + comprehensive CI tests
+  - `coverage-analysis`: Code coverage reports with artifact upload ✨ NEW
+- **Execution time**: ~3-5 minutes
+- **Artifacts**: Coverage reports (HTML, XML, gcov) - 30 days retention
 
-**Device Tests Workflow** (`.github/workflows/device-tests.yml`):
+**2. Device Tests Workflow** (`.github/workflows/device-tests.yml`):
 
-- Triggers on: Driver files, test files only
-- Does: Full device simulation testing across all supported hardware
-- Longer execution: ~5-8 minutes
+- **Triggers on**: Driver files, test files only
+- **Jobs**:
+  - `device-simulation-tests`: Matrix testing (5 devices × 2 compilers)
+  - `integration-test`: Scenarios + multi-compiler validation
+- **Execution time**: ~5-8 minutes
+- **Coverage**: All G15/G510 device variants with RGB validation
+
+**3. Integration Tests Workflow** (`.github/workflows/integration-tests.yml`): ✨ NEW
+
+- **Triggers on**: Server, client, and test code changes
+- **Jobs**:
+  - `integration-basic`: LCDd server, mock, clients, e2e tests
+  - `thread-safety`: ThreadSanitizer for race condition detection
+  - `scenario-matrix`: Individual test scenarios (detection, RGB, macros, failures)
+- **Execution time**: ~8-12 minutes
+- **Coverage**: End-to-end workflows, thread safety, isolated scenarios
+
+### **Complete CI Test Matrix**
+
+| Workflow | Test Type | Coverage |
+|----------|-----------|----------|
+| Code Quality | Formatting | ✅ clang-format, prettier (optional) |
+| Code Quality | Static Analysis | ✅ clang-tidy (100+ checks) |
+| Code Quality | Coverage Reports | ✅ HTML/XML with artifacts |
+| Device Tests | Unit Tests | ✅ 5 devices × 2 compilers |
+| Device Tests | RGB Validation | ✅ Device-specific RGB support |
+| Integration Tests | Server Tests | ✅ LCDd, mock, clients, e2e |
+| Integration Tests | Thread Safety | ✅ TSan for macro system |
+| Integration Tests | Scenarios | ✅ Detection, RGB, macros, failures |
 
 ### **How Tests Work**
 
