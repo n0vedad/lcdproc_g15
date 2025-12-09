@@ -118,6 +118,7 @@ make clean # removes docs/html/ and docs/latex/
 - Call graphs and dependency diagrams (requires graphviz)
 - File and module organization
 - Search functionality
+- **Automatic TODO list generation** - All `\todo` tags in source code are collected into `docs/html/todo.html`, with additional priority-based categorization available via `@ingroup` tags (critical, medium, low)
 
 **Installation location:** When running `make install`, documentation is installed to `$(docdir)/html/` (typically `/usr/share/doc/lcdproc-g15/html/`).
 
