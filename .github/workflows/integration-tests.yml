@@ -1,0 +1,227 @@
+# GitHub Actions workflow for lcdproc-g15 integration tests
+# Copyright (C) 2025 n0vedad <https://github.com/n0vedad/>
+#
+# This workflow is released under the same license as the project (GPL v2)
+
+name: Integration Tests
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'server/**'
+      - 'clients/**'
+      - 'tests/**'
+      - 'Makefile.am'
+      - 'configure.ac'
+      - 'GNUmakefile'
+      - '.github/workflows/integration-tests.yml'
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'server/**'
+      - 'clients/**'
+      - 'tests/**'
+      - 'Makefile.am'
+      - 'configure.ac'
+      - 'GNUmakefile'
+
+jobs:
+  integration-basic:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    name: Basic Integration Tests
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full git history for proper git repository
+
+    - name: Install dependencies
+      run: |
+        # Sync database WITHOUT system upgrade to avoid ICU breakage
+        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear clang-tools-extra libusb libftdi-compat
+
+        # Create non-root user for AUR builds
+        useradd -m -s /bin/bash builder
+        echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+
+        # Install G15 libraries from AUR
+        sudo -u builder bash -c '
+          cd /home/builder
+          git clone https://aur.archlinux.org/libg15.git
+          cd libg15 && makepkg -si --noconfirm
+          cd ..
+          git clone https://aur.archlinux.org/libg15render.git
+          cd libg15render && makepkg -si --noconfirm
+        '
+
+    - name: Setup build environment
+      run: |
+        # Ensure git repository is properly initialized in container
+        git config --global --add safe.directory $(pwd)
+        if [ ! -d ".git" ]; then
+          echo "⚠️ Initializing git repository for container environment..."
+          git init
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add .
+          git commit -m "Initial commit for CI environment"
+        fi
+        # Setup development build for testing
+        make dev
+
+    - name: Run integration tests (debug driver)
+      run: |
+        echo "🔌 Testing LCDd server with debug driver..."
+        make test-integration
+
+    - name: Run mock server tests
+      run: |
+        echo "🎭 Testing mock server standalone..."
+        make test-mock
+
+    - name: Run server-only tests
+      run: |
+        echo "🖥️ Testing LCDd server only..."
+        make test-server
+
+    - name: Run client tests
+      run: |
+        echo "📱 Testing client functionality..."
+        make test-clients
+
+    - name: Run end-to-end tests
+      run: |
+        echo "🔄 Testing end-to-end workflow..."
+        make test-e2e
+
+    - name: Integration test summary
+      if: success()
+      run: |
+        echo "✅ All integration tests passed!"
+        echo "📋 Test Coverage:"
+        echo "  ✓ Debug driver integration"
+        echo "  ✓ Mock server standalone"
+        echo "  ✓ LCDd server functionality"
+        echo "  ✓ Client operations"
+        echo "  ✓ End-to-end workflow"
+
+  thread-safety:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    name: ThreadSanitizer Tests
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full git history for proper git repository
+
+    - name: Install dependencies
+      run: |
+        # Sync database WITHOUT system upgrade to avoid ICU breakage
+        pacman -Sy --noconfirm base-devel git clang make autoconf automake bear libusb libftdi-compat
+
+        # Create non-root user for AUR builds
+        useradd -m -s /bin/bash builder
+        echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+
+        # Install G15 libraries from AUR
+        sudo -u builder bash -c '
+          cd /home/builder
+          git clone https://aur.archlinux.org/libg15.git
+          cd libg15 && makepkg -si --noconfirm
+          cd ..
+          git clone https://aur.archlinux.org/libg15render.git
+          cd libg15render && makepkg -si --noconfirm
+        '
+
+    - name: Setup build environment
+      run: |
+        # Ensure git repository is properly initialized in container
+        git config --global --add safe.directory $(pwd)
+        if [ ! -d ".git" ]; then
+          echo "⚠️ Initializing git repository for container environment..."
+          git init
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add .
+          git commit -m "Initial commit for CI environment"
+        fi
+
+    - name: Run ThreadSanitizer tests
+      run: |
+        echo "🧵 Running ThreadSanitizer for race condition detection..."
+        echo "⚠️  Note: TSan requires full rebuild with -fsanitize=thread"
+        make test-tsan
+
+    - name: Validate thread safety
+      if: success()
+      run: |
+        echo "✅ No race conditions detected!"
+        echo "📋 ThreadSanitizer validated:"
+        echo "  ✓ G-Key macro recording system"
+        echo "  ✓ Multi-threaded input handling"
+        echo "  ✓ Shared data structure access"
+
+  scenario-matrix:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    name: Individual Scenario Tests
+
+    strategy:
+      matrix:
+        scenario:
+          - { name: "Device Detection", target: "test-scenario-detection", description: "USB device ID validation" }
+          - { name: "RGB Support", target: "test-scenario-rgb", description: "HID + LED RGB testing" }
+          - { name: "Macro System", target: "test-scenario-macros", description: "18 G-keys, M1/M2/M3 modes" }
+          - { name: "Error Handling", target: "test-scenario-failures", description: "Device failure recovery" }
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Full git history for proper git repository
+
+    - name: Install dependencies
+      run: |
+        # Sync database WITHOUT system upgrade to avoid ICU breakage
+        pacman -Sy --noconfirm base-devel git clang make autoconf automake libusb libftdi-compat
+
+        # Create non-root user for AUR builds
+        useradd -m -s /bin/bash builder
+        echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+
+        # Install G15 libraries from AUR
+        sudo -u builder bash -c '
+          cd /home/builder
+          git clone https://aur.archlinux.org/libg15.git
+          cd libg15 && makepkg -si --noconfirm
+          cd ..
+          git clone https://aur.archlinux.org/libg15render.git
+          cd libg15render && makepkg -si --noconfirm
+        '
+
+    - name: Setup build environment
+      run: |
+        # Ensure git repository is properly initialized in container
+        git config --global --add safe.directory $(pwd)
+        if [ ! -d ".git" ]; then
+          echo "⚠️ Initializing git repository for container environment..."
+          git init
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add .
+          git commit -m "Initial commit for CI environment"
+        fi
+        make dev
+
+    - name: Run ${{ matrix.scenario.name }} scenario
+      run: |
+        echo "🧪 Testing: ${{ matrix.scenario.name }}"
+        echo "📝 Description: ${{ matrix.scenario.description }}"
+        make ${{ matrix.scenario.target }}
+
+    - name: Scenario test summary
+      if: success()
+      run: |
+        echo "✅ ${{ matrix.scenario.name }} scenario passed!"
