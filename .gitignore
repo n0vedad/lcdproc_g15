@@ -110,3 +110,6 @@ test-driver
 coverage.xml
 coverage.html
 coverage.info
+
+# Doxygen
+docs/Doxyfile

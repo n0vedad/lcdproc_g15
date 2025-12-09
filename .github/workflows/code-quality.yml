@@ -44,17 +44,14 @@ jobs:
     
     - name: Install dependencies
       run: |
-        # Install base development tools
-        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear npm
-        # Install ICU library for Node.js compatibility
-        pacman -Sy --noconfirm icu
-        # Install clang-tools for formatting and static analysis
-        pacman -Sy --noconfirm clang-tools-extra
-        # Install standard hardware libraries
-        pacman -Sy --noconfirm libusb libftdi-compat
+        # Sync database WITHOUT system upgrade to avoid ICU breakage
+        # Just install missing packages, don't upgrade existing ones
+        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear clang-tools-extra libusb libftdi-compat
+
         # Create non-root user for AUR builds
         useradd -m -s /bin/bash builder
         echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+
         # Install G15 libraries from AUR
         sudo -u builder bash -c '
           cd /home/builder
@@ -64,9 +61,6 @@ jobs:
           git clone https://aur.archlinux.org/libg15render.git
           cd libg15render && makepkg -si --noconfirm
         '
-
-        # Install npm dependencies for prettier
-        npm install
     
     - name: Setup build environment
       run: |
@@ -116,17 +110,13 @@ jobs:
     
     - name: Install dependencies
       run: |
-        # Install base development tools
-        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear npm
-        # Install ICU library for Node.js compatibility
-        pacman -Sy --noconfirm icu
-        # Install clang-tools for formatting and static analysis
-        pacman -Sy --noconfirm clang-tools-extra
-        # Install standard hardware libraries
-        pacman -Sy --noconfirm libusb libftdi-compat
+        # Sync database WITHOUT system upgrade to avoid ICU breakage
+        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear clang-tools-extra libusb libftdi-compat
+
         # Create non-root user for AUR builds
         useradd -m -s /bin/bash builder
         echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+
         # Install G15 libraries from AUR
         sudo -u builder bash -c '
           cd /home/builder
@@ -172,11 +162,9 @@ jobs:
     
     - name: Setup Arch build environment
       run: |
-        # Install base tools and create non-root user for AUR
+        # Sync database WITHOUT system upgrade to avoid ICU breakage
         # Note: clang is the primary compiler for this project
-        pacman -Sy --noconfirm base-devel git sudo clang make autoconf automake bear npm
-        # Install ICU library for Node.js compatibility
-        pacman -Sy --noconfirm icu
+        pacman -Sy --noconfirm base-devel git sudo clang make autoconf automake bear
         useradd -m -G wheel -s /bin/bash builder
         echo 'builder ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
     
