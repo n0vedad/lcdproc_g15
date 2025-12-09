@@ -257,16 +257,16 @@ make test-tsan-quick
 
 ### **Complete CI Test Matrix**
 
-| Workflow | Test Type | Coverage |
-|----------|-----------|----------|
-| Code Quality | Formatting | ✅ clang-format, prettier (optional) |
-| Code Quality | Static Analysis | ✅ clang-tidy (100+ checks) |
-| Code Quality | Coverage Reports | ✅ HTML/XML with artifacts |
-| Device Tests | Unit Tests | ✅ 5 devices × 2 compilers |
-| Device Tests | RGB Validation | ✅ Device-specific RGB support |
-| Integration Tests | Server Tests | ✅ LCDd, mock, clients, e2e |
-| Integration Tests | Thread Safety | ✅ TSan for macro system |
-| Integration Tests | Scenarios | ✅ Detection, RGB, macros, failures |
+| Workflow          | Test Type        | Coverage                             |
+| ----------------- | ---------------- | ------------------------------------ |
+| Code Quality      | Formatting       | ✅ clang-format, prettier (optional) |
+| Code Quality      | Static Analysis  | ✅ clang-tidy (100+ checks)          |
+| Code Quality      | Coverage Reports | ✅ HTML/XML with artifacts           |
+| Device Tests      | Unit Tests       | ✅ 5 devices × 2 compilers           |
+| Device Tests      | RGB Validation   | ✅ Device-specific RGB support       |
+| Integration Tests | Server Tests     | ✅ LCDd, mock, clients, e2e          |
+| Integration Tests | Thread Safety    | ✅ TSan for macro system             |
+| Integration Tests | Scenarios        | ✅ Detection, RGB, macros, failures  |
 
 ### **How Tests Work**
 
