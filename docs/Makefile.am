@@ -34,10 +34,15 @@ clean-local:
 	-rm -rf html latex
 	-rm -f Doxyfile
 
-# Install documentation to docdir
-install-data-local: html-local
-	$(MKDIR_P) $(DESTDIR)$(docdir)/html
-	cp -r html/* $(DESTDIR)$(docdir)/html/
+# Install documentation to docdir (only if html/ exists)
+install-data-local:
+	@if [ -d html ]; then \
+		echo "Installing existing documentation..."; \
+		$(MKDIR_P) $(DESTDIR)$(docdir)/html; \
+		cp -r html/* $(DESTDIR)$(docdir)/html/; \
+	else \
+		echo "No documentation to install (run 'make html' first)"; \
+	fi
 
 # Uninstall documentation
 uninstall-local:

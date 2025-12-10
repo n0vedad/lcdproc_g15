@@ -626,7 +626,9 @@ build-dev: configure-dev
 		echo "✅ Bootstrap complete - ready for development build!"; \
 		echo "🔄 Restarting make to use generated Makefile..."; \
 		$(MAKE) -f Makefile all; \
-	fi
+	fi; \
+	echo "📚 Generating Doxygen documentation..."; \
+	$(MAKE) -C docs html || echo "⚠️  Doxygen documentation generation skipped (doxygen not available)"
 
 
 clean:
