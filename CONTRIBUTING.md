@@ -100,8 +100,14 @@ Please see [tests/README.md](tests/README.md) for more details.
 
 The project uses Doxygen to generate comprehensive API documentation from source code comments.
 
+**Automatic generation during development:**
+
+Documentation is automatically generated when running `make dev` (development mode setup).
+
+**Manual generation:**
+
 ```bash
-# Generate HTML documentation
+# Generate HTML documentation manually
 make html
 
 # View the documentation
@@ -110,6 +116,8 @@ xdg-open docs/html/index.html
 # Clean generated documentation
 make clean # removes docs/html/ and docs/latex/
 ```
+
+**Note:** Documentation is only generated in development mode. Running `make` (production build) or `makepkg -si` will not generate documentation to speed up build times.
 
 **Documentation Features:**
 
