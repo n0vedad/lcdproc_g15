@@ -1,7 +1,7 @@
 # -*- mode: m4; -*-
 dnl Process this file with autoconf 2.61 (or higher) to produce a configure script.
 AC_PREREQ(2.61)
-AC_INIT([lcdproc], [0.0.4])
+AC_INIT([lcdproc], [0.0.5])
 AC_CONFIG_SRCDIR([clients/lcdproc/batt.c])
 AM_INIT_AUTOMAKE
 
@@ -244,9 +244,9 @@ AC_ARG_WITH(lcdport,
 )
 AC_DEFINE_UNQUOTED(LCDPORT, $LCDPORT, [Set default port where LCDd should listen])
 
-AC_DEFINE_UNQUOTED(PROTOCOL_VERSION, "0.0.4", [Define version of lcdproc client-server protocol])
+AC_DEFINE_UNQUOTED(PROTOCOL_VERSION, "0.0.5", [Define version of lcdproc client-server protocol])
 
-AC_DEFINE_UNQUOTED(API_VERSION, "0.0.4", [Define version of lcdproc API])
+AC_DEFINE_UNQUOTED(API_VERSION, "0.0.5", [Define version of lcdproc API])
 
 
 dnl Check compiler flags to dynamically load modules

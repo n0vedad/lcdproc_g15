@@ -43,7 +43,7 @@ distclean-local:
 
 ## convenience targets
 
-.PHONY: $(SUBDIRS) install-server install-clients format format-check format-before-build help test-full test-ci test-integration test-integration-g15 test-integration-input test-integration-all test-mock
+.PHONY: $(SUBDIRS) install-server install-clients format format-check format-before-build help test-full test-ci test-integration test-integration-g15 test-integration-input test-integration-all test-mock debug
 
 # Format code before any compilation starts - handled by GNUmakefile
 # all-recursive: format-before-build (disabled - GNUmakefile handles this)
@@ -201,5 +201,20 @@ lint-fix:
 # Integration test delegation to tests subdirectory
 test-integration test-integration-g15 test-integration-input test-integration-all test-mock:
 	$(MAKE) -C tests $@
+
+# Development debug target - build, install, restart services and monitor logs with USB reset
+debug debug-critical debug-error debug-warning debug-info:
+	@if [ ! -f config.h ] || ! grep -q "^#define DEBUG" config.h 2>/dev/null; then \
+		echo "❌ Development build required"; \
+		echo "💡 Run 'make distclean && make dev' first"; \
+		exit 1; \
+	fi
+	@case "$@" in \
+		debug-critical) ./tests/debug/lcdproc_debug.sh --critical ;; \
+		debug-error) ./tests/debug/lcdproc_debug.sh --error ;; \
+		debug-warning) ./tests/debug/lcdproc_debug.sh --warning ;; \
+		debug-info) ./tests/debug/lcdproc_debug.sh --info ;; \
+		*) ./tests/debug/lcdproc_debug.sh ;; \
+	esac
 
 ## EOF
