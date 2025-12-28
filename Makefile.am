@@ -3,7 +3,7 @@
 ## set automake strictness to 'foreign'
 AUTOMAKE_OPTIONS = foreign
 
-SUBDIRS = shared clients server services tests .
+SUBDIRS = shared clients server services tests docs .
 
 EXTRA_DIST =
 
