@@ -62,6 +62,33 @@ But it may not do what you want, so please take a few seconds to type:
 
 Now for debugging you just need to uncomment the debug driver at `/etc/LCDd.conf`:
 
+## Debugging Workflow
+
+This project includes a comprehensive debugging system for live development and testing.
+
+**Quick Start:**
+
+```bash
+# Start interactive debugging (default: DEBUG level, all messages)
+make debug
+
+# Debug at specific report levels
+make debug-critical # Only critical errors
+make debug-error    # Errors and critical
+make debug-warning  # Warnings and above
+make debug-info     # Info and above (shows GPL banner)
+```
+
+**Features:**
+
+- Live log monitoring from both LCDd and lcdproc
+- Multiple report/verbosity levels (0-5)
+- Hardware monitoring tools (G-keys, RGB backlight)
+- Clean shutdown with Ctrl+C
+- Automatic service restart
+
+For detailed debugging documentation, hardware monitoring tools, and troubleshooting, see [tests/debug/README.md](tests/debug/README.md).
+
 ## Debug Driver Properties
 
 | Property         | Value     | Description                       |

@@ -80,7 +80,14 @@ For development setup see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 This implementation includes comprehensive unit tests, integration tests and debugging tools for device handling, G-Key macro system and RGB functionality.
 
-See [tests/README.md](tests/README.md) for detailed testing documentation.
+**Debug Tools:**
+
+- `make debug` - Interactive debugging with live log monitoring and multiple report levels
+- See [tests/debug/README.md](tests/debug/README.md) for debug workflow and hardware monitoring tools
+
+**Testing:**
+
+- See [tests/README.md](tests/README.md) for detailed testing documentation
 
 ## Code Coverage
 

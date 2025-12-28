@@ -776,6 +776,26 @@ format format-check lint lint-fix:
 		$(MAKE) -f Makefile $@; \
 	fi
 
+# Development debug target - build, install, restart and monitor with USB reset
+debug debug-critical debug-error debug-warning debug-info:
+	@if [ ! -f Makefile ]; then \
+		printf "$(RED)❌ Project not configured yet$(NC)\n"; \
+		printf "$(YELLOW)💡 Run 'make dev' first to set up development environment$(NC)\n"; \
+		exit 1; \
+	elif [ ! -f config.h ] || ! grep -q "^#define DEBUG" config.h 2>/dev/null; then \
+		printf "$(RED)❌ Development build required for debug$(NC)\n"; \
+		printf "$(YELLOW)💡 Run 'make distclean && make dev' to enable development features$(NC)\n"; \
+		exit 1; \
+	else \
+		case "$@" in \
+			debug-critical) ./tests/debug/lcdproc_debug.sh --critical; exit 0 ;; \
+			debug-error) ./tests/debug/lcdproc_debug.sh --error; exit 0 ;; \
+			debug-warning) ./tests/debug/lcdproc_debug.sh --warning; exit 0 ;; \
+			debug-info) ./tests/debug/lcdproc_debug.sh --info; exit 0 ;; \
+			*) ./tests/debug/lcdproc_debug.sh; exit 0 ;; \
+		esac; \
+	fi
+
 # Standard autotools check target - works with both standard and dev builds
 check:
 	@if [ -f Makefile ]; then \
