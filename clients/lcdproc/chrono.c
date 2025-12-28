@@ -85,16 +85,8 @@ static int calculate_centered_xpos(const char *text)
 	return (lcd_wid > len) ? ((lcd_wid - len) / 2) + 1 : 1;
 }
 
-/**
- * \brief Get current time formatted as string
- * \param buffer Output buffer for formatted time
- * \param bufsize Size of output buffer
- * \param format strftime format string (NULL uses default)
- *
- * \details Uses strftime() to format current local time according to format string.
- * Sets buffer to empty string if format is NULL or formatting fails.
- */
-static void get_formatted_time(char *buffer, size_t bufsize, const char *format)
+// Format current time according to specified format string
+void get_formatted_time(char *buffer, size_t bufsize, const char *format)
 {
 	time_t thetime;
 	struct tm rtime;

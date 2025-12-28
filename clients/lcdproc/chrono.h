@@ -75,4 +75,15 @@ int big_clock_screen(int rep, int display, int *flags_ptr);
  */
 int mini_clock_screen(int rep, int display, int *flags_ptr);
 
+/**
+ * \brief Format current time according to specified format string.
+ * \param buffer Output buffer for formatted time string
+ * \param bufsize Size of output buffer
+ * \param format strftime format string (e.g., "%H:%M:%S" or "%b %d %Y")
+ *
+ * \details Formats the current system time using strftime format specifiers.
+ * Sets buffer to empty string if format is NULL or formatting fails.
+ */
+void get_formatted_time(char *buffer, size_t bufsize, const char *format);
+
 #endif
