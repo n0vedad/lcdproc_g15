@@ -531,7 +531,8 @@ static void render_title(Widget *w, int left, int top, int right, int bottom, lo
 {
 	int vis_width = right - left;
 	char str[BUFSIZE];
-	int x, width = vis_width - 6, length, delay;
+	int length, delay;
+	int text_len;
 
 	debug(RPT_DEBUG, "%s(w=%p, left=%d, top=%d, right=%d, bottom=%d, timer=%ld)", __FUNCTION__,
 	      w, left, top, right, bottom, timer);
@@ -539,27 +540,71 @@ static void render_title(Widget *w, int left, int top, int right, int bottom, lo
 	if ((w->text == NULL) || (vis_width < 8))
 		return;
 
-	length = strlen(w->text);
+	// Trim leading whitespace from title text for proper centering
+	const char *text_start = w->text;
+	while (*text_start == ' ' || *text_start == '\t') {
+		text_start++;
+	}
 
-	delay = (titlespeed <= TITLESPEED_NO) ? TITLESPEED_NO
+	length = strlen(text_start);
+	text_len = length;
+
+	// Trim trailing whitespace
+	while (text_len > 0 &&
+	       (text_start[text_len - 1] == ' ' || text_start[text_len - 1] == '\t')) {
+		text_len--;
+	}
+
+	delay = (titlespeed < TITLESPEED_MIN) ? TITLESPEED_MIN
 					      : max(TITLESPEED_MIN, TITLESPEED_MAX - titlespeed);
 
-	drivers_icon(w->x + left, w->y + top, ICON_BLOCK_FILLED);
-	drivers_icon(w->x + left + 1, w->y + top, ICON_BLOCK_FILLED);
+	length = min(text_len, sizeof(str) - 1);
 
-	length = min(length, sizeof(str) - 1);
-
-	// Text scrolling logic: static display for short text or no delay, bidirectional scrolling
-	// animation with configurable delay for long text
-	if ((length <= width) || (delay == 0)) {
+	// For short text that fits, center it with symmetric blocks
+	int width = vis_width - 6;
+	if ((text_len <= width) || (delay == 0)) {
 		length = min(length, width);
-		strncpy(str, w->text, length);
+		strncpy(str, text_start, length);
 		str[length] = '\0';
-		x = length + 4;
+
+		// Calculate symmetric block distribution
+		// Layout: [blocks] [space] [text] [space] [blocks]
+		// Total width = blocks + spaces + text
+		// We want: left_blocks + 1 + text_len + 1 + right_blocks = vis_width
+		// So: left_blocks + right_blocks = vis_width - text_len - 2
+		int total_blocks = vis_width - text_len - 2;
+		// For odd numbers, put extra block on left for better visual balance
+		int right_blocks = total_blocks / 2;
+		int left_blocks = total_blocks - right_blocks;
+
+		int text_pos = left_blocks + 1;
+		int right_start = text_pos + text_len + 1;
+
+		debug(RPT_DEBUG,
+		      "Title centering: text='%s' vis_width=%d text_len=%d total_blocks=%d left=%d "
+		      "right=%d text_pos=%d right_start=%d",
+		      w->text, vis_width, text_len, total_blocks, left_blocks, right_blocks,
+		      text_pos, right_start);
+
+		// Draw left blocks at positions 0..(left_blocks-1)
+		for (int i = 0; i < left_blocks; i++) {
+			drivers_icon(w->x + left + i, w->y + top, ICON_BLOCK_FILLED);
+		}
+
+		// Draw text at position (left_blocks + 1), leaving position left_blocks as space
+		drivers_string(w->x + left + text_pos, w->y + top, str);
+
+		// Draw right blocks starting at (text_pos + text_len + 1)
+		// This leaves position (text_pos + text_len) as space
+		for (int i = 0; i < right_blocks; i++) {
+			drivers_icon(w->x + left + right_start + i, w->y + top, ICON_BLOCK_FILLED);
+		}
 
 	} else {
+		// Scrolling text: use traditional 2-block left rendering
 		int offset = timer;
 		int reverse;
+		int x;
 
 		if ((delay != 0) && (delay < length / (length - width)))
 			offset /= delay;
@@ -581,13 +626,15 @@ static void render_title(Widget *w, int left, int top, int right, int bottom, lo
 		strncpy(str, w->text + offset, length);
 		str[length] = '\0';
 
-		x = vis_width - 2;
-	}
+		// Traditional layout for scrolling
+		drivers_icon(w->x + left, w->y + top, ICON_BLOCK_FILLED);
+		drivers_icon(w->x + left + 1, w->y + top, ICON_BLOCK_FILLED);
+		drivers_string(w->x + 3 + left, w->y + top, str);
 
-	drivers_string(w->x + 3 + left, w->y + top, str);
-
-	for (; x < vis_width; x++) {
-		drivers_icon(w->x + x + left, w->y + top, ICON_BLOCK_FILLED);
+		x = length + 4;
+		for (; x < vis_width; x++) {
+			drivers_icon(w->x + x + left, w->y + top, ICON_BLOCK_FILLED);
+		}
 	}
 }
 
