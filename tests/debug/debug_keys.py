@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+
+# SPDX-License-Identifier: GPL-2.0+
 # Copyright (C) 2025 n0vedad <https://github.com/n0vedad/>
 """
 Debug script to capture and display input events from G15 keyboard

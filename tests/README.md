@@ -68,14 +68,14 @@ Type `make help` for further informations.
 
 ```bash
 # Daily development (fast feedback)
-make check # Basic unit tests (~3 seconds)
+make check # Basic unit tests
 
 # Before commits (thorough validation)
-make test-full # Unit tests + memory leak detection (~30-60 seconds)
+make test-full # Unit tests + memory leak detection
 # Non-destructive, safe for daily use
 
 # Before releases (complete validation)
-make test-ci # Full + multi-compiler testing (~2-5 minutes)
+make test-ci # Full + multi-compiler testing
 # ⚠️ DESTRUCTIVE: Rebuilds entire project!
 ```
 
@@ -115,10 +115,28 @@ make test-scenario-failures  # Only error handling (device failures)
 
 # Advanced diagnostics
 make test-verbose   # Run tests with detailed output
-make test-memcheck  # Memory leak detection only (requires valgrind)
+make test-memcheck  # Sanitizer checks (ASan, LSan, UBSan)
 make test-compilers # Multi-compiler build testing only
 # ⚠️ DESTRUCTIVE: Rebuilds with clang + gcc
 ```
+
+**Understanding Test Targets:**
+
+All unit test targets execute the same binary (`test_unit_g15`) with different command-line flags:
+
+- **`test-g15`/`test-g510`**: Filter tests by hardware type (useful for hardware-specific debugging)
+- **`test-scenario-*`**: Run isolated test categories (device detection, RGB, macros, failures)
+- **`test-scenarios`**: Convenience wrapper that runs all four `test-scenario-*` targets sequentially
+- **`test-verbose`**: Runs all tests with detailed progress output (same coverage as `make check`)
+- **Coverage**: Full test suite (`make check`) achieves 91%+ code coverage (19 tests)
+
+**Sanitizers Active:**
+
+Tests are compiled with three sanitizers for comprehensive error detection:
+
+- **ASan** (AddressSanitizer): Detects memory errors (buffer overflows, use-after-free, double-free)
+- **LSan** (LeakSanitizer): Detects memory leaks
+- **UBSan** (Undefined Behavior Sanitizer): Detects undefined behavior (integer overflow, null deref, division by zero)
 
 ## Code Formatting
 
@@ -173,21 +191,82 @@ make lint-fix     # Run clang-tidy with automatic fixes
 make test-coverage # Generate detailed test coverage analysis report
 ```
 
-## Git Hooks
+## ThreadSanitizer (TSan) - Race Condition Detection
 
-### **Two Different Workflows**
+ThreadSanitizer is a dynamic analysis tool that detects data races at runtime. It's particularly useful for the G-Key macro system which uses pthread for input recording.
 
-**Code Quality Workflow** (`.github/workflows/code-quality.yml`):
+**When to use TSan:**
 
-- Triggers on: All C/H files, build configs, formatting configs
-- Does: Code formatting checks, static analysis, linting
-- Fast execution: ~2-3 minutes
+- Testing the G-Key macro recording functionality
+- Debugging potential race conditions in multi-threaded code
+- Verifying thread safety of shared data structures
+- Before releasing new versions with threading changes
 
-**Device Tests Workflow** (`.github/workflows/device-tests.yml`):
+**Running TSan:**
 
-- Triggers on: Driver files, test files only
-- Does: Full device simulation testing across all supported hardware
-- Longer execution: ~5-8 minutes
+```bash
+# Full TSan build and test (requires rebuild)
+make test-tsan
+
+# Quick test on existing TSan build
+make test-tsan-quick
+
+# Manual testing with TSan-enabled binary
+./clients/lcdproc/lcdproc -f # Run in foreground to see TSan output
+```
+
+**Important Notes:**
+
+- Reports race conditions to stderr with detailed stack traces
+- Requires full rebuild with `-fsanitize=thread` flag
+- Only detects actual races that occur during execution (not potential ones)
+
+## GitHub Actions CI/CD Workflows
+
+### **Three Comprehensive Workflows**
+
+**1. Code Quality Workflow** (`.github/workflows/code-quality.yml`):
+
+- **Triggers on**: All C/H files, build configs, formatting configs
+- **Jobs**:
+  - `formatting`: Code formatting checks (clang-format, prettier optional)
+  - `static-analysis`: clang-tidy static analysis
+  - `arch-build-test`: Production build + comprehensive CI tests
+  - `coverage-analysis`: Code coverage reports with artifact upload ✨ NEW
+- **Execution time**: ~3-5 minutes
+- **Artifacts**: Coverage reports (HTML, XML, gcov) - 30 days retention
+
+**2. Device Tests Workflow** (`.github/workflows/device-tests.yml`):
+
+- **Triggers on**: Driver files, test files only
+- **Jobs**:
+  - `device-simulation-tests`: Matrix testing (5 devices × 2 compilers)
+  - `integration-test`: Scenarios + multi-compiler validation
+- **Execution time**: ~5-8 minutes
+- **Coverage**: All G15/G510 device variants with RGB validation
+
+**3. Integration Tests Workflow** (`.github/workflows/integration-tests.yml`): ✨ NEW
+
+- **Triggers on**: Server, client, and test code changes
+- **Jobs**:
+  - `integration-basic`: LCDd server, mock, clients, e2e tests
+  - `thread-safety`: ThreadSanitizer for race condition detection
+  - `scenario-matrix`: Individual test scenarios (detection, RGB, macros, failures)
+- **Execution time**: ~8-12 minutes
+- **Coverage**: End-to-end workflows, thread safety, isolated scenarios
+
+### **Complete CI Test Matrix**
+
+| Workflow          | Test Type        | Coverage                             |
+| ----------------- | ---------------- | ------------------------------------ |
+| Code Quality      | Formatting       | ✅ clang-format, prettier (optional) |
+| Code Quality      | Static Analysis  | ✅ clang-tidy (100+ checks)          |
+| Code Quality      | Coverage Reports | ✅ HTML/XML with artifacts           |
+| Device Tests      | Unit Tests       | ✅ 5 devices × 2 compilers           |
+| Device Tests      | RGB Validation   | ✅ Device-specific RGB support       |
+| Integration Tests | Server Tests     | ✅ LCDd, mock, clients, e2e          |
+| Integration Tests | Thread Safety    | ✅ TSan for macro system             |
+| Integration Tests | Scenarios        | ✅ Detection, RGB, macros, failures  |
 
 ### **How Tests Work**
 

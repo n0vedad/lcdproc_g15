@@ -42,25 +42,37 @@ mock_g15_CPPFLAGS = \
 # Compiler flags for tests
 test_unit_g15_CFLAGS = \
 	$(AM_CFLAGS) \
-	-Wall -Wextra -std=c11 -g -O0
+	-Wall -Wextra -std=c11 -g -O0 \
+	-fsanitize=address -fsanitize=leak -fno-omit-frame-pointer
 
 test_integration_g15_CFLAGS = \
 	$(AM_CFLAGS) \
-	-Wall -Wextra -std=c11 -g -O0
+	-Wall -Wextra -std=c11 -g -O0 \
+	-fsanitize=address -fsanitize=leak -fno-omit-frame-pointer
 
 mock_g15_CFLAGS = \
 	$(AM_CFLAGS) \
-	-Wall -Wextra -std=c11 -g -O0
+	-Wall -Wextra -std=c11 -g -O0 \
+	-fsanitize=address -fsanitize=leak -fno-omit-frame-pointer
 
 # Link with shared libraries if needed
 test_unit_g15_LDADD = \
 	$(top_builddir)/shared/libLCDstuff.a
 
+test_unit_g15_LDFLAGS = \
+	-fsanitize=address -fsanitize=leak
+
 test_integration_g15_LDADD = \
 	$(top_builddir)/shared/libLCDstuff.a
 
+test_integration_g15_LDFLAGS = \
+	-fsanitize=address -fsanitize=leak
+
 mock_g15_LDADD = \
 	$(top_builddir)/shared/libLCDstuff.a
+
+mock_g15_LDFLAGS = \
+	-fsanitize=address -fsanitize=leak
 
 # Run tests with 'make check'
 TESTS = $(check_PROGRAMS)
@@ -72,7 +84,7 @@ TESTS = $(check_PROGRAMS)
 EXTRA_DIST = README.md
 
 # Custom test targets for convenience
-.PHONY: test-verbose test-g15 test-g510 test-scenarios test-scenario-detection test-scenario-rgb test-scenario-macros test-scenario-failures test-memcheck test-coverage test-compilers test-full test-integration test-mock test-server test-clients test-e2e
+.PHONY: test-verbose test-g15 test-g510 test-scenarios test-scenario-detection test-scenario-rgb test-scenario-macros test-scenario-failures test-memcheck test-coverage test-compilers test-full test-integration test-integration-g15 test-integration-input test-integration-all test-mock test-server test-clients test-e2e
 
 # Run tests with verbose output
 test-verbose: $(check_PROGRAMS)
@@ -114,17 +126,32 @@ test-scenario-failures: $(check_PROGRAMS)
 	@./test_unit_g15 --test-failures || true
 	@echo ""
 
-# Memory leak detection (valgrind required)
+# Memory leak detection (AddressSanitizer - built-in)
 test-memcheck: $(check_PROGRAMS)
-	@echo "🔍 Running memory leak detection..."
-	@if command -v valgrind >/dev/null 2>&1; then \
-		echo "Running valgrind memory analysis..."; \
-		valgrind --leak-check=full --error-exitcode=1 --quiet ./test_unit_g15 > /dev/null 2>&1 && \
-		echo "✅ No memory leaks detected" || \
-		{ echo "❌ Memory issues detected - run manually: valgrind --leak-check=full ./test_unit_g15"; exit 1; }; \
+	@echo "🔍 Running memory leak detection with AddressSanitizer..."
+	@echo "=========================================================="
+	@echo "ℹ️  Tests are compiled with -fsanitize=address -fsanitize=leak"
+	@echo "ℹ️  ASan will automatically detect memory leaks and errors"
+	@echo ""
+	@if ASAN_OPTIONS=detect_leaks=1 ./test_unit_g15 2>&1 | tee /tmp/asan.out; then \
+		if grep -q "LeakSanitizer" /tmp/asan.out 2>/dev/null; then \
+			echo ""; \
+			echo "❌ Memory leaks detected! See output above for details"; \
+			exit 1; \
+		else \
+			echo ""; \
+			echo "✅ No memory leaks detected"; \
+		fi; \
 	else \
-		echo "❌ valgrind not installed - install with: sudo pacman -S valgrind"; \
-		exit 1; \
+		if grep -q "LeakSanitizer" /tmp/asan.out 2>/dev/null; then \
+			echo ""; \
+			echo "❌ Memory leaks detected! See output above for details"; \
+			exit 1; \
+		else \
+			echo ""; \
+			echo "❌ Tests failed - see output above"; \
+			exit 1; \
+		fi; \
 	fi
 
 # Test coverage analysis (requires llvm and gcovr)
@@ -195,12 +222,7 @@ test-full: $(check_PROGRAMS)
 	@$(MAKE) check
 	@echo ""
 	@echo "2️⃣ Memory leak detection:"
-	@if [ "$$CI" = "true" ]; then \
-		echo "⚠️  Memory leak detection skipped in CI environment"; \
-		echo "CI containers have known valgrind issues"; \
-	else \
-		$(MAKE) test-memcheck; \
-	fi
+	@$(MAKE) test-memcheck
 	@echo ""
 	@echo "🎉 Comprehensive test suite completed successfully!"
 
@@ -236,11 +258,52 @@ test-integration: test_integration_g15 mock_g15
 		exit 1; \
 	fi
 
+# G15/G510 hardware integration tests
+test-integration-g15: test_integration_g15 mock_g15
+	@echo "🎮 Running G15/G510 hardware integration tests..."
+	@echo "================================================"
+	@echo "⚠️  This requires actual G15/G510 hardware connected"
+	@./test_integration_g15 --hardware-g15 || { \
+		echo "❌ G15 hardware integration tests failed!"; \
+		echo "💡 Make sure G15/G510 hardware is connected"; \
+		exit 1; \
+	}
+
+# Linux input driver integration tests
+test-integration-input: test_integration_g15 mock_g15
+	@echo "⌨️  Running Linux input driver integration tests..."
+	@echo "=================================================="
+	@echo "Testing input device detection and key handling..."
+	@./test_integration_g15 --input-driver || { \
+		echo "❌ Linux input driver integration tests failed!"; \
+		exit 1; \
+	}
+
+# Comprehensive integration tests (all drivers)
+test-integration-all: test_integration_g15 mock_g15
+	@echo "🚀 Running comprehensive integration tests (all drivers)..."
+	@echo "=========================================================="
+	@echo "Testing: Debug driver, G15 hardware, Linux input..."
+	@./test_integration_g15 --all-drivers || { \
+		echo "❌ Comprehensive integration tests failed!"; \
+		exit 1; \
+	}
+
 # Run only the mock server for debugging
 test-mock: mock_g15
 	@echo "🎮 Starting G15 integration mock server..."
-	@echo "Press Ctrl+C to stop"
-	@./mock_g15
+	@./mock_g15 & \
+	SERVER_PID=$$!; \
+	sleep 2; \
+	if kill -0 $$SERVER_PID 2>/dev/null; then \
+		echo "✅ Mock server started successfully"; \
+		kill $$SERVER_PID 2>/dev/null; \
+		wait $$SERVER_PID 2>/dev/null; \
+		echo "✅ Test completed successfully"; \
+	else \
+		echo "❌ Mock server failed to start"; \
+		exit 1; \
+	fi
 
 # Test only server components
 test-server: test_integration_g15
@@ -257,6 +320,52 @@ test-e2e: test-integration
 	@echo "🔄 Running end-to-end integration tests..."
 	@echo "Full server + client + mock hardware workflow"
 	@$(MAKE) test-integration
+
+# ThreadSanitizer (TSan) - Race condition detection
+test-tsan:
+	@echo "🧵 Building with ThreadSanitizer (TSan)..."
+	@echo "========================================="
+	@echo "⚠️  This will rebuild the entire project with -fsanitize=thread"
+	@echo ""
+	@echo "🔧 Cleaning previous build..."
+	@cd .. && $(MAKE) -f GNUmakefile distclean >/dev/null 2>&1 || true
+	@echo "🔧 Setting up autotools..."
+	@cd .. && $(MAKE) -f GNUmakefile setup-autotools
+	@echo "🔧 Configuring with TSan flags..."
+	@cd .. && ./configure \
+		CFLAGS="-g -O1 -fsanitize=thread -fno-omit-frame-pointer" \
+		LDFLAGS="-fsanitize=thread" \
+		--enable-drivers=g15,linux_input,debug \
+		--enable-libusb \
+		--enable-debug \
+		--prefix=/usr \
+		--sysconfdir=/etc \
+		--sbindir=/usr/bin
+	@echo "🔨 Building with TSan..."
+	@cd .. && $(MAKE) -f Makefile
+	@echo ""
+	@echo "✅ TSan build complete!"
+	@echo "📝 Run 'make test-tsan-quick' to test with current build"
+	@echo "📝 Or manually run: ./clients/lcdproc/lcdproc -f"
+
+test-tsan-quick:
+	@echo "🧵 Running tests with ThreadSanitizer..."
+	@echo "========================================"
+	@if ! ldd ../clients/lcdproc/lcdproc 2>/dev/null | grep -q "libtsan"; then \
+		echo "❌ Not built with ThreadSanitizer!"; \
+		echo "💡 Run 'make test-tsan' first to build with TSan"; \
+		exit 1; \
+	fi
+	@echo "Testing lcdproc client for race conditions..."
+	@echo ""
+	@echo "⚠️  Starting lcdproc in foreground mode (5 seconds)..."
+	@echo "⚠️  Press Ctrl+C to stop, or wait for timeout"
+	@echo ""
+	@timeout 5 ../clients/lcdproc/lcdproc -f -c ../clients/lcdproc/lcdproc.conf 2>&1 || true
+	@echo ""
+	@echo "✅ TSan test completed!"
+	@echo "📝 Check output above for any race condition warnings"
+	@echo "📝 For interactive testing: ../clients/lcdproc/lcdproc -f"
 
 # All targets are now managed via root Makefile help
 # Use 'make help' from project root for complete command list
