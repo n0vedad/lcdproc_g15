@@ -49,7 +49,7 @@ pkg/
 core
 *.core
 *.debug
-gdb.txt
+*.txt
 compile_commands.json
 
 # Temporary/backup files
@@ -110,3 +110,7 @@ test-driver
 coverage.xml
 coverage.html
 coverage.info
+
+# Doxygen
+docs/Doxyfile
+docs/html

@@ -3,7 +3,7 @@
 ## set automake strictness to 'foreign'
 AUTOMAKE_OPTIONS = foreign
 
-SUBDIRS = shared clients server services .
+SUBDIRS = shared clients server services tests .
 
 EXTRA_DIST =
 
@@ -27,11 +27,11 @@ distclean-local:
 	-rm -f test-driver stamp-h1
 	-rm -f Makefile.am.backup configure.ac.backup
 	-if [ -f .git/hooks/pre-commit ]; then \
-		echo -e "\033[0;34m🧹 Removing git hooks...\033[0m"; \
+		printf "\033[0;34m🧹 Removing git hooks...\033[0m\n"; \
 		rm -f .git/hooks/pre-commit; \
-		echo -e "\033[0;32m✓ Git hooks removed\033[0m"; \
+		printf "\033[0;32m✓ Git hooks removed\033[0m\n"; \
 	else \
-		echo -e "\033[1;33m⚠ No git hooks to remove\033[0m"; \
+		printf "\033[1;33m⚠ No git hooks to remove\033[0m\n"; \
 	fi
 	-rm -f tests/Makefile.am tests/Makefile.in tests/Makefile tests/test-driver
 	-rm -f tests/test_g15 tests/*.o tests/*.log tests/*.trs tests/test-suite.log
@@ -43,7 +43,7 @@ distclean-local:
 
 ## convenience targets
 
-.PHONY: $(SUBDIRS) install-server install-clients format format-check format-before-build help test-full test-ci
+.PHONY: $(SUBDIRS) install-server install-clients format format-check format-before-build help test-full test-ci test-integration test-integration-g15 test-integration-input test-integration-all test-mock
 
 # Format code before any compilation starts - handled by GNUmakefile
 # all-recursive: format-before-build (disabled - GNUmakefile handles this)
@@ -66,13 +66,13 @@ install-clients: clients
 ## Code formatting targets
 format:
 	@if [ ! -f .git/hooks/pre-commit ]; then \
-		echo -e "\033[0;31m❌ Code formatting is not enabled\033[0m"; \
-		echo -e "\033[1;33m💡 Enable with: make distclean && make dev\033[0m"; \
+		printf "\033[0;31m❌ Code formatting is not enabled\033[0m\n"; \
+		printf "\033[1;33m💡 Enable with: make distclean && make dev\033[0m\n"; \
 		exit 1; \
 	fi
 	@if ! command -v clang-format >/dev/null 2>&1; then \
-		echo -e "\033[0;31m❌ clang-format not available\033[0m"; \
-		echo -e "\033[1;33m💡 Install with: sudo pacman -S clang\033[0m"; \
+		printf "\033[0;31m❌ clang-format not available\033[0m\n"; \
+		printf "\033[1;33m💡 Install with: sudo pacman -S clang\033[0m\n"; \
 		exit 1; \
 	fi
 	@echo "🔍 Checking if formatting is needed..."
@@ -106,8 +106,8 @@ format:
 
 format-check:
 	@if [ ! -f .git/hooks/pre-commit ]; then \
-		echo -e "\033[0;31m❌ Code formatting is not enabled\033[0m"; \
-		echo -e "\033[1;33m💡 Enable with: make distclean && make dev\033[0m"; \
+		printf "\033[0;31m❌ Code formatting is not enabled\033[0m\n"; \
+		printf "\033[1;33m💡 Enable with: make distclean && make dev\033[0m\n"; \
 		exit 1; \
 	fi
 	@echo "Checking C code formatting..."
@@ -123,14 +123,9 @@ format-check:
 	fi; \
 	echo "Checking Markdown/JSON/Shell formatting..."; \
 	prettier_exit=0; \
-	if [ ! -f package-lock.json ]; then \
-		echo "❌ Prettier dependencies missing (no package-lock.json found)"; \
-		echo -e "\033[1;33m💡 Install with: make distclean && make dev\033[0m"; \
-		prettier_exit=1; \
-	elif ! command -v npx >/dev/null 2>&1; then \
-		echo "❌ npx command not available"; \
-		echo "💡 Install npm: sudo pacman -S npm"; \
-		prettier_exit=1; \
+	if ! command -v npx >/dev/null 2>&1; then \
+		echo "ℹ️  Skipping Markdown/JSON formatting (npx not available - optional)"; \
+		prettier_exit=0; \
 	else \
 		prettier_issues=$$(npx prettier --check "**/*.{md,json,sh}" 2>&1 | grep -E "\.md$$|\.json$$|\.sh$$" || true); \
 		if [ -z "$$prettier_issues" ]; then \
@@ -149,8 +144,8 @@ format-check:
 ## Static analysis targets
 lint:
 	@if [ ! -f .git/hooks/pre-commit ]; then \
-		echo -e "\033[0;31m❌ Code formatting is not enabled\033[0m"; \
-		echo -e "\033[1;33m💡 Enable with: make distclean && make dev\033[0m"; \
+		printf "\033[0;31m❌ Code formatting is not enabled\033[0m\n"; \
+		printf "\033[1;33m💡 Enable with: make distclean && make dev\033[0m\n"; \
 		exit 1; \
 	fi
 	@echo "Running clang-tidy static analysis..."
@@ -177,8 +172,8 @@ lint:
 
 lint-fix:
 	@if [ ! -f .git/hooks/pre-commit ]; then \
-		echo -e "\033[0;31m❌ Code formatting is not enabled\033[0m"; \
-		echo -e "\033[1;33m💡 Enable with: make distclean && make dev\033[0m"; \
+		printf "\033[0;31m❌ Code formatting is not enabled\033[0m\n"; \
+		printf "\033[1;33m💡 Enable with: make distclean && make dev\033[0m\n"; \
 		exit 1; \
 	fi
 	@echo "Auto-fixing clang-tidy issues..."
@@ -202,5 +197,9 @@ lint-fix:
 
 # Standard autotools targets work automatically through SUBDIRS
 # test-full, test-ci etc. are handled by GNUmakefile for development-only features
+
+# Integration test delegation to tests subdirectory
+test-integration test-integration-g15 test-integration-input test-integration-all test-mock:
+	$(MAKE) -C tests $@
 
 ## EOF

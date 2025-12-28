@@ -6,7 +6,7 @@ bin_PROGRAMS = lcdexec
 
 lcdexec_SOURCES = lcdexec.c menu.c menu.h
 
-lcdexec_LDADD = ../../shared/libLCDstuff.a
+lcdexec_LDADD = ../../shared/libLCDstuff.a @POPT_LIBS@
 
 AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/shared -DSYSCONFDIR=\"$(sysconfdir)\" -DPIDFILEDIR=\"$(pidfiledir)\"
 

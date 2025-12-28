@@ -87,3 +87,21 @@ LICENSE*
 /server/LCDd.conf
 /clients/lcdproc/lcdproc.conf
 /clients/lcdexec/lcdexec.conf
+
+# Code formatting config files (preserve exact formatting)
+.clang-format
+.clang-tidy
+.prettierrc
+
+# Git and project files (preserve exact formatting)
+.gitignore
+.gitattributes
+.github/
+
+# Package/distribution files (preserve exact formatting)
+PKGBUILD
+*.install
+
+# Generated documentation
+docs/html/
+docs/latex/

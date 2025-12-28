@@ -4,7 +4,7 @@
 #
 # This configuration is released under the same license as the project (GPL v2)
 
-# Based on Linux Kernel style with modifications for lcdproc
+# Based on LLVM style with Linux Kernel modifications
 BasedOnStyle: LLVM
 IndentWidth: 8
 UseTab: Always
@@ -12,13 +12,8 @@ TabWidth: 8
 ColumnLimit: 100
 BreakBeforeBraces: Linux
 PointerAlignment: Right
-SpaceAfterCStyleCast: false
-AlignConsecutiveAssignments: false
-AlignConsecutiveDeclarations: false
 AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
 AllowShortBlocksOnASingleLine: false
-BinPackParameters: false
-BinPackArguments: false
-# Force comments to separate lines, not at end of code lines
-CommentPragmas: '^$'
+InsertNewlineAtEOF: true
+IndentCaseLabels: false
