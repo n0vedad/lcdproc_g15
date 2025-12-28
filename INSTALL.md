@@ -14,7 +14,7 @@ This section explains the purpose of each directory and file in the repository:
   - `server/drivers/g15.c` - G15/G510 keyboard hardware driver
   - `server/drivers/hidraw_lib.*` - HID device communication library
   - `server/drivers/debug.c` - Debug driver for testing without hardware
-  - `LCDd.c` - Main daemon entry point
+  - `server/main.c` - Main daemon entry point
 
 - **`services/`** - Systemd service files for automatic startup
   - `lcdd.service` - LCDd daemon service
@@ -71,8 +71,8 @@ This section explains the purpose of each directory and file in the repository:
 - **`INSTALL.md`** - Detailed installation and configuration instructions
 - **`CONTRIBUTING.md`** - Development workflow, coding standards, testing guidelines
 - **`FAQ.md`** - Frequently asked questions and troubleshooting
-- **`tests/README.md`** - Detailed testing documentation and usage guide
 - **`COPYING`** - GPL v2 license full text
+- **`tests/README.md`** - Detailed testing documentation and usage guide
 
 # PREREQUISITES
 
@@ -116,12 +116,32 @@ In order to compile/install LCDproc, you'll need the following programs:
 # Core build tools
 sudo pacman -S clang make autoconf automake
 
-# G15 hardware support
-sudo pacman -S libg15 libg15render libusb libftdi-compat
-
-# G-Key macro system
-sudo pacman -S ydotool
+# Base libraries (available in main repos)
+sudo pacman -S libusb libftdi-compat ydotool popt
 ```
+
+**G15 Hardware Support (AUR packages):**
+
+⚠️ **Important**: `libg15` and `libg15render` are **not available** in the main Arch repositories. You must install them from the AUR using one of these methods:
+
+```bash
+# Method 1: Using AUR helper (recommended)
+yay -S libg15 libg15render
+# OR: paru -S libg15 libg15render
+# OR: pamac install libg15 libg15render
+
+# Method 2: Manual AUR installation
+git clone https://aur.archlinux.org/libg15.git
+cd libg15 && makepkg -si && cd ..
+
+git clone https://aur.archlinux.org/libg15render.git
+cd libg15render && makepkg -si && cd ..
+```
+
+**Alternative sources for manual compilation:**
+
+- libg15: https://aur.archlinux.org/libg15.git or https://aur.archlinux.org/libg15-git.git
+- libg15render: https://aur.archlinux.org/libg15render.git or https://aur.archlinux.org/libg15render-git.git
 
 ## Installation
 
@@ -138,7 +158,7 @@ makepkg -si
 
 ### Manual Build
 
-#### **Standard Build Process**
+### Build for Development
 
 ```bash
 # Simple one-command build (recommended)
@@ -149,13 +169,16 @@ make setup-autotools
 
 # Standard configuration (production use)
 ./configure \
-  --prefix=/usr \                # Install base directory
---sbindir=/usr/bin \             # Server binaries to /usr/bin (not /usr/sbin)
---sysconfdir=/etc \              # Configuration files to /etc
---enable-libusb \                # Enable libusb support for G15 device communication
---enable-lcdproc-menus \         # Enable menu support in lcdproc client
---enable-stat-smbfs \            # Enable Samba filesystem statistics
---enable-drivers=g15,linux_input # Build G15 and input drivers
+
+| Option                               | Description                                        |
+| ------------------------------------ | -------------------------------------------------- |
+| --prefix=/usr                        | Install base directory                             |
+| --sbindir=/usr/bin                   | Server binaries to /usr/bin (not /usr/sbin)        |
+| --sysconfdir=/etc                    | Configuration files to /etc                        |
+| --enable-libusb                      | Enable libusb support for G15 device communication |
+| --enable-lcdproc-menus               | Enable menu support in lcdproc client              |
+| --enable-stat-smbfs                  | Enable Samba filesystem statistics                 |
+| --enable-drivers=g15,linux_input     | Build G15 and input drivers                        |
 
 # Build
 make
@@ -247,7 +270,7 @@ Once both LCDd server and lcdproc client are running with proper permissions:
 
 1. **Enter Recording Mode**: Press the `MR` key on your G15 keyboard
 2. **Select Target G-Key**: Press any G-key (G1-G18) to start recording for that key
-3. **Record Actions**: Type text, use mouse, or press keys - all input will be captured in real-time
+3. **Record Actions**: Type text or press keys - all input will be captured in real-time
 4. **Stop Recording**: Press `MR` again to stop and save the macro
 
 ### Playing a Macro
@@ -262,7 +285,8 @@ Once both LCDd server and lcdproc client are running with proper permissions:
 
 ### Macro Storage
 
-- Macros are automatically saved to `~/.config/lcdproc/g15_macros.json`
+- Macros are automatically saved to `/var/lib/lcdproc/.config/lcdproc/g15_macros.json`
+- System-wide storage ensures macros persist across user sessions
 - Pauses and special keys are preserved as separate actions
 
 # RGB BACKLIGHT CONFIGURATION
@@ -291,13 +315,13 @@ The keyboard supports RGB backlight control through two different methods:
 
 ### Starting The Server
 
-If you're in the LCDproc source directory, and have just built it, run:
+If you've installed the program successfully just run
 
 ```bash
-server/LCDd -c /etc/LCDd.conf
+sudo /usr/bin/LCDd -f -c /etc/LCDd.conf
 ```
 
-For security reasons, LCDd by default only accepts connections from localhost (`127.0.0.1`), it will not accept connections from other computers on your network / the Internet and the client tries to connect to a server located on localhost listening to port 13666. Fore more options use the `--help` flag.
+For security reasons, LCDd by default only accepts connections from localhost (`127.0.0.1`), it will not accept connections from other computers on your network / the Internet and the client tries to connect to a server located on localhost listening to port 13666.
 
 You can change this behaviour in the configuration files.
 
@@ -306,10 +330,9 @@ You can change this behaviour in the configuration files.
 Then, you'll need some clients. LCDproc comes with a few, of which the `lcdproc` client is the main client:
 
 ```bash
-clients/lcdproc/lcdproc -f C M T L
+/usr/bin/lcdproc -f -c /etc/lcdproc.conf
 ```
 
-This will run the LCDproc client, for example with the [C]pu, [M]emory, [T]ime, and [L]oad screens.
 The option `-f` causes it not to daemonize, but run in the foreground. Fore more options use the `--help` flag.
 
 ## Running automatically
