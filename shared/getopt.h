@@ -80,17 +80,21 @@ extern int optopt;
    one).  For long options that have a zero `flag' field, `getopt'
    returns the contents of the `val' field.  */
 
+/**
+ * \brief Long option structure for getopt_long()
+ * \details Describes a single long option for command-line parsing.
+ */
 struct option {
 #if defined __STDC__ && __STDC__
-	const char *name;
+	const char *name; ///< Long option name
 #else
-	char *name;
+	char *name; ///< Long option name
 #endif
 	/* has_arg can't be an enum because some compilers complain about
 	   type mismatches in all the code that assumes it is an int.  */
-	int has_arg;
-	int *flag;
-	int val;
+	int has_arg; ///< Argument requirement (no_argument, required_argument, optional_argument)
+	int *flag;   ///< If non-NULL, set *flag to val when option found
+	int val;     ///< Value to return or set in *flag
 };
 
 /* Names for the values of the `has_arg' field of `struct option'.  */
@@ -135,24 +139,14 @@ extern int getopt();
 #endif /* __GNU_LIBRARY__ */
 
 #ifndef __need_getopt
-extern int getopt_long(int __argc,
-		       char *const *__argv,
-		       const char *__shortopts,
-		       const struct option *__longopts,
-		       int *__longind);
-extern int getopt_long_only(int __argc,
-			    char *const *__argv,
-			    const char *__shortopts,
-			    const struct option *__longopts,
-			    int *__longind);
+extern int getopt_long(int __argc, char *const *__argv, const char *__shortopts,
+		       const struct option *__longopts, int *__longind);
+extern int getopt_long_only(int __argc, char *const *__argv, const char *__shortopts,
+			    const struct option *__longopts, int *__longind);
 
 /* Internal only.  Users should not call this directly.  */
-extern int _getopt_internal(int __argc,
-			    char *const *__argv,
-			    const char *__shortopts,
-			    const struct option *__longopts,
-			    int *__longind,
-			    int __long_only);
+extern int _getopt_internal(int __argc, char *const *__argv, const char *__shortopts,
+			    const struct option *__longopts, int *__longind, int __long_only);
 #endif
 #else /* not ((defined __STDC__ && __STDC__) || defined PROTOTYPES) */
 extern int getopt();

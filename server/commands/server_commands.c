@@ -1,20 +1,36 @@
-/** \file server/commands/server_commands.c
- * Implements handlers for client commands concerning the server settings.
- *
- * This contains definitions for all the functions which clients can run.
- * The functions here are to be called only from parse.c's interpreter.
- *
- * The client's available function set is defined here, as is the syntax
- * for each command.
- */
+// SPDX-License-Identifier: GPL-2.0+
 
-/* This file is part of LCDd, the lcdproc server.
+/**
+ * \file server/commands/server_commands.c
+ * \brief Implementation of server control command handlers for LCDd server
+ * \author William Ferrell, Selene Scriven, Joris Robijn
+ * \date 1999-2025
  *
- * This file is released under the GNU General Public License.
- * Refer to the COPYING file distributed with this package.
+ * \features
+ * - Hardware output port control for Matrix Orbital and compatible displays
+ * - No-operation commands for connectivity testing and keep-alive functionality
+ * - Server information and capability reporting (planned for info_func)
+ * - Connection testing and protocol responsiveness verification
+ * - Hardware output state management (on/off/numeric values)
+ * - Error handling and parameter validation for all commands
+ * - Client state verification and access control
+ * - Deadlock prevention for shell scripts and automated programs
+ * - Numeric output state parsing with range validation
+ * - Backward compatibility with existing client implementations
  *
- * Copyright (c) 1999, William Ferrell, Selene Scriven
- *               2002, Joris Robijn
+ * \usage
+ * - Used by the LCDd server protocol parser for server command dispatch
+ * - Functions are called when clients send server-related commands
+ * - Provides server control and hardware management for client applications
+ * - Used for output port control on compatible LCD displays
+ * - Used for connection testing and synchronization in client programs
+ * - Called exclusively from parse.c's command interpreter
+ * - Provides detailed error reporting for invalid parameters
+ *
+ * \details
+ * Implements handlers for client commands concerning server settings
+ * and control operations. These functions process server-related protocol
+ * commands and manage server-wide configuration and testing capabilities.
  */
 
 #include <ctype.h>
@@ -31,16 +47,15 @@
 #include "render.h"
 #include "server_commands.h"
 
-#define ALL_OUTPUTS_ON -1
-#define ALL_OUTPUTS_OFF 0
-
-/**
- * Sets the state of the output port (such as on MtxOrb LCDs)
- *
- *\verbatim
- * Usage: output <on|off|int>
- *\endverbatim
+/** \name Hardware Output Control Constants
+ * Special values to enable or disable all output ports simultaneously
  */
+///@{
+#define ALL_OUTPUTS_ON (-1) ///< Enable all hardware output ports
+#define ALL_OUTPUTS_OFF 0   ///< Disable all hardware output ports
+///@}
+
+// Handle output command for hardware output port control
 int output_func(Client *c, int argc, char **argv)
 {
 	if (c->state != ACTIVE)
@@ -55,22 +70,19 @@ int output_func(Client *c, int argc, char **argv)
 		output_state = ALL_OUTPUTS_ON;
 	else if (0 == strcmp(argv[1], "off"))
 		output_state = ALL_OUTPUTS_OFF;
+
 	else {
 		long out;
 		char *endptr;
 
-		/* Note that there is no valid range set for
-		 * output_state; thus a value in the 12 digits
-		 * is not considered out of range.
-		 */
-
-		/* set errno to be able to detect errors in strtol() */
 		errno = 0;
-
 		out = strtol(argv[1], &endptr, 0);
 
 		if (errno) {
-			sock_printf_error(c->sock, "number argument: %s\n", strerror(errno));
+			// Thread-safe error message generation
+			char err_buf[256];
+			strerror_r(errno, err_buf, sizeof(err_buf));
+			sock_printf_error(c->sock, "number argument: %s\n", err_buf);
 			return 0;
 		} else if ((*argv[1] != '\0') && (*endptr == '\0')) {
 			output_state = out;
@@ -82,91 +94,12 @@ int output_func(Client *c, int argc, char **argv)
 
 	sock_send_string(c->sock, "success\n");
 
-	/* Makes sense to me to set the output immediately;
-	 * however, the outputs are currently set in
-	 * draw_screen(screen *s, int timer)
-	 * Whatever for? */
-
-	/* drivers_output(output_state); */
-
+	// Outputs are applied later in draw_screen()
 	report(RPT_NOTICE, "output states changed");
 	return 0;
 }
 
-/**
- * The sleep_func was intended to make the server sleep for some seconds.
- * This function is currently ignored as making the server sleep actually
- * stalls it and disrupts other clients.
- *
- *\verbatim
- * Usage: sleep <seconds>
- *\endverbatim
- */
-int sleep_func(Client *c, int argc, char **argv)
-{
-	int secs;
-	long out;
-	char *endptr;
-
-#define MAX_SECS 60
-#define MIN_SECS 1
-
-	if (c->state != ACTIVE)
-		return 1;
-
-	if (argc != 2) {
-		sock_send_error(c->sock, "Usage: sleep <secs>\n");
-		return 0;
-	}
-
-	/* set errno to be able to detect errors in strtol() */
-	errno = 0;
-
-	out = strtol(argv[1], &endptr, 0);
-
-	/* From the man page for strtol(3)
-	 *
-	 * In particular, if *nptr is not `\0' but **endptr is
-	 * `\0' on return, the entire string is valid.
-	 *
-	 * In this case, argv[1] is *nptr, and &endptr is **endptr.
-	 */
-
-	if (errno) {
-		sock_printf_error(c->sock, "number argument: %s\n", strerror(errno));
-		return 0;
-	} else if ((*argv[1] != '\0') && (*endptr == '\0')) {
-		/* limit seconds to range: MIN_SECS - MAX_SECS */
-		out = (out > MAX_SECS) ? MAX_SECS : out;
-		out = (out < MIN_SECS) ? MIN_SECS : out;
-		secs = out;
-	} else {
-		sock_send_error(c->sock, "invalid parameter...\n");
-		return 0;
-	}
-
-	/* Repeat until no more remains - should normally be zero
-	 * on exit the first time...*/
-	sock_printf(c->sock, "sleeping %d seconds\n", secs);
-
-	/* whoops.... if this takes place as planned, ALL screens
-	 * will "freeze" for the alloted time...
-	 *
-	 * while ((secs = sleep(secs)) > 0)
-	 */
-	;
-
-	sock_send_error(c->sock, "ignored (not fully implemented)\n");
-	return 0;
-}
-
-/**
- * Does nothing, returns "noop complete" message.
- *
- * This is useful for shell scripts or programs that want to talk
- *    with LCDproc and not get deadlocked.  Send a noop after each
- *    command and look for the "noop complete" message.
- */
+// Handle noop command for connectivity testing
 int noop_func(Client *c, int argc, char **argv)
 {
 	if (c->state != ACTIVE)

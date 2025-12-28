@@ -1,12 +1,27 @@
-/** \file shared/str.c
- * Commmand / argument parsing functions (for use in clients).
- */
+// SPDX-License-Identifier: GPL-2.0+
 
-/*-
- * This file is part of LCDproc.
+/**
+ * \file shared/str.c
+ * \brief Command and argument parsing utilities for LCDproc clients
+ * \author LCDproc Development Team
+ * \date Various years
  *
- * This file is released under the GNU General Public License.
- * Refer to the COPYING file distributed with this package.
+ * \features
+ * - String tokenization using whitespace delimiters
+ * - Safe argument array population with bounds checking
+ * - Support for parsing command-style input strings
+ * - Integration with the LCDproc reporting system
+ *
+ * \usage
+ * - Include str.h in your source files
+ * - Use get_args() to split command strings into argument arrays
+ * - Useful for parsing network commands and configuration input
+ *
+ * \details This file provides string parsing utilities primarily used by
+ * LCDproc clients for command line argument processing and string tokenization.
+ * It includes functions for splitting strings into argument arrays, which is
+ * useful for parsing commands received over network connections or from
+ * configuration files.
  */
 
 #include <stdio.h>
@@ -16,14 +31,7 @@
 #include "report.h"
 #include "str.h"
 
-/** Split elements of a string into an array of strings.
- * Elements are typically commands and arguments.
- * \param **argv    Pointer to the array which will store the arguments
- * \param *str      The string to be parsed
- * \param max_args  Number of arguments to parse (typically the size of argv)
- * \retval <0       Error.
- * \retval >=0      The number of arguments parsed.
- */
+// Split elements of a string into an array of strings for argument parsing
 int get_args(char **argv, char *str, int max_args)
 {
 	char *delimiters = " \n";
@@ -39,14 +47,20 @@ int get_args(char **argv, char *str, int max_args)
 
 	debug(RPT_DEBUG, "get_args(%i): string=%s", max_args, str);
 
-	/* Parse the command line... */
-	for (item = strtok(str, delimiters); item; item = strtok(NULL, delimiters)) {
+	// Tokenize string using strtok_r with whitespace delimiters
+	char *saveptr;
+	item = strtok_r(str, delimiters, &saveptr);
+	while (item != NULL) {
 		debug(RPT_DEBUG, "get_args: item=%s", item);
+
 		if (i < max_args) {
 			argv[i] = item;
 			i++;
-		} else
+		} else {
 			return i;
+		}
+
+		item = strtok_r(NULL, delimiters, &saveptr);
 	}
 
 	return i;
