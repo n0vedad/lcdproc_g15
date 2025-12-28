@@ -83,6 +83,7 @@ MODULE_EXPORT char *symbol_prefix = "g15_";    ///< Function symbol prefix for t
 ///@}
 
 void g15_close(Driver *drvthis);
+static void g15_pixmap_to_lcd(unsigned char *lcd_buffer, unsigned char const *data);
 
 /** \brief Supported Logitech G-Series keyboard USB device IDs
  *
@@ -198,6 +199,17 @@ MODULE_EXPORT int g15_init(Driver *drvthis)
 	if (p->has_rgb_backlight) {
 		g15_set_macro_leds(drvthis, 1, 0, 0, 0);
 	}
+
+	// CRITICAL: Send blank frame to force-clear hardware logo after USB reset
+	// The G510 shows a boot logo that can sometime persists until we send data
+	// Explicitly clear canvas and send it to overwrite the logo
+	g15r_clearScreen(&p->canvas, G15_COLOR_WHITE);
+	unsigned char lcd_buf[G15_LCD_OFFSET + 6 * G15_LCD_WIDTH];
+	memset(lcd_buf + 1, 0, G15_LCD_OFFSET - 1);
+	g15_pixmap_to_lcd(lcd_buf, p->canvas.buffer);
+	lib_hidraw_send_output_report(p->hidraw_handle, lcd_buf, sizeof(lcd_buf));
+	memcpy(p->backingstore.buffer, p->canvas.buffer, G15_BUFFER_LEN * sizeof(unsigned char));
+	report(RPT_INFO, "%s: Sent blank frame to force-clear hardware logo", drvthis->name);
 
 	return 0;
 }
