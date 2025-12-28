@@ -131,17 +131,21 @@ int xload_screen(int rep, int display, int *flags_ptr)
 	}
 
 	// Update title with current load value
+	// Ensure array bounds: lcd_wid - 2 must be within [0, LCD_MAX_WIDTH)
+	int load_index = min(lcd_wid - 2, LCD_MAX_WIDTH - 1);
+	load_index = max(0, load_index);
+
 	if (lcd_hgt > 2)
-		sock_printf(sock, "widget_set L title {LOAD %2.2f:%s}\n", loads[lcd_wid - 2],
+		sock_printf(sock, "widget_set L title {LOAD %2.2f:%s}\n", loads[load_index],
 			    get_hostname());
 	else
 		sock_printf(sock, "widget_set L title 1 1 {%s %2.2f}\n", get_hostname(),
-			    loads[lcd_wid - 2]);
+			    loads[load_index]);
 
 	// Backlight control based on load thresholds
 	if (lowLoad < highLoad) {
 		status = (loadmax > lowLoad) ? BACKLIGHT_ON : BACKLIGHT_OFF;
-		if (loads[lcd_wid - 2] > highLoad)
+		if (loads[load_index] > highLoad)
 			status = BLINK_ON;
 	}
 

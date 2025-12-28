@@ -261,6 +261,10 @@ char *sring_read_string(sring_buffer *buf)
 		return NULL;
 
 	dst_len = sring_getMaxRead(buf) - n;
+	// Ensure dst_len is positive before allocation
+	if (dst_len <= 0)
+		return NULL;
+
 	if ((dst = malloc(dst_len)) == NULL)
 		return NULL;
 
