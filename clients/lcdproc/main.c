@@ -61,6 +61,7 @@
 #include "main.h"
 #include "mem.h"
 #include "mode.h"
+#include "sysinfo.h"
 
 #ifdef LCDPROC_EYEBOXONE
 #include "eyebox.h"
@@ -82,6 +83,7 @@ static int protocol_minor_version = 0; ///< LCDd server protocol minor version
 static struct utsname unamebuf;	       ///< System information from uname()
 
 static void HelpScreen(int exit_state);
+static void output_GPL_notice(void);
 static void exit_program(int val);
 static void main_loop(void);
 static int process_configfile(char *cfgfile);
@@ -135,6 +137,7 @@ ScreenMode sequence[] = {
     {"Memory", 'M', 4, 16, 0, 0xffff, ACTIVE, mem_screen},
     {"Load", 'L', 64, 128, 1, 0xffff, ACTIVE, xload_screen},
     {"TimeDate", 'T', 4, 64, 0, 0xffff, ACTIVE, time_screen},
+    {"SysInfo", 'Y', 4, 64, 0, 0xffff, 0, sysinfo_screen},
     {"About", 'A', 999, 9999, 0, 0xffff, ACTIVE, credit_screen},
     {"SMP-CPU", 'P', 1, 2, 0, 0xffff, 0, cpu_smp_screen},
     {"OldTime", 'O', 4, 64, 0, 0xffff, 0, clock_screen},
@@ -265,6 +268,7 @@ int main(int argc, char **argv)
 	char *server_arg = NULL;
 	int port_arg = 0;
 	int delay_arg = -1;
+	int report_arg = -1;
 
 	struct poptOption optionsTable[] = {
 	    {"help", 'h', POPT_ARG_NONE, &help, 0, "Display help information", NULL},
@@ -276,6 +280,8 @@ int main(int argc, char **argv)
 	    {"port", 'p', POPT_ARG_INT, &port_arg, 0, "Set LCDd server port number", "PORT"},
 	    {"delay", 'e', POPT_ARG_INT, &delay_arg, 0, "Set update delay between screen refreshes",
 	     "SECONDS"},
+	    {"reportlevel", 'r', POPT_ARG_INT, &report_arg, 0,
+	     "Set report level (1=critical, 2=error, 3=warning, 4=info, 5=debug)", "LEVEL"},
 	    {"foreground", 'f', POPT_ARG_NONE, &foreground, 0, "Run in foreground", NULL},
 	    POPT_AUTOHELP POPT_TABLEEND};
 
@@ -326,6 +332,16 @@ int main(int argc, char **argv)
 		islow = delay_arg;
 	}
 
+	if (report_arg >= 0) {
+		if (report_arg >= 0 && report_arg <= 5) {
+			report_level = report_arg;
+		} else {
+			fprintf(stderr, "Illegal report level %d (must be 0-5)\n", report_arg);
+			poptFreeContext(optcon);
+			exit(EXIT_FAILURE);
+		}
+	}
+
 	// Get remaining arguments for mode selection
 	const char **leftover_args = poptGetArgs(optcon);
 	int leftover_count = 0;
@@ -357,6 +373,11 @@ int main(int argc, char **argv)
 		report_level = DEFAULT_REPORTLEVEL;
 
 	set_reporting("lcdproc", report_level, report_dest);
+
+	// Show GPL notice only at INFO level or higher (not for ERROR/WARNING)
+	if (foreground && report_level >= RPT_INFO) {
+		output_GPL_notice();
+	}
 
 	if (leftover_count > 0) {
 		int i;
@@ -541,6 +562,24 @@ static int process_configfile(char *configfile)
 }
 
 /**
+ * \brief Print GPL license notice to stderr
+ *
+ * \details Displays lcdproc version, copyright, and GPL license terms
+ * when client runs in foreground mode with report level >= INFO.
+ */
+static void output_GPL_notice(void)
+{
+	fprintf(stderr, "lcdproc %s, LCDproc Protocol %s\n", VERSION, PROTOCOL_VERSION);
+	fprintf(stderr, "Copyright (C) 1999-2017 Selene Scriven, William Ferrell\n"
+			"                        and many other contributors\n\n");
+
+	fprintf(stderr, "This program is free software; you can redistribute it and/or\n"
+			"modify it under the terms of the GNU General Public License\n"
+			"as published by the Free Software Foundation; either version 2\n"
+			"of the License, or (at your option) any later version.\n\n");
+}
+
+/**
  * \brief Display help screen and exit program
  * \param exit_state Exit code (EXIT_SUCCESS or EXIT_FAILURE)
  *
@@ -562,6 +601,7 @@ void HelpScreen(int exit_state)
 		"    -f                  run in foreground\n"
 		"    -e <delay>          slow down initial announcement of screens (in 1/100s)\n"
 		"    -c <config>         use a configuration file other than %s\n"
+		"    -r <level>          set report level (0-5: 0=critical, 5=debug)\n"
 		"    -h                  show this help screen\n"
 		"    -v                  display program version\n"
 		"  and <screens> are\n"

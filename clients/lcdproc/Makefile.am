@@ -4,7 +4,7 @@ sysconf_DATA = lcdproc.conf
 
 bin_PROGRAMS = lcdproc
 
-lcdproc_SOURCES = main.c main.h mode.c mode.h batt.c batt.h chrono.c chrono.h cpu.c cpu.h cpu_smp.c cpu_smp.h disk.c disk.h load.c load.h mem.c mem.h eyebox.c eyebox.h machine.h machine.c util.c util.h iface.c iface.h gkey_macro.c gkey_macro.h
+lcdproc_SOURCES = main.c main.h mode.c mode.h batt.c batt.h chrono.c chrono.h cpu.c cpu.h cpu_smp.c cpu_smp.h disk.c disk.h load.c load.h mem.c mem.h eyebox.c eyebox.h machine.h machine.c util.c util.h iface.c iface.h gkey_macro.c gkey_macro.h sysinfo.c sysinfo.h
 
 lcdproc_LDADD = ../../shared/libLCDstuff.a -lpthread @POPT_LIBS@
 
