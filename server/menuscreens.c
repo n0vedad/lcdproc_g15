@@ -583,8 +583,8 @@ void menuscreen_create_menu(void)
 					    backlight);
 	menu_add_item(options_menu, checkbox);
 
-	slider = menuitem_create_slider("titlespeed", titlespeed_handler, "TitleSpeed", NULL, "0",
-					"10", TITLESPEED_NO, TITLESPEED_MAX, 1, titlespeed);
+	slider = menuitem_create_slider("titlespeed", titlespeed_handler, "TitleSpeed", NULL, "1",
+					"10", TITLESPEED_MIN, TITLESPEED_MAX, 1, titlespeed);
 	menu_add_item(options_menu, slider);
 
 	// Create driver-specific submenus: iterate through all loaded drivers, check for contrast

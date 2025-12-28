@@ -272,6 +272,12 @@ int main(int argc, char **argv)
 	set_reporting("LCDd", report_level, report_dest);
 	report(RPT_INFO, "Set report level to %d, output to %s", report_level,
 	       ((report_dest == RPT_DEST_SYSLOG) ? "syslog" : "stderr"));
+
+	// Show GPL notice early (before CHAIN_END) if in foreground mode with INFO+ level
+	if (foreground_mode && report_level >= RPT_INFO) {
+		output_GPL_notice();
+	}
+
 	CHAIN_END(e, "Critical error while processing settings, abort.");
 
 	// Daemon mode requires forking before driver init to preserve LPT port access
@@ -279,7 +285,6 @@ int main(int argc, char **argv)
 		report(RPT_INFO, "Server forking to background");
 		CHAIN(e, parent_pid = daemonize());
 	} else {
-		output_GPL_notice();
 		report(RPT_INFO, "Server running in foreground");
 	}
 
@@ -567,7 +572,7 @@ static int process_configfile(char *configfile)
 	if (titlespeed == UNSET_INT) {
 		int speed = config_get_int("Server", "TitleSpeed", 0, DEFAULT_TITLESPEED);
 
-		titlespeed = (speed <= TITLESPEED_NO) ? TITLESPEED_NO : min(speed, TITLESPEED_MAX);
+		titlespeed = (speed < TITLESPEED_MIN) ? TITLESPEED_MIN : min(speed, TITLESPEED_MAX);
 	}
 
 	frame_interval = config_get_int("Server", "FrameInterval", 0, DEFAULT_FRAME_INTERVAL);
