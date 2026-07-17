@@ -2,10 +2,6 @@
 
 This is the official repository for the LCDproc project.
 
-_Note: this project is currently being migrated from Sourceforge. Documentation
-is still being updated to reflect this and we're still getting our bearings here
-on GitHub, so please excuse the dust while we set up shop._
-
 # Introduction
 
 LCDproc is a client/server suite including drivers for all kinds of nifty LCD
