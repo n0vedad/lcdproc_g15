@@ -117,6 +117,12 @@ distclean:
 		rm -rf node_modules; \
 		printf "$(GREEN)✓ node_modules removed$(NC)\n"; \
 	fi; \
+	if [ -d docs/html ] || [ -f docs/Doxyfile ]; then \
+		printf "$(YELLOW)Removing generated documentation...$(NC)\n"; \
+		rm -rf docs/html docs/latex; \
+		rm -f docs/Doxyfile; \
+		printf "$(GREEN)✓ Documentation files removed$(NC)\n"; \
+	fi; \
 	autotools_files=$$(ls config.h config.log config.status Makefile aclocal.m4 configure 2>/dev/null | head -1); \
 	if [ -n "$$autotools_files" ]; then \
 		printf "$(YELLOW)Removing autotools files...$(NC)\n"; \
