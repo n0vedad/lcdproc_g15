@@ -9,6 +9,7 @@
  * \features
  * - Device detection and hardware capability identification
  * - RGB backlight control validation for supported models
+ * - LED sysfs color writes (multicolor LED API and legacy "color" fallback)
  * - G-Key macro recording and playback functionality
  * - Error handling and edge case validation
  * - Debug driver integration testing
@@ -19,11 +20,17 @@
  * hardware capabilities
  */
 
+// mkdtemp() is not part of strict C11
+#define _DEFAULT_SOURCE
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
+#include "g15_led.h"
 #include "mock_hidraw_lib.h"
 
 /** \brief Backlight on state for G15 driver testing */
@@ -399,6 +406,80 @@ void test_rgb_methods(void)
 
 	cleanup_test_driver();
 	printf("✅ RGB methods test passed\n");
+}
+
+// Read a small text file without trailing newline, "" on error
+static const char *read_small_file(const char *path, char *buf, size_t size)
+{
+	FILE *f = fopen(path, "r");
+
+	buf[0] = '\0';
+	if (f == NULL)
+		return buf;
+
+	if (fgets(buf, (int)size, f) == NULL)
+		buf[0] = '\0';
+	fclose(f);
+
+	char *newline = strchr(buf, '\n');
+	if (newline != NULL)
+		*newline = '\0';
+
+	return buf;
+}
+
+// Test LED sysfs color writes (g15_led.h, the code the driver runs)
+static void test_led_sysfs_write(void)
+{
+	printf("🧪 Testing LED sysfs color writes...\n");
+
+	char dir[] = "/tmp/g15_led_test_XXXXXX";
+	char intensity_path[256];
+	char color_path[256];
+	char buf[64];
+
+	int result;
+	const char *tmp = mkdtemp(dir);
+	assert(tmp != NULL);
+	snprintf(intensity_path, sizeof(intensity_path), "%s/multi_intensity", dir);
+	snprintf(color_path, sizeof(color_path), "%s/color", dir);
+
+	// Linux >= 6.15: multicolor LED API takes "R G B", legacy attribute stays untouched
+	result = write_led_color(dir, 255, 0, 128);
+	assert(result == 0);
+	read_small_file(intensity_path, buf, sizeof(buf));
+	assert(strcmp(buf, "255 0 128") == 0);
+	result = access(color_path, F_OK);
+	assert(result != 0);
+	result = unlink(intensity_path);
+	assert(result == 0);
+
+	// Linux < 6.15: no multi_intensity, fall back to "#RRGGBB" in color.
+	// A directory in its place makes fopen() fail like a missing sysfs attribute.
+	result = mkdir(intensity_path, 0700);
+	assert(result == 0);
+	result = write_led_color(dir, 255, 0, 128);
+	assert(result == 0);
+	read_small_file(color_path, buf, sizeof(buf));
+	assert(strcmp(buf, "#ff0080") == 0);
+	result = rmdir(intensity_path);
+	assert(result == 0);
+	result = unlink(color_path);
+	assert(result == 0);
+
+	// No LED device at all
+	result = write_led_color("/nonexistent/g15::kbd_backlight", 1, 2, 3);
+	assert(result == -1);
+
+	// sysfs rejects values only when the buffer is flushed: fclose() errors must fail
+	result = write_led_file("/dev/full", "255");
+	assert(result == -1);
+
+	result = rmdir(dir);
+	assert(result == 0);
+	(void)tmp;
+	(void)result;
+	printf("✅ LED sysfs write test passed\n");
 }
 
 // Test RGB rejection on non-RGB devices (G15 Original/v2)
@@ -1023,6 +1104,12 @@ int main(int argc, char *argv[])
 			printf("📍 Running RGB methods test...\n");
 		tests_run++;
 		test_rgb_methods();
+		tests_passed++;
+
+		if (verbose_mode)
+			printf("📍 Running LED sysfs write test...\n");
+		tests_run++;
+		test_led_sysfs_write();
 		tests_passed++;
 
 		if (verbose_mode)
