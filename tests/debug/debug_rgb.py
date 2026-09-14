@@ -13,9 +13,9 @@ import os
 import sys
 
 LED_BRIGHTNESS = "/sys/class/leds/g15::kbd_backlight/brightness"
-LED_COLOR = "/sys/class/leds/g15::kbd_backlight/color"
+LED_DIR = "/sys/class/leds/g15::kbd_backlight"
 POWER_BRIGHTNESS = "/sys/class/leds/g15::power_on_backlight_val/brightness"
-POWER_COLOR = "/sys/class/leds/g15::power_on_backlight_val/color"
+POWER_DIR = "/sys/class/leds/g15::power_on_backlight_val"
 
 def read_file(path):
     """Read file content safely"""
@@ -25,13 +25,20 @@ def read_file(path):
     except:
         return "ERROR"
 
+def read_color(led_dir):
+    """Read color: multi_intensity ("R G B") since Linux 6.15, "color" (#RRGGBB) before"""
+    value = read_file(os.path.join(led_dir, "multi_intensity"))
+    if value == "ERROR":
+        value = read_file(os.path.join(led_dir, "color"))
+    return value
+
 def get_rgb_state():
     """Get current RGB state from all sources"""
     return {
         'kbd_brightness': read_file(LED_BRIGHTNESS),
-        'kbd_color': read_file(LED_COLOR),
+        'kbd_color': read_color(LED_DIR),
         'power_brightness': read_file(POWER_BRIGHTNESS),
-        'power_color': read_file(POWER_COLOR),
+        'power_color': read_color(POWER_DIR),
         'timestamp': time.strftime('%H:%M:%S.%f')[:-3]
     }
 

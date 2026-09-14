@@ -34,7 +34,7 @@ libLCD_a_SOURCES =   lcd_lib.h lcd_lib.c
 libbignum_a_SOURCES = adv_bignum.h  adv_bignum.c
 
 debug_SOURCES =      lcd.h debug.c debug.h
-g15_SOURCES =        lcd.h lcd_lib.h g15.h g15-num.c g15.c hidraw_lib.c hidraw_lib.h
+g15_SOURCES =        lcd.h lcd_lib.h g15.h g15_led.h g15-num.c g15.c hidraw_lib.c hidraw_lib.h
 linux_input_SOURCES = lcd.h linux_input.h linux_input.c
 
 

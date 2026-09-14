@@ -120,9 +120,9 @@ sudo python3 tests/debug/debug_rgb.py
 **Monitored Paths:**
 
 - `/sys/class/leds/g15::kbd_backlight/brightness`
-- `/sys/class/leds/g15::kbd_backlight/color`
+- `/sys/class/leds/g15::kbd_backlight/multi_intensity` (`color` on kernels before 6.15)
 - `/sys/class/leds/g15::power_on_backlight_val/brightness`
-- `/sys/class/leds/g15::power_on_backlight_val/color`
+- `/sys/class/leds/g15::power_on_backlight_val/multi_intensity` (`color` on kernels before 6.15)
 
 **Use Cases:**
 
