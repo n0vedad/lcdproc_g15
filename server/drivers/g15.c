@@ -67,6 +67,7 @@
 #include <libg15render.h>
 
 #include "g15.h"
+#include "g15_led.h"
 #include "lcd.h"
 
 #include "shared/defines.h"
@@ -76,10 +77,13 @@
  * Driver metadata exported to the LCDd server core
  */
 ///@{
+// Must keep external linkage: LCDd resolves these via dlsym() (driver_symbols in server/driver.c)
+// NOLINTBEGIN(misc-use-internal-linkage)
 MODULE_EXPORT char *api_version = API_VERSION; ///< Driver API version string
 MODULE_EXPORT int stay_in_foreground = 0;      ///< G15 driver can run as daemon
 MODULE_EXPORT int supports_multiple = 0;       ///< G15 driver does not support multiple instances
 MODULE_EXPORT char *symbol_prefix = "g15_";    ///< Function symbol prefix for this driver
+// NOLINTEND(misc-use-internal-linkage)
 ///@}
 
 void g15_close(Driver *drvthis);
@@ -376,7 +380,7 @@ MODULE_EXPORT void g15_flush(Driver *drvthis)
  * spacing to prevent descender collisions. Validates that the character cell fits
  * within display boundaries.
  */
-int g15_convert_coords(int x, int y, int *px, int *py)
+static int g15_convert_coords(int x, int y, int *px, int *py)
 {
 	*px = (x - 1) * G15_CELL_WIDTH;
 	*py = (y - 1) * G15_CELL_HEIGHT;
@@ -607,28 +611,6 @@ MODULE_EXPORT void g15_backlight(Driver *drvthis, int on)
 }
 
 /**
- * \brief Write value to LED subsystem file
- * \param path LED sysfs file path
- * \param value Value string to write
- * \retval 0 Success
- * \retval -1 Error (open or write failed)
- *
- * \details Opens LED control file, writes value, closes file.
- */
-static int write_led_file(const char *path, const char *value)
-{
-	FILE *f = fopen(path, "w");
-	if (!f) {
-		return -1;
-	}
-
-	int result = fprintf(f, "%s", value);
-	fclose(f);
-
-	return (result > 0) ? 0 : -1;
-}
-
-/**
  * \brief Set G510 RGB backlight via HID feature reports
  * \param drvthis Driver instance
  * \param red Red component (0-255)
@@ -681,22 +663,19 @@ static int g15_set_rgb_hid_reports(Driver *drvthis, int red, int green, int blue
  * \retval 0 Success
  * \retval -1 LED subsystem write failed
  *
- * \details Writes hex color in format \#RRGGBB to LED sysfs files.
+ * \details Writes the color to the LED sysfs devices, see write_led_color().
  */
 static int g15_set_rgb_led_subsystem(Driver *drvthis, int red, int green, int blue)
 {
-	char color_hex[8];
 	int result = 0;
 
-	snprintf(color_hex, sizeof(color_hex), "#%02x%02x%02x", red, green, blue);
-
-	if (write_led_file("/sys/class/leds/g15::kbd_backlight/color", color_hex) < 0) {
+	if (write_led_color("/sys/class/leds/g15::kbd_backlight", red, green, blue) < 0) {
 		report(RPT_ERR, "%s: Failed to set keyboard backlight color via LED subsystem",
 		       drvthis->name);
 		result = -1;
 	}
 
-	if (write_led_file("/sys/class/leds/g15::power_on_backlight_val/color", color_hex) < 0) {
+	if (write_led_color("/sys/class/leds/g15::power_on_backlight_val", red, green, blue) < 0) {
 		report(RPT_ERR, "%s: Failed to set power-on backlight color via LED subsystem",
 		       drvthis->name);
 		result = -1;
