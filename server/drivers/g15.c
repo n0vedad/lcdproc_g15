@@ -77,10 +77,13 @@
  * Driver metadata exported to the LCDd server core
  */
 ///@{
+// Must keep external linkage: LCDd resolves these via dlsym() (driver_symbols in server/driver.c)
+// NOLINTBEGIN(misc-use-internal-linkage)
 MODULE_EXPORT char *api_version = API_VERSION; ///< Driver API version string
 MODULE_EXPORT int stay_in_foreground = 0;      ///< G15 driver can run as daemon
 MODULE_EXPORT int supports_multiple = 0;       ///< G15 driver does not support multiple instances
 MODULE_EXPORT char *symbol_prefix = "g15_";    ///< Function symbol prefix for this driver
+// NOLINTEND(misc-use-internal-linkage)
 ///@}
 
 void g15_close(Driver *drvthis);
@@ -377,7 +380,7 @@ MODULE_EXPORT void g15_flush(Driver *drvthis)
  * spacing to prevent descender collisions. Validates that the character cell fits
  * within display boundaries.
  */
-int g15_convert_coords(int x, int y, int *px, int *py)
+static int g15_convert_coords(int x, int y, int *px, int *py)
 {
 	*px = (x - 1) * G15_CELL_WIDTH;
 	*py = (y - 1) * G15_CELL_HEIGHT;

@@ -38,7 +38,9 @@
 /** \brief Backlight off state for G15 driver testing */
 #define BACKLIGHT_OFF 0
 
-// Mock report function to suppress output during tests
+// Mock report function to suppress output during tests.
+// Must stay external: replaces report() from libLCDstuff.a (shared/report.c) at link time.
+// NOLINTNEXTLINE(misc-use-internal-linkage)
 void report(int level, const char *format, ...)
 {
 	(void)level;
@@ -82,13 +84,13 @@ typedef struct {
 } Driver;
 
 // Forward declarations for tested functions
-int g15_init_device_detection(Driver *drvthis);
-int g15_set_rgb_backlight(Driver *drvthis, int red, int green, int blue);
-int g15_set_rgb_led_subsystem(Driver *drvthis, int red, int green, int blue);
-int g15_set_rgb_hid_reports(Driver *drvthis, int red, int green, int blue);
-int g15_process_gkey_macro(Driver *drvthis, int gkey, int mode);
-int g15_start_macro_recording(Driver *drvthis, int gkey, int mode);
-int g15_stop_macro_recording(Driver *drvthis);
+static int g15_init_device_detection(Driver *drvthis);
+static int g15_set_rgb_backlight(Driver *drvthis, int red, int green, int blue);
+static int g15_set_rgb_led_subsystem(Driver *drvthis, int red, int green, int blue);
+static int g15_set_rgb_hid_reports(Driver *drvthis, int red, int green, int blue);
+static int g15_process_gkey_macro(Driver *drvthis, int gkey, int mode);
+static int g15_start_macro_recording(Driver *drvthis, int gkey, int mode);
+static int g15_stop_macro_recording(Driver *drvthis);
 
 // Debug driver private data structure
 typedef struct debug_private_data {
@@ -124,14 +126,14 @@ static void create_rgb_report(unsigned char *report, int red, int green, int blu
 }
 
 // Debug driver function declarations
-int debug_init(Driver *drvthis);
-void debug_close(Driver *drvthis);
-int debug_width(Driver *drvthis);
-int debug_height(Driver *drvthis);
-void debug_clear(Driver *drvthis);
-void debug_flush(Driver *drvthis);
-void debug_string(Driver *drvthis, int x, int y, const char string[]);
-int debug_chr(Driver *drvthis, int x, int y, char c);
+static int debug_init(Driver *drvthis);
+static void debug_close(Driver *drvthis);
+static int debug_width(Driver *drvthis);
+static int debug_height(Driver *drvthis);
+static void debug_clear(Driver *drvthis);
+static void debug_flush(Driver *drvthis);
+static void debug_string(Driver *drvthis, int x, int y, const char string[]);
+static int debug_chr(Driver *drvthis, int x, int y, char c);
 
 // Test fixture setup - G15 tests
 static Driver test_driver;
@@ -153,7 +155,7 @@ static int test_macros_only = 0;
 static int test_failures_only = 0;
 
 // Initialize test driver with clean state
-void setup_test_driver(void)
+static void setup_test_driver(void)
 {
 	memset(&test_driver, 0, sizeof(test_driver));
 	memset(&test_private_data, 0, sizeof(test_private_data));
@@ -163,7 +165,7 @@ void setup_test_driver(void)
 }
 
 // Clean up test driver and close handles
-void cleanup_test_driver(void)
+static void cleanup_test_driver(void)
 {
 	if (test_private_data.hidraw_handle) {
 		lib_hidraw_close(test_private_data.hidraw_handle);
@@ -195,7 +197,7 @@ static void print_verbose_test_config(void)
 }
 
 // Detect G-Series device and check RGB support
-int g15_init_device_detection(Driver *drvthis)
+static int g15_init_device_detection(Driver *drvthis)
 {
 	PrivateData *p = drvthis->private_data;
 
@@ -221,7 +223,7 @@ int g15_init_device_detection(Driver *drvthis)
 }
 
 // Set RGB backlight color via HID feature report
-int g15_set_rgb_backlight(Driver *drvthis, int red, int green, int blue)
+static int g15_set_rgb_backlight(Driver *drvthis, int red, int green, int blue)
 {
 	PrivateData *p = drvthis->private_data;
 
@@ -236,7 +238,7 @@ int g15_set_rgb_backlight(Driver *drvthis, int red, int green, int blue)
 }
 
 // Test G15 Original device detection without RGB support
-void test_g15_original_detection(void)
+static void test_g15_original_detection(void)
 {
 	printf("🧪 Testing G15 Original detection...\n");
 
@@ -253,7 +255,7 @@ void test_g15_original_detection(void)
 }
 
 // Test G15 v2 device detection without RGB support
-void test_g15_v2_detection(void)
+static void test_g15_v2_detection(void)
 {
 	printf("🧪 Testing G15 v2 detection...\n");
 
@@ -270,7 +272,7 @@ void test_g15_v2_detection(void)
 }
 
 // Test G510 device detection with RGB support
-void test_g510_detection(void)
+static void test_g510_detection(void)
 {
 	printf("🧪 Testing G510 detection...\n");
 
@@ -287,7 +289,7 @@ void test_g510_detection(void)
 }
 
 // Test G510s device detection with RGB support
-void test_g510s_detection(void)
+static void test_g510s_detection(void)
 {
 	printf("🧪 Testing G510s detection...\n");
 
@@ -305,7 +307,7 @@ void test_g510s_detection(void)
 }
 
 // Test handling of unknown G-Series device
-void test_unknown_device(void)
+static void test_unknown_device(void)
 {
 	printf("🧪 Testing unknown device handling...\n");
 
@@ -322,7 +324,7 @@ void test_unknown_device(void)
 }
 
 // Test device connection failure handling
-void test_device_failure(void)
+static void test_device_failure(void)
 {
 	printf("🧪 Testing device failure handling...\n");
 
@@ -338,7 +340,7 @@ void test_device_failure(void)
 }
 
 // Test RGB value boundary validation
-void test_rgb_validation(void)
+static void test_rgb_validation(void)
 {
 	printf("🧪 Testing RGB value validation...\n");
 
@@ -355,7 +357,7 @@ void test_rgb_validation(void)
 }
 
 // Set RGB color using LED subsystem method
-int g15_set_rgb_led_subsystem(Driver *drvthis, int red, int green, int blue)
+static int g15_set_rgb_led_subsystem(Driver *drvthis, int red, int green, int blue)
 {
 	PrivateData *p = drvthis->private_data;
 
@@ -372,7 +374,7 @@ int g15_set_rgb_led_subsystem(Driver *drvthis, int red, int green, int blue)
 }
 
 // Set RGB color using HID reports method
-int g15_set_rgb_hid_reports(Driver *drvthis, int red, int green, int blue)
+static int g15_set_rgb_hid_reports(Driver *drvthis, int red, int green, int blue)
 {
 	PrivateData *p = drvthis->private_data;
 
@@ -386,7 +388,7 @@ int g15_set_rgb_hid_reports(Driver *drvthis, int red, int green, int blue)
 }
 
 // Test LED subsystem vs HID report RGB methods
-void test_rgb_methods(void)
+static void test_rgb_methods(void)
 {
 	printf("🧪 Testing RGB methods (LED subsystem vs HID reports)...\n");
 
@@ -483,7 +485,7 @@ static void test_led_sysfs_write(void)
 }
 
 // Test RGB rejection on non-RGB devices (G15 Original/v2)
-void test_rgb_on_non_rgb_device(void)
+static void test_rgb_on_non_rgb_device(void)
 {
 	printf("🧪 Testing RGB rejection on non-RGB devices...\n");
 
@@ -521,7 +523,7 @@ void test_rgb_on_non_rgb_device(void)
 }
 
 // Test mock library error conditions
-void test_mock_error_conditions()
+static void test_mock_error_conditions()
 {
 	printf("📋 Testing mock error conditions...\n");
 
@@ -537,7 +539,7 @@ void test_mock_error_conditions()
 }
 
 // Start recording a G-Key macro
-int g15_start_macro_recording(Driver *drvthis, int gkey, int mode)
+static int g15_start_macro_recording(Driver *drvthis, int gkey, int mode)
 {
 	PrivateData *p = drvthis->private_data;
 
@@ -552,7 +554,7 @@ int g15_start_macro_recording(Driver *drvthis, int gkey, int mode)
 }
 
 // Stop recording the current G-Key macro
-int g15_stop_macro_recording(Driver *drvthis)
+static int g15_stop_macro_recording(Driver *drvthis)
 {
 	PrivateData *p = drvthis->private_data;
 
@@ -565,7 +567,7 @@ int g15_stop_macro_recording(Driver *drvthis)
 }
 
 // Process G-Key macro playback trigger
-int g15_process_gkey_macro(Driver *drvthis, int gkey, int mode)
+static int g15_process_gkey_macro(Driver *drvthis, int gkey, int mode)
 {
 	PrivateData *p = drvthis->private_data;
 
@@ -577,7 +579,7 @@ int g15_process_gkey_macro(Driver *drvthis, int gkey, int mode)
 }
 
 // Test G-Key macro recording functionality
-void test_macro_recording(void)
+static void test_macro_recording(void)
 {
 	printf("🧪 Testing G-Key macro recording...\n");
 
@@ -605,7 +607,7 @@ void test_macro_recording(void)
 }
 
 // Test G-Key macro playback functionality
-void test_macro_playback(void)
+static void test_macro_playback(void)
 {
 	printf("🧪 Testing G-Key macro playback...\n");
 
@@ -634,7 +636,7 @@ void test_macro_playback(void)
 }
 
 // Initialize debug driver for output testing
-int debug_init(Driver *drvthis)
+static int debug_init(Driver *drvthis)
 {
 	(void)drvthis;
 
@@ -660,7 +662,7 @@ int debug_init(Driver *drvthis)
 }
 
 // Close debug driver and free resources
-void debug_close(Driver *drvthis)
+static void debug_close(Driver *drvthis)
 {
 	(void)drvthis;
 
@@ -673,21 +675,21 @@ void debug_close(Driver *drvthis)
 }
 
 // Get debug driver display width
-int debug_width(Driver *drvthis)
+static int debug_width(Driver *drvthis)
 {
 	(void)drvthis;
 	return debug_data.width;
 }
 
 // Get debug driver display height
-int debug_height(Driver *drvthis)
+static int debug_height(Driver *drvthis)
 {
 	(void)drvthis;
 	return debug_data.height;
 }
 
 // Clear debug driver framebuffer
-void debug_clear(Driver *drvthis)
+static void debug_clear(Driver *drvthis)
 {
 	(void)drvthis;
 
@@ -697,14 +699,14 @@ void debug_clear(Driver *drvthis)
 }
 
 // Flush debug driver output to display
-void debug_flush(Driver *drvthis)
+static void debug_flush(Driver *drvthis)
 {
 	(void)drvthis;
 	debug_flushes_called++;
 }
 
 // Write string to debug driver framebuffer
-void debug_string(Driver *drvthis, int x, int y, const char string[])
+static void debug_string(Driver *drvthis, int x, int y, const char string[])
 {
 	(void)drvthis;
 
@@ -725,7 +727,7 @@ void debug_string(Driver *drvthis, int x, int y, const char string[])
 }
 
 // Write single character to debug driver framebuffer
-int debug_chr(Driver *drvthis, int x, int y, char c)
+static int debug_chr(Driver *drvthis, int x, int y, char c)
 {
 	(void)drvthis;
 
@@ -742,7 +744,7 @@ int debug_chr(Driver *drvthis, int x, int y, char c)
 }
 
 // Test debug driver basic functionality
-void test_debug_driver_basic(void)
+static void test_debug_driver_basic(void)
 {
 	printf("🧪 Testing debug driver basic functionality...\n");
 
@@ -785,7 +787,7 @@ void test_debug_driver_basic(void)
 }
 
 // Test debug driver output validation
-void test_debug_driver_output_validation(void)
+static void test_debug_driver_output_validation(void)
 {
 	printf("🧪 Testing debug driver as output validator...\n");
 
@@ -825,7 +827,7 @@ void test_debug_driver_output_validation(void)
 }
 
 // Test debug driver error handling
-void test_debug_driver_error_handling(void)
+static void test_debug_driver_error_handling(void)
 {
 	printf("🧪 Testing debug driver error handling...\n");
 
@@ -858,7 +860,7 @@ void test_debug_driver_error_handling(void)
 }
 
 // Print test execution summary
-void print_test_summary(int tests_run, int tests_passed)
+static void print_test_summary(int tests_run, int tests_passed)
 {
 	printf("\n🧪 TEST SUMMARY:\n");
 	printf("Tests run: %d\n", tests_run);
@@ -873,7 +875,7 @@ void print_test_summary(int tests_run, int tests_passed)
 }
 
 // Test command-line argument parsing
-void test_command_line_parsing()
+static void test_command_line_parsing()
 {
 	printf("📋 Testing command-line argument parsing...\n");
 
@@ -923,7 +925,7 @@ void test_command_line_parsing()
 }
 
 // Test verbose mode output formatting
-void test_verbose_mode_output()
+static void test_verbose_mode_output()
 {
 	printf("📋 Testing verbose mode output...\n");
 
@@ -959,7 +961,7 @@ void test_verbose_mode_output()
 }
 
 // Test RGB parameter boundary validation
-void test_rgb_parameter_validation()
+static void test_rgb_parameter_validation()
 {
 	printf("📋 Testing RGB parameter validation...\n");
 
@@ -980,7 +982,7 @@ void test_rgb_parameter_validation()
 }
 
 // Print command-line usage information
-void print_usage(const char *program_name)
+static void print_usage(const char *program_name)
 {
 	printf("Usage: %s [OPTIONS]\n", program_name);
 	printf("Options:\n");
