@@ -55,7 +55,7 @@
  * \details Initialized by clients_init(), destroyed by clients_shutdown().
  * Stores Client* pointers for all active client connections to LCDd server.
  */
-LinkedList *clientlist = NULL;
+static LinkedList *clientlist = NULL;
 
 // Initialize the global client list data structure
 int clients_init(void)

@@ -62,27 +62,4 @@ int output_func(Client *c, int argc, char **argv);
  */
 int noop_func(Client *c, int argc, char **argv);
 
-/**
- * \brief Handle info command for server information retrieval.
- * \param c Client connection context
- * \param argc Number of command arguments
- * \param argv Array of command argument strings
- * \retval 0 Success
- * \retval 1 Client not active
- *
- * \details Processes "info" commands to retrieve server information
- * such as protocol version, server capabilities, display dimensions,
- * and supported features. Essential for client capability negotiation.
- *
- * \todo Implement info_func to provide server information including:
- *       - Protocol version
- *       - Server name and version
- *       - Display dimensions (width/height)
- *       - Supported command features
- *       - Driver information
- *
- * \ingroup ToDo_low
- */
-int info_func(Client *c, int argc, char **argv);
-
 #endif

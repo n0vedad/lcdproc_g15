@@ -55,13 +55,11 @@
 #include "drivers.h"
 #include "menu.h"
 #include "menuitem.h"
+#include "menuscreens.h"
 #include "screen.h"
 #include "widget.h"
 
 #include "shared/report.h"
-
-/** \brief User-configurable main menu (defined in menuscreens.c) */
-extern Menu *custom_main_menu;
 
 /**
  * \brief Get menu subitem by visible index
@@ -154,7 +152,8 @@ static int menu_visible_item_count(Menu *menu)
  * \details Formats "label      value" with smart overflow handling.
  * When text+value too long, mode determines truncation strategy.
  */
-char *fill_labeled_value(char *string, int len, const char *text, const char *value, int mode)
+static char *fill_labeled_value(char *string, int len, const char *text, const char *value,
+				int mode)
 {
 	if ((string != NULL) && (text != NULL) && (len > 0)) {
 		int textlen = strlen(text);

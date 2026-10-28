@@ -39,6 +39,7 @@
 #include <strings.h>
 #include <unistd.h>
 
+#include "shared/configfile.h"
 #include "shared/report.h"
 
 /**

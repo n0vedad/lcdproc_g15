@@ -81,10 +81,13 @@ typedef struct debug_private_data {
  * Driver metadata exported to the LCDd server core
  */
 ///@{
+// Must keep external linkage: LCDd resolves these via dlsym() (driver_symbols in server/driver.c)
+// NOLINTBEGIN(misc-use-internal-linkage)
 MODULE_EXPORT char *api_version = API_VERSION; ///< Driver API version string
 MODULE_EXPORT int stay_in_foreground = 1;      ///< Debug driver requires foreground mode
 MODULE_EXPORT int supports_multiple = 0;       ///< Debug driver does not support multiple instances
 MODULE_EXPORT char *symbol_prefix = "debug_";  ///< Function symbol prefix for this driver
+// NOLINTEND(misc-use-internal-linkage)
 ///@}
 
 // Initialize the debug driver

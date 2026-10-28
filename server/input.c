@@ -67,16 +67,16 @@
  * Key event queue and configurable key bindings for server actions
  */
 ///@{
-LinkedList *keylist;	 ///< Queue of pending key events from input drivers
-char *toggle_rotate_key; ///< Key name to toggle automatic screen rotation
-char *prev_screen_key;	 ///< Key name to switch to previous screen
-char *next_screen_key;	 ///< Key name to switch to next screen
-char *scroll_up_key;	 ///< Key name to scroll menu/widget up
-char *scroll_down_key;	 ///< Key name to scroll menu/widget down
+static LinkedList *keylist;	///< Queue of pending key events from input drivers
+static char *toggle_rotate_key; ///< Key name to toggle automatic screen rotation
+static char *prev_screen_key;	///< Key name to switch to previous screen
+static char *next_screen_key;	///< Key name to switch to next screen
+static char *scroll_up_key;	///< Key name to scroll menu/widget up
+static char *scroll_down_key;	///< Key name to scroll menu/widget down
 ///@}
 
 // Internal function for processing system-level key events
-void input_internal_key(const char *key);
+static void input_internal_key(const char *key);
 
 // Initialize the input handling system
 int input_init(void)
@@ -155,7 +155,7 @@ void handle_input(void)
  * \details Routes unhandled keys to server navigation functions. Handles menu
  * navigation keys (enter, escape, up, down) and screen rotation controls.
  */
-void input_internal_key(const char *key)
+static void input_internal_key(const char *key)
 {
 	// Menu keys or menu is active - route to menu handler
 	if (is_menu_key(key) || screenlist_current() == menuscreen) {

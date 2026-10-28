@@ -89,57 +89,58 @@ typedef struct ProcInfo {
 } ProcInfo;
 
 /** \brief Help text displayed with -h option */
-char *help_text = "lcdexec - LCDproc client to execute commands from the LCDd menu\n"
-		  "\n"
-		  "Copyright (c) 2002, Joris Robijn, 2006-2008 Peter Marschall.\n"
-		  "This program is released under the terms of the GNU General Public License.\n"
-		  "\n"
-		  "Usage: lcdexec [<options>]\n"
-		  "  where <options> are:\n"
-		  "    -c <file>           Specify configuration file [" DEFAULT_CONFIGFILE "]\n"
-		  "    -a <address>        DNS name or IP address of the LCDd server [localhost]\n"
-		  "    -p <port>           port of the LCDd server [13666]\n"
-		  "    -f                  Run in foreground\n"
-		  "    -r <level>          Set reporting level (0-5) [2: errors and warnings]\n"
-		  "    -s <0|1>            Report to syslog (1) or stderr (0, default)\n"
-		  "    -h                  Show this help\n";
+static char *help_text =
+    "lcdexec - LCDproc client to execute commands from the LCDd menu\n"
+    "\n"
+    "Copyright (c) 2002, Joris Robijn, 2006-2008 Peter Marschall.\n"
+    "This program is released under the terms of the GNU General Public License.\n"
+    "\n"
+    "Usage: lcdexec [<options>]\n"
+    "  where <options> are:\n"
+    "    -c <file>           Specify configuration file [" DEFAULT_CONFIGFILE "]\n"
+    "    -a <address>        DNS name or IP address of the LCDd server [localhost]\n"
+    "    -p <port>           port of the LCDd server [13666]\n"
+    "    -f                  Run in foreground\n"
+    "    -r <level>          Set reporting level (0-5) [2: errors and warnings]\n"
+    "    -s <0|1>            Report to syslog (1) or stderr (0, default)\n"
+    "    -h                  Show this help\n";
 
 /** \brief Program name for error messages */
-char *progname = "lcdexec";
+static char *progname = "lcdexec";
 
 /** \brief Configuration file path */
-char *configfile = NULL;
+static char *configfile = NULL;
 /** \brief Server address (hostname or IP) */
-char *address = NULL;
+static char *address = NULL;
 /** \brief Server port number */
-int port = UNSET_INT;
+static int port = UNSET_INT;
 /** \brief Foreground mode flag (1=foreground, 0=daemon) */
-int foreground = FALSE;
+static int foreground = FALSE;
 /** \brief Logging report level */
 static int report_level = UNSET_INT;
 /** \brief Logging destination (syslog or stderr) */
 static int report_dest = UNSET_INT;
 /** \brief PID file path */
-char *pidfile = NULL;
+static char *pidfile = NULL;
 /** \brief Flag indicating if PID file was written */
-int pidfile_written = FALSE;
+static int pidfile_written = FALSE;
 /** \brief Display name for menu title */
-char *displayname = NULL;
+static char *displayname = NULL;
 /** \brief Default shell for command execution */
-char *default_shell = NULL;
+static char *default_shell = NULL;
 /** \brief Root of the menu tree */
-MenuEntry *main_menu = NULL;
+static MenuEntry *main_menu = NULL;
 /** \brief Queue of running/completed processes */
-ProcInfo *proc_queue = NULL;
+static ProcInfo *proc_queue = NULL;
 
 /** \brief LCD display width in characters */
-int lcd_wid = 0;
+static int lcd_wid = 0;
 /** \brief LCD display height in characters */
-int lcd_hgt = 0;
+static int lcd_hgt = 0;
 /** \brief Server socket file descriptor */
-int sock = -1;
+static int sock = -1;
 /** \brief Program termination flag */
-int Quit = 0;
+static int Quit = 0;
 
 // Function prototypes
 static void exit_program(int val);
@@ -580,11 +581,12 @@ static int process_response(char *str)
 		// Handle select/leave events that trigger command execution
 		if ((strcmp(argv[1], "select") == 0) || (strcmp(argv[1], "leave") == 0)) {
 			MenuEntry *entry;
+			int id;
 
-			if (argc < 3)
+			if (argc < 3 || str_to_int(argv[2], &id) < 0)
 				goto err_invalid;
 
-			entry = menu_find_by_id(main_menu, atoi(argv[2]));
+			entry = menu_find_by_id(main_menu, id);
 			if (entry == NULL) {
 				report(RPT_WARNING,
 				       "Could not find the item id given by the server");
@@ -607,11 +609,12 @@ static int process_response(char *str)
 		} else if ((strcmp(argv[1], "plus") == 0) || (strcmp(argv[1], "minus") == 0) ||
 			   (strcmp(argv[1], "update") == 0)) {
 			MenuEntry *entry;
+			int id;
 
-			if (argc < 4)
+			if (argc < 4 || str_to_int(argv[2], &id) < 0)
 				goto err_invalid;
 
-			entry = menu_find_by_id(main_menu, atoi(argv[2]));
+			entry = menu_find_by_id(main_menu, id);
 			if (entry == NULL) {
 				report(RPT_WARNING,
 				       "Could not find the item id given by the server");
@@ -622,17 +625,20 @@ static int process_response(char *str)
 
 			// Handle slider value update
 			case MT_ARG_SLIDER:
-				entry->data.slider.value = atoi(argv[3]);
+				if (str_to_int(argv[3], &entry->data.slider.value) < 0)
+					goto err_invalid;
 				break;
 
 			// Handle ring value update
 			case MT_ARG_RING:
-				entry->data.ring.value = atoi(argv[3]);
+				if (str_to_int(argv[3], &entry->data.ring.value) < 0)
+					goto err_invalid;
 				break;
 
 			// Handle numeric value update
 			case MT_ARG_NUMERIC:
-				entry->data.numeric.value = atoi(argv[3]);
+				if (str_to_int(argv[3], &entry->data.numeric.value) < 0)
+					goto err_invalid;
 				break;
 
 			// Handle alpha string value update
@@ -665,14 +671,13 @@ static int process_response(char *str)
 			; // Ignore other menuevents
 		}
 	} else if (strcmp(argv[0], "connect") == 0) {
-		int a;
-
-		// Extract LCD dimensions from connect response
-		for (a = 1; a < argc; a++) {
+		// Extract LCD dimensions from connect response; each keyword is followed by its
+		// value, an invalid value keeps the default
+		for (int a = 1; a + 1 < argc; a++) {
 			if (strcmp(argv[a], "wid") == 0)
-				lcd_wid = atoi(argv[++a]);
+				str_to_int(argv[++a], &lcd_wid);
 			else if (strcmp(argv[a], "hgt") == 0)
-				lcd_hgt = atoi(argv[++a]);
+				str_to_int(argv[++a], &lcd_hgt);
 		}
 
 	} else if (strcmp(argv[0], "bye") == 0) {

@@ -48,6 +48,7 @@
 
 #include "shared/report.h"
 #include "shared/sockets.h"
+#include "shared/str.h"
 
 #include "client.h"
 #include "render.h"
@@ -194,7 +195,9 @@ int screen_set_func(Client *c, int argc, char **argv)
 				debug(RPT_DEBUG, "screen_set: priority=\"%s\"", argv[i]);
 
 				// Parse priority as numeric value first
-				number = atoi(argv[i]);
+				// Invalid numbers count as 0, as with the former atoi()
+				if (str_to_int(argv[i], &number) < 0)
+					number = 0;
 				if (number > 0) {
 					// Map numeric ranges to priority classes
 					if (number <= 64)
@@ -226,7 +229,9 @@ int screen_set_func(Client *c, int argc, char **argv)
 				i++;
 				debug(RPT_DEBUG, "screen_set: duration=\"%s\"", argv[i]);
 
-				number = atoi(argv[i]);
+				// Invalid numbers count as 0, as with the former atoi()
+				if (str_to_int(argv[i], &number) < 0)
+					number = 0;
 				if (number > 0)
 					s->duration = number;
 				sock_send_string(c->sock, "success\n");
@@ -261,7 +266,9 @@ int screen_set_func(Client *c, int argc, char **argv)
 				i++;
 				debug(RPT_DEBUG, "screen_set: wid=\"%s\"", argv[i]);
 
-				number = atoi(argv[i]);
+				// Invalid numbers count as 0, as with the former atoi()
+				if (str_to_int(argv[i], &number) < 0)
+					number = 0;
 				if (number > 0)
 					s->width = number;
 				sock_send_string(c->sock, "success\n");
@@ -278,7 +285,9 @@ int screen_set_func(Client *c, int argc, char **argv)
 				i++;
 				debug(RPT_DEBUG, "screen_set: hgt=\"%s\"", argv[i]);
 
-				number = atoi(argv[i]);
+				// Invalid numbers count as 0, as with the former atoi()
+				if (str_to_int(argv[i], &number) < 0)
+					number = 0;
 				if (number > 0)
 					s->height = number;
 				sock_send_string(c->sock, "success\n");
@@ -293,7 +302,9 @@ int screen_set_func(Client *c, int argc, char **argv)
 			if (argc > i + 1) {
 				i++;
 				debug(RPT_DEBUG, "screen_set: timeout=\"%s\"", argv[i]);
-				number = atoi(argv[i]);
+				// Invalid numbers count as 0, as with the former atoi()
+				if (str_to_int(argv[i], &number) < 0)
+					number = 0;
 
 				if (number > 0) {
 					s->timeout = number;
@@ -367,7 +378,9 @@ int screen_set_func(Client *c, int argc, char **argv)
 				i++;
 				debug(RPT_DEBUG, "screen_set: cursor_x=\"%s\"", argv[i]);
 
-				number = atoi(argv[i]);
+				// Invalid numbers count as 0, as with the former atoi()
+				if (str_to_int(argv[i], &number) < 0)
+					number = 0;
 				if (number > 0 && number <= s->width) {
 					s->cursor_x = number;
 					sock_send_string(c->sock, "success\n");
@@ -388,7 +401,9 @@ int screen_set_func(Client *c, int argc, char **argv)
 				i++;
 				debug(RPT_DEBUG, "screen_set: cursor_y=\"%s\"", argv[i]);
 
-				number = atoi(argv[i]);
+				// Invalid numbers count as 0, as with the former atoi()
+				if (str_to_int(argv[i], &number) < 0)
+					number = 0;
 				if (number > 0 && number <= s->height) {
 					s->cursor_y = number;
 					sock_send_string(c->sock, "success\n");

@@ -32,6 +32,8 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,6 +44,7 @@
 #include "drivers.h"
 #include "menu.h"
 #include "menuitem.h"
+#include "menuscreens.h"
 #include "screen.h"
 #include "sock.h"
 #include "widget.h"
@@ -52,8 +55,6 @@
  * values to strings for display.
  */
 #define MAX_NUMERIC_LEN 40
-
-extern Menu *main_menu;
 
 /** \brief Enable permissive menu navigation mode
  *
@@ -67,39 +68,39 @@ bool menu_permissive_goto;
  * \details Array of user-facing error messages indexed by error code.
  * Index 0 is empty (no error), followed by range, length, and format errors.
  */
-char *error_strs[] = {"", "Out of range", "Too long", "Too short", "Invalid Address"};
+static char *error_strs[] = {"", "Out of range", "Too long", "Too short", "Invalid Address"};
 
 /** \brief Menu item type name strings
  *
  * \details String names for each MenuItem type, indexed by MenuItemType enum.
  * Used for protocol messages and debugging output.
  */
-char *menuitemtypenames[] = {"menu",   "action",  "checkbox", "ring",
-			     "slider", "numeric", "alpha",    "ip"};
+static char *menuitemtypenames[] = {"menu",   "action",	 "checkbox", "ring",
+				    "slider", "numeric", "alpha",    "ip"};
 
 /** \brief Menu event type name strings
  *
  * \details String names for each menu event type, indexed by MenuEventType enum.
  * Used for protocol messages and debugging output.
  */
-char *menueventtypenames[] = {"select", "update", "plus", "minus", "enter", "leave"};
+static char *menueventtypenames[] = {"select", "update", "plus", "minus", "enter", "leave"};
 
 // Internal lifecycle management functions for menu item types: destroy, reset, rebuild, and update
 // operations
-void menuitem_destroy_ring(MenuItem *item);
-void menuitem_destroy_slider(MenuItem *item);
-void menuitem_destroy_numeric(MenuItem *item);
-void menuitem_destroy_alpha(MenuItem *item);
-void menuitem_destroy_ip(MenuItem *item);
+static void menuitem_destroy_ring(MenuItem *item);
+static void menuitem_destroy_slider(MenuItem *item);
+static void menuitem_destroy_numeric(MenuItem *item);
+static void menuitem_destroy_alpha(MenuItem *item);
+static void menuitem_destroy_ip(MenuItem *item);
 
-void menuitem_reset_numeric(MenuItem *item);
-void menuitem_reset_alpha(MenuItem *item);
-void menuitem_reset_ip(MenuItem *item);
+static void menuitem_reset_numeric(MenuItem *item);
+static void menuitem_reset_alpha(MenuItem *item);
+static void menuitem_reset_ip(MenuItem *item);
 
-void menuitem_rebuild_screen_slider(MenuItem *item, Screen *s);
-void menuitem_rebuild_screen_numeric(MenuItem *item, Screen *s);
-void menuitem_rebuild_screen_alpha(MenuItem *item, Screen *s);
-void menuitem_rebuild_screen_ip(MenuItem *item, Screen *s);
+static void menuitem_rebuild_screen_slider(MenuItem *item, Screen *s);
+static void menuitem_rebuild_screen_numeric(MenuItem *item, Screen *s);
+static void menuitem_rebuild_screen_alpha(MenuItem *item, Screen *s);
+static void menuitem_rebuild_screen_ip(MenuItem *item, Screen *s);
 
 /**
  * \brief Update slider menu item's on-screen display
@@ -109,23 +110,23 @@ void menuitem_rebuild_screen_ip(MenuItem *item, Screen *s);
  * \details Updates the visual representation of a slider item on screen by
  * modifying the text and bar widgets to reflect current value.
  */
-void menuitem_update_screen_slider(MenuItem *item, Screen *s);
-void menuitem_update_screen_numeric(MenuItem *item, Screen *s);
-void menuitem_update_screen_alpha(MenuItem *item, Screen *s);
-void menuitem_update_screen_ip(MenuItem *item, Screen *s);
+static void menuitem_update_screen_slider(MenuItem *item, Screen *s);
+static void menuitem_update_screen_numeric(MenuItem *item, Screen *s);
+static void menuitem_update_screen_alpha(MenuItem *item, Screen *s);
+static void menuitem_update_screen_ip(MenuItem *item, Screen *s);
 
 // Internal input processing handlers for interactive menu item types (slider, numeric, alpha, IP)
-MenuResult menuitem_process_input_slider(MenuItem *item, MenuToken token, const char *key,
-					 unsigned int keymask);
+static MenuResult menuitem_process_input_slider(MenuItem *item, MenuToken token, const char *key,
+						unsigned int keymask);
 
-MenuResult menuitem_process_input_numeric(MenuItem *item, MenuToken token, const char *key,
-					  unsigned int keymask);
+static MenuResult menuitem_process_input_numeric(MenuItem *item, MenuToken token, const char *key,
+						 unsigned int keymask);
 
-MenuResult menuitem_process_input_alpha(MenuItem *item, MenuToken token, const char *key,
-					unsigned int keymask);
+static MenuResult menuitem_process_input_alpha(MenuItem *item, MenuToken token, const char *key,
+					       unsigned int keymask);
 
-MenuResult menuitem_process_input_ip(MenuItem *item, MenuToken token, const char *key,
-				     unsigned int keymask);
+static MenuResult menuitem_process_input_ip(MenuItem *item, MenuToken token, const char *key,
+					    unsigned int keymask);
 
 /**
  * \brief IP address string properties structure
@@ -148,7 +149,7 @@ typedef struct {
  * \details Array indexed by IP address type (IPv4=0, IPv6=1) containing
  * formatting rules, validation parameters, and default values for each type.
  */
-const IpSstringProperties IPinfo[] = {
+static const IpSstringProperties IPinfo[] = {
     {15, '.', 10, 3, 255, {100, 10, 1, 0, 0}, "%03d", verify_ipv4, "0.0.0.0"},
     {39, ':', 16, 4, 65535, {4096, 256, 16, 1, 0}, "%04x", verify_ipv6, "0:0:0:0:0:0:0:0"}};
 
@@ -196,14 +197,14 @@ MenuItem *menuitem_search(char *menu_id, Client *client)
  * item type to its destructor function for polymorphic cleanup. NULL entries
  * indicate types that don't need special cleanup.
  */
-void (*destructor_table[NUM_ITEMTYPES])(MenuItem *item) = {menu_destroy,
-							   NULL,
-							   NULL,
-							   menuitem_destroy_ring,
-							   menuitem_destroy_slider,
-							   menuitem_destroy_numeric,
-							   menuitem_destroy_alpha,
-							   menuitem_destroy_ip};
+static void (*destructor_table[NUM_ITEMTYPES])(MenuItem *item) = {menu_destroy,
+								  NULL,
+								  NULL,
+								  menuitem_destroy_ring,
+								  menuitem_destroy_slider,
+								  menuitem_destroy_numeric,
+								  menuitem_destroy_alpha,
+								  menuitem_destroy_ip};
 
 /** \brief Reset function table for menu item types
  *
@@ -211,7 +212,7 @@ void (*destructor_table[NUM_ITEMTYPES])(MenuItem *item) = {menu_destroy,
  * item type to its reset function for restoring default values. NULL entries
  * indicate types that don't support reset.
  */
-void (*reset_table[NUM_ITEMTYPES])(MenuItem *item) = {
+static void (*reset_table[NUM_ITEMTYPES])(MenuItem *item) = {
     menu_reset,	      NULL, NULL, NULL, NULL, menuitem_reset_numeric, menuitem_reset_alpha,
     menuitem_reset_ip};
 
@@ -221,15 +222,15 @@ void (*reset_table[NUM_ITEMTYPES])(MenuItem *item) = {
  * item type to its screen construction function for creating display widgets.
  * NULL entries indicate types that don't require widget construction.
  */
-void (*build_screen_table[NUM_ITEMTYPES])(MenuItem *item,
-					  Screen *s) = {menu_build_screen,
-							NULL,
-							NULL,
-							NULL,
-							menuitem_rebuild_screen_slider,
-							menuitem_rebuild_screen_numeric,
-							menuitem_rebuild_screen_alpha,
-							menuitem_rebuild_screen_ip};
+static void (*build_screen_table[NUM_ITEMTYPES])(MenuItem *item,
+						 Screen *s) = {menu_build_screen,
+							       NULL,
+							       NULL,
+							       NULL,
+							       menuitem_rebuild_screen_slider,
+							       menuitem_rebuild_screen_numeric,
+							       menuitem_rebuild_screen_alpha,
+							       menuitem_rebuild_screen_ip};
 
 /** \brief Screen update function table for menu item types
  *
@@ -237,15 +238,15 @@ void (*build_screen_table[NUM_ITEMTYPES])(MenuItem *item,
  * item type to its screen update function for dynamic widget refresh. NULL
  * entries indicate types that don't require dynamic updates.
  */
-void (*update_screen_table[NUM_ITEMTYPES])(MenuItem *item,
-					   Screen *s) = {menu_update_screen,
-							 NULL,
-							 NULL,
-							 NULL,
-							 menuitem_update_screen_slider,
-							 menuitem_update_screen_numeric,
-							 menuitem_update_screen_alpha,
-							 menuitem_update_screen_ip};
+static void (*update_screen_table[NUM_ITEMTYPES])(MenuItem *item,
+						  Screen *s) = {menu_update_screen,
+								NULL,
+								NULL,
+								NULL,
+								menuitem_update_screen_slider,
+								menuitem_update_screen_numeric,
+								menuitem_update_screen_alpha,
+								menuitem_update_screen_ip};
 
 /** \brief Input processing function table for menu item types
  *
@@ -253,8 +254,8 @@ void (*update_screen_table[NUM_ITEMTYPES])(MenuItem *item,
  * item type to its input handler for user interaction processing. NULL entries
  * indicate types that don't process user input.
  */
-MenuResult (*process_input_table[NUM_ITEMTYPES])(MenuItem *item, MenuToken token, const char *key,
-						 unsigned int keymask) = {
+static MenuResult (*process_input_table[NUM_ITEMTYPES])(MenuItem *item, MenuToken token,
+							const char *key, unsigned int keymask) = {
     menu_process_input,
     NULL,
     NULL,
@@ -604,7 +605,7 @@ void menuitem_destroy(MenuItem *item)
  *
  * \details Frees ring strings list and list structure.
  */
-void menuitem_destroy_ring(MenuItem *item)
+static void menuitem_destroy_ring(MenuItem *item)
 {
 	debug(RPT_DEBUG, "%s(item=[%s])", __FUNCTION__, ((item != NULL) ? item->id : "(null)"));
 
@@ -625,7 +626,7 @@ void menuitem_destroy_ring(MenuItem *item)
  *
  * \details Frees min/max text strings.
  */
-void menuitem_destroy_slider(MenuItem *item)
+static void menuitem_destroy_slider(MenuItem *item)
 {
 	debug(RPT_DEBUG, "%s(item=[%s])", __FUNCTION__, ((item != NULL) ? item->id : "(null)"));
 
@@ -641,7 +642,7 @@ void menuitem_destroy_slider(MenuItem *item)
  *
  * \details Frees numeric edit buffer.
  */
-void menuitem_destroy_numeric(MenuItem *item)
+static void menuitem_destroy_numeric(MenuItem *item)
 {
 	debug(RPT_DEBUG, "%s(item=[%s])", __FUNCTION__, ((item != NULL) ? item->id : "(null)"));
 
@@ -656,7 +657,7 @@ void menuitem_destroy_numeric(MenuItem *item)
  *
  * \details Frees allowed characters, value, and edit buffer.
  */
-void menuitem_destroy_alpha(MenuItem *item)
+static void menuitem_destroy_alpha(MenuItem *item)
 {
 	debug(RPT_DEBUG, "%s(item=[%s])", __FUNCTION__, ((item != NULL) ? item->id : "(null)"));
 
@@ -673,7 +674,7 @@ void menuitem_destroy_alpha(MenuItem *item)
  *
  * \details Frees IP field edit buffers.
  */
-void menuitem_destroy_ip(MenuItem *item)
+static void menuitem_destroy_ip(MenuItem *item)
 {
 	debug(RPT_DEBUG, "%s(item=[%s])", __FUNCTION__, ((item != NULL) ? item->id : "(null)"));
 
@@ -703,7 +704,7 @@ void menuitem_reset(MenuItem *item)
  *
  * \details Sets edit buffer to current value, resets cursor position.
  */
-void menuitem_reset_numeric(MenuItem *item)
+static void menuitem_reset_numeric(MenuItem *item)
 {
 	debug(RPT_DEBUG, "%s(item=[%s])", __FUNCTION__, ((item != NULL) ? item->id : "(null)"));
 
@@ -729,7 +730,7 @@ void menuitem_reset_numeric(MenuItem *item)
  *
  * \details Copies current value to edit buffer, resets cursor.
  */
-void menuitem_reset_alpha(MenuItem *item)
+static void menuitem_reset_alpha(MenuItem *item)
 {
 	debug(RPT_DEBUG, "%s(item=[%s])", __FUNCTION__, ((item != NULL) ? item->id : "(null)"));
 
@@ -752,7 +753,7 @@ void menuitem_reset_alpha(MenuItem *item)
  *
  * \details Parses current IP, formats to edit buffer, resets cursor.
  */
-void menuitem_reset_ip(MenuItem *item)
+static void menuitem_reset_ip(MenuItem *item)
 {
 	char *start = item->data.ip.value;
 	const IpSstringProperties *ipinfo = (item->data.ip.v6) ? &IPinfo[1] : &IPinfo[0];
@@ -831,7 +832,7 @@ void menuitem_rebuild_screen(MenuItem *item, Screen *s)
  *
  * \details Creates title, value bar, and numeric value widgets.
  */
-void menuitem_rebuild_screen_slider(MenuItem *item, Screen *s)
+static void menuitem_rebuild_screen_slider(MenuItem *item, Screen *s)
 {
 	Widget *w;
 
@@ -887,7 +888,7 @@ void menuitem_rebuild_screen_slider(MenuItem *item, Screen *s)
  *
  * \details Creates title, value text, and optional error message widgets.
  */
-void menuitem_rebuild_screen_numeric(MenuItem *item, Screen *s)
+static void menuitem_rebuild_screen_numeric(MenuItem *item, Screen *s)
 {
 	Widget *w;
 
@@ -927,7 +928,7 @@ void menuitem_rebuild_screen_numeric(MenuItem *item, Screen *s)
  *
  * \details Creates title and text edit widgets with cursor support.
  */
-void menuitem_rebuild_screen_alpha(MenuItem *item, Screen *s)
+static void menuitem_rebuild_screen_alpha(MenuItem *item, Screen *s)
 {
 	Widget *w;
 
@@ -967,7 +968,7 @@ void menuitem_rebuild_screen_alpha(MenuItem *item, Screen *s)
  *
  * \details Creates title and IP field widgets with cursor support.
  */
-void menuitem_rebuild_screen_ip(MenuItem *item, Screen *s)
+static void menuitem_rebuild_screen_ip(MenuItem *item, Screen *s)
 {
 	Widget *w;
 
@@ -1023,7 +1024,7 @@ void menuitem_update_screen(MenuItem *item, Screen *s)
 }
 
 // Update screen widgets for slider menu item
-void menuitem_update_screen_slider(MenuItem *item, Screen *s)
+static void menuitem_update_screen_slider(MenuItem *item, Screen *s)
 {
 	Widget *w;
 	int min_len, max_len;
@@ -1090,7 +1091,7 @@ void menuitem_update_screen_slider(MenuItem *item, Screen *s)
  *
  * \details Updates value display, cursor position, and error message.
  */
-void menuitem_update_screen_numeric(MenuItem *item, Screen *s)
+static void menuitem_update_screen_numeric(MenuItem *item, Screen *s)
 {
 	Widget *w;
 
@@ -1123,7 +1124,7 @@ void menuitem_update_screen_numeric(MenuItem *item, Screen *s)
  *
  * \details Updates text (or password chars), cursor position, and error message.
  */
-void menuitem_update_screen_alpha(MenuItem *item, Screen *s)
+static void menuitem_update_screen_alpha(MenuItem *item, Screen *s)
 {
 	Widget *w;
 
@@ -1164,7 +1165,7 @@ void menuitem_update_screen_alpha(MenuItem *item, Screen *s)
  *
  * \details Updates IP field displays, cursor position, and error message.
  */
-void menuitem_update_screen_ip(MenuItem *item, Screen *s)
+static void menuitem_update_screen_ip(MenuItem *item, Screen *s)
 {
 	Widget *w;
 
@@ -1225,8 +1226,8 @@ MenuResult menuitem_process_input(MenuItem *item, MenuToken token, const char *k
  *
  * \details Handles Up/Down to adjust value, Enter to confirm.
  */
-MenuResult menuitem_process_input_slider(MenuItem *item, MenuToken token, const char *key,
-					 unsigned int keymask)
+static MenuResult menuitem_process_input_slider(MenuItem *item, MenuToken token, const char *key,
+						unsigned int keymask)
 {
 	debug(RPT_DEBUG, "%s(item=[%s], token=%d, key=\"%s\")", __FUNCTION__,
 	      ((item != NULL) ? item->id : "(null)"), token, key);
@@ -1297,8 +1298,8 @@ MenuResult menuitem_process_input_slider(MenuItem *item, MenuToken token, const 
  *
  * \details Handles digit entry, backspace, Enter to confirm.
  */
-MenuResult menuitem_process_input_numeric(MenuItem *item, MenuToken token, const char *key,
-					  unsigned int keymask)
+static MenuResult menuitem_process_input_numeric(MenuItem *item, MenuToken token, const char *key,
+						 unsigned int keymask)
 {
 	char buf1[MAX_NUMERIC_LEN];
 	char buf2[MAX_NUMERIC_LEN];
@@ -1336,9 +1337,16 @@ MenuResult menuitem_process_input_numeric(MenuItem *item, MenuToken token, const
 		// Handle enter key
 		case MENUTOKEN_ENTER:
 			if ((keymask & MENUTOKEN_RIGHT) || (str[pos] == '\0')) {
-				int value;
+				char *end;
+				long value;
 
-				if (sscanf(str, "%d", &value) != 1) {
+				// Like the former sscanf("%d"): a leading number, anything after it
+				// is ignored, but an out-of-range value is an error instead of
+				// undefined
+				errno = 0;
+				value = strtol(str, &end, 10);
+				if (end == str || errno != 0 || value < INT_MIN ||
+				    value > INT_MAX) {
 					return MENURESULT_ERROR;
 				}
 				if ((value < item->data.numeric.minvalue) ||
@@ -1350,7 +1358,7 @@ MenuResult menuitem_process_input_numeric(MenuItem *item, MenuToken token, const
 					return MENURESULT_NONE;
 				}
 
-				item->data.numeric.value = value;
+				item->data.numeric.value = (int)value;
 
 				if (item->event_func)
 					item->event_func(item, MENUEVENT_UPDATE);
@@ -1465,8 +1473,8 @@ MenuResult menuitem_process_input_numeric(MenuItem *item, MenuToken token, const
  *
  * \details Handles character entry, backspace, allowed character filtering, Enter to confirm.
  */
-MenuResult menuitem_process_input_alpha(MenuItem *item, MenuToken token, const char *key,
-					unsigned int keymask)
+static MenuResult menuitem_process_input_alpha(MenuItem *item, MenuToken token, const char *key,
+					       unsigned int keymask)
 {
 	char *p;
 	static char *chars = NULL;
@@ -1642,8 +1650,8 @@ MenuResult menuitem_process_input_alpha(MenuItem *item, MenuToken token, const c
  *
  * \details Handles IP address entry with field navigation, digit entry, and validation.
  */
-MenuResult menuitem_process_input_ip(MenuItem *item, MenuToken token, const char *key,
-				     unsigned int keymask)
+static MenuResult menuitem_process_input_ip(MenuItem *item, MenuToken token, const char *key,
+					    unsigned int keymask)
 {
 	char *str = item->data.ip.edit_str;
 	char numstr[5];

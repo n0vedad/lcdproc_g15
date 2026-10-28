@@ -61,6 +61,7 @@
 #include "shared/posix_wrappers.h"
 #include "shared/report.h"
 #include "shared/sockets.h"
+#include "shared/str.h"
 
 /** \brief Maximum path length fallback if not defined by system */
 #ifndef PATH_MAX
@@ -105,15 +106,15 @@ typedef struct {
  * Manages configuration file path and input recording thread.
  */
 static struct {
-	char current_mode[8];
-	int recording;
-	char recording_target[8];
-	macro_t macros[3][18];
-	char config_file[256];
-	time_t last_key_time;
-	pid_t ydotool_record_pid;
-	char record_file[256];
-	input_recorder_t recorder;
+	char current_mode[8];	   ///< Active mode: "M1", "M2" or "M3"
+	int recording;		   ///< Macro recording active flag
+	char recording_target[8];  ///< G-key being recorded, e.g. "G5"
+	macro_t macros[3][18];	   ///< Macros per mode (M1-M3) and G-key (G1-G18)
+	char config_file[256];	   ///< Path of the macro configuration file
+	time_t last_key_time;	   ///< Time of the last G-key press
+	pid_t ydotool_record_pid;  ///< PID of a running ydotool recorder, 0 if none
+	char record_file[256];	   ///< Path of the temporary recording file
+	input_recorder_t recorder; ///< Input device recorder state
 } macro_state = {.current_mode = "M1",
 		 .recording = 0,
 		 .recording_target = "",
@@ -128,7 +129,7 @@ static struct {
 			      .record_thread = 0,
 			      .event_fds = {-1},
 			      .event_fd_count = 0,
-			      .record_start_time = 0}};
+			      .record_start_time = 0}}; ///< Macro system state instance
 
 // Forward function declarations
 static void save_macros(void);
@@ -328,8 +329,9 @@ static int get_mode_index(const char *mode)
  */
 static int get_gkey_index(const char *gkey)
 {
-	if (strncmp(gkey, "G", 1) == 0) {
-		int num = atoi(gkey + 1);
+	int num;
+
+	if (strncmp(gkey, "G", 1) == 0 && str_to_int(gkey + 1, &num) == 0) {
 		if (num >= 1 && num <= 18) {
 			return num - 1;
 		}
@@ -354,10 +356,11 @@ static void load_macros(void)
 	// Parse file format: MODE GKEY COMMAND_COUNT COMMAND1|COMMAND2|...
 	char line[512];
 	while (fgets(line, sizeof(line), file)) {
-		char mode[8], gkey[8];
+		char mode[8], gkey[8], count[8];
 		int cmd_count;
 
-		if (sscanf(line, "%7s %7s %d", mode, gkey, &cmd_count) == 3) {
+		if (sscanf(line, "%7s %7s %7s", mode, gkey, count) == 3 &&
+		    str_to_int(count, &cmd_count) == 0) {
 			int mode_idx = get_mode_index(mode);
 			int gkey_idx = get_gkey_index(gkey);
 
@@ -545,8 +548,9 @@ static void play_macro(const char *g_key)
 			report(RPT_DEBUG, "G-Key Macro: Executing ydotool key %s", cmd + 4);
 
 		} else if (strncmp(cmd, "delay:", 6) == 0) {
-			int delay_ms = atoi(cmd + 6);
-			if (delay_ms > 0 && delay_ms < 5000) {
+			int delay_ms;
+			if (str_to_int(cmd + 6, &delay_ms) == 0 && delay_ms > 0 &&
+			    delay_ms < 5000) {
 				usleep(delay_ms * 1000);
 			}
 		}
@@ -741,9 +745,9 @@ typedef struct {
  *
  * \details Static array containing all supported key translations for macro replay.
  * Used by translate_key_code() to convert recorded input events into ydotool commands.
+ * Order: alphabetic keys (A-Z), digits, then function and special keys.
  */
 static const key_mapping_t key_mappings[] = {
-    // Alphabetic keys (A-Z)
     {KEY_A, "a"},
     {KEY_B, "b"},
     {KEY_C, "c"},
@@ -823,7 +827,8 @@ static const key_mapping_t key_mappings[] = {
     {KEY_BACKSLASH, "backslash"},
 
     // Terminator
-    {0, NULL}};
+    {0, NULL},
+};
 
 /**
  * \brief Translate Linux key code to ydotool name

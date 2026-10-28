@@ -50,7 +50,7 @@
  * \details Array of string names indexed by WidgetType enum. Null-terminated
  * for iteration. Used for protocol messages and debugging output.
  */
-char *typenames[] = {
+static char *typenames[] = {
     // WID_NONE
     "none",
     // WID_STRING
@@ -89,29 +89,29 @@ struct icontable {
  * Terminated with NULL iconname. Used by widget_icon_to_iconname() and
  * widget_iconname_to_icon() for conversion.
  */
-struct icontable icontable[] = {{ICON_BLOCK_FILLED, "BLOCK_FILLED"},
-				{ICON_HEART_OPEN, "HEART_OPEN"},
-				{ICON_HEART_FILLED, "HEART_FILLED"},
-				{ICON_ARROW_UP, "ARROW_UP"},
-				{ICON_ARROW_DOWN, "ARROW_DOWN"},
-				{ICON_ARROW_LEFT, "ARROW_LEFT"},
-				{ICON_ARROW_RIGHT, "ARROW_RIGHT"},
-				{ICON_CHECKBOX_OFF, "CHECKBOX_OFF"},
-				{ICON_CHECKBOX_ON, "CHECKBOX_ON"},
-				{ICON_CHECKBOX_GRAY, "CHECKBOX_GRAY"},
-				{ICON_SELECTOR_AT_LEFT, "SELECTOR_AT_LEFT"},
-				{ICON_SELECTOR_AT_RIGHT, "SELECTOR_AT_RIGHT"},
-				{ICON_ELLIPSIS, "ELLIPSIS"},
-				{ICON_STOP, "STOP"},
-				{ICON_PAUSE, "PAUSE"},
-				{ICON_PLAY, "PLAY"},
-				{ICON_PLAYR, "PLAYR"},
-				{ICON_FF, "FF"},
-				{ICON_FR, "FR"},
-				{ICON_NEXT, "NEXT"},
-				{ICON_PREV, "PREV"},
-				{ICON_REC, "REC"},
-				{0, NULL}};
+static struct icontable icontable[] = {{ICON_BLOCK_FILLED, "BLOCK_FILLED"},
+				       {ICON_HEART_OPEN, "HEART_OPEN"},
+				       {ICON_HEART_FILLED, "HEART_FILLED"},
+				       {ICON_ARROW_UP, "ARROW_UP"},
+				       {ICON_ARROW_DOWN, "ARROW_DOWN"},
+				       {ICON_ARROW_LEFT, "ARROW_LEFT"},
+				       {ICON_ARROW_RIGHT, "ARROW_RIGHT"},
+				       {ICON_CHECKBOX_OFF, "CHECKBOX_OFF"},
+				       {ICON_CHECKBOX_ON, "CHECKBOX_ON"},
+				       {ICON_CHECKBOX_GRAY, "CHECKBOX_GRAY"},
+				       {ICON_SELECTOR_AT_LEFT, "SELECTOR_AT_LEFT"},
+				       {ICON_SELECTOR_AT_RIGHT, "SELECTOR_AT_RIGHT"},
+				       {ICON_ELLIPSIS, "ELLIPSIS"},
+				       {ICON_STOP, "STOP"},
+				       {ICON_PAUSE, "PAUSE"},
+				       {ICON_PLAY, "PLAY"},
+				       {ICON_PLAYR, "PLAYR"},
+				       {ICON_FF, "FF"},
+				       {ICON_FR, "FR"},
+				       {ICON_NEXT, "NEXT"},
+				       {ICON_PREV, "PREV"},
+				       {ICON_REC, "REC"},
+				       {0, NULL}};
 
 // Create and initialize new widget with default properties
 Widget *widget_create(char *id, WidgetType type, Screen *screen)

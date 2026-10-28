@@ -47,6 +47,7 @@
 #include "shared/environment.h"
 #include "shared/report.h"
 #include "shared/sockets.h"
+#include "shared/str.h"
 
 #include <popt.h>
 
@@ -86,6 +87,7 @@ static void HelpScreen(int exit_state);
 static void output_GPL_notice(void);
 static void exit_program(int val);
 static void main_loop(void);
+static void parse_connect_reply(int argc, char **argv);
 static int process_configfile(char *cfgfile);
 
 /** \brief Time unit for screen updates in microseconds (1/8 second = 125ms) */
@@ -126,7 +128,7 @@ static int process_configfile(char *cfgfile);
  *
  * \details Array of screen mode definitions. Screens with ACTIVE flag run by default.
  */
-ScreenMode sequence[] = {
+static ScreenMode sequence[] = {
     /**
      * \note Fields: name (display name), which (CLI switch char), on (on-interval in time units),
      * off (off-interval in time units), inv (invert flag), timer (update counter),
@@ -156,17 +158,17 @@ ScreenMode sequence[] = {
  */
 ///@{
 static int islow = -1;		     ///< Low priority mode flag (-1=unset)
-char *progname = "lcdproc";	     ///< Program name for display/logging
-char *server = NULL;		     ///< LCDd server address
-int port = UNSET_INT;		     ///< LCDd server port number
-int foreground = FALSE;		     ///< Run in foreground (don't daemonize)
+static char *progname = "lcdproc";   ///< Program name for display/logging
+static char *server = NULL;	     ///< LCDd server address
+static int port = UNSET_INT;	     ///< LCDd server port number
+static int foreground = FALSE;	     ///< Run in foreground (don't daemonize)
 static int report_level = UNSET_INT; ///< Logging verbosity level
 static int report_dest = UNSET_INT;  ///< Logging destination (stderr/syslog)
-char *configfile = NULL;	     ///< Configuration file path
-char *pidfile = NULL;		     ///< PID file path
-int pidfile_written = FALSE;	     ///< Whether PID file has been created
-char *displayname = NULL;	     ///< Custom display name override
-char *hostname = "";		     ///< Hostname of this machine
+static char *configfile = NULL;	     ///< Configuration file path
+static char *pidfile = NULL;	     ///< PID file path
+static int pidfile_written = FALSE;  ///< Whether PID file has been created
+static char *displayname = NULL;     ///< Custom display name override
+static char *hostname = "";	     ///< Hostname of this machine
 ///@}
 
 // Get the hostname of this machine
@@ -463,7 +465,7 @@ int main(int argc, char **argv)
 			       "G9",  "G10", "G11", "G12", "G13", "G14", "G15", "G16",
 			       "G17", "G18", "M1",  "M2",  "M3",  "MR",	 NULL};
 	for (int i = 0; gkeys[i] != NULL; i++) {
-		sock_printf(sock, "client_add_key %s\n", gkeys[i]);
+		sock_printf(sock, "client_add_key -exclusively %s\n", gkeys[i]);
 		report(RPT_DEBUG, "Reserved G-Key: %s", gkeys[i]);
 	}
 
@@ -645,7 +647,7 @@ void exit_program(int val)
 
 #ifdef LCDPROC_MENUS
 // Initialize menu system with screen mode checkboxes
-int menus_init()
+static int menus_init()
 {
 	int k;
 
@@ -699,6 +701,53 @@ int menus_init()
 #endif
 
 /**
+ * \brief Read display size and protocol version from the server's "connect" reply
+ * \param argc Number of words in the reply
+ * \param argv Words of the reply, argv[0] is "connect"
+ *
+ * \details Each keyword (wid, hgt, cellwid, cellhgt, protocol) is followed by its
+ * value; a missing or invalid value keeps the current setting.
+ */
+static void parse_connect_reply(int argc, char **argv)
+{
+	for (int a = 1; a + 1 < argc; a++) {
+		const char *value = argv[a + 1];
+		int *target = NULL;
+
+		if (strcmp(argv[a], "wid") == 0)
+			target = &lcd_wid;
+		else if (strcmp(argv[a], "hgt") == 0)
+			target = &lcd_hgt;
+		else if (strcmp(argv[a], "cellwid") == 0)
+			target = &lcd_cellwid;
+		else if (strcmp(argv[a], "cellhgt") == 0)
+			target = &lcd_cellhgt;
+
+		if (target != NULL) {
+			str_to_int(value, target);
+			a++;
+
+		} else if (strcmp(argv[a], "protocol") == 0) {
+			// "major.minor[.patch]"
+			char version[32];
+			char *minor;
+
+			snprintf(version, sizeof(version), "%s", value);
+			minor = strchr(version, '.');
+			if (minor != NULL) {
+				*minor++ = '\0';
+				char *patch = strchr(minor, '.');
+				if (patch != NULL)
+					*patch = '\0';
+				str_to_int(version, &protocol_major_version);
+				str_to_int(minor, &protocol_minor_version);
+			}
+			a++;
+		}
+	}
+}
+
+/**
  * \brief Main program execution loop
  *
  * \details Handles server connection, command parsing, screen updates,
@@ -712,12 +761,13 @@ void main_loop(void)
 	char *argv[256];
 	int argc, newtoken;
 	int len;
+	int keep = 0; // bytes of an unterminated line carried over to the next read
 	static int loop_count = 0;
 
 	report(RPT_INFO, "Entering main_loop - starting message processing");
 
 	while (!Quit) {
-		len = sock_recv(sock, buf, 8000);
+		len = sock_recv(sock, buf + keep, 8000 - keep);
 
 		if (len > 0 && loop_count < 5) {
 			loop_count++;
@@ -727,10 +777,19 @@ void main_loop(void)
 
 		// Tokenize received string into command arguments
 		while (len > 0) {
+			int total = keep + len;
+			int complete = total;
+
+			// Only complete lines are processed; a message split across two reads
+			// would otherwise be lost
+			while (complete > 0 && buf[complete - 1] != '\n' &&
+			       buf[complete - 1] != '\0')
+				complete--;
+
 			argc = 0;
 			newtoken = 1;
 
-			for (i = 0; i < len; i++) {
+			for (i = 0; i < complete; i++) {
 				switch (buf[i]) {
 
 				// Handle space character - marks end of current token
@@ -813,33 +872,9 @@ void main_loop(void)
 #endif
 						// Handle connection acknowledgment from LCDd server
 						else if (0 == strcmp(argv[0], "connect")) {
-							int a;
 							report(RPT_NOTICE,
 							       "Received CONNECT from server");
-							for (a = 1; a < argc; a++) {
-								if (0 == strcmp(argv[a], "wid"))
-									lcd_wid = atoi(argv[++a]);
-								else if (0 ==
-									 strcmp(argv[a], "hgt"))
-									lcd_hgt = atoi(argv[++a]);
-								else if (0 ==
-									 strcmp(argv[a], "cellwid"))
-									lcd_cellwid =
-									    atoi(argv[++a]);
-								else if (0 ==
-									 strcmp(argv[a], "cellhgt"))
-									lcd_cellhgt =
-									    atoi(argv[++a]);
-
-								// Extract major.minor version
-								// numbers
-								else if (0 == strcmp(argv[a],
-										     "protocol"))
-									sscanf(
-									    argv[++a], "%d.%d",
-									    &protocol_major_version,
-									    &protocol_minor_version);
-							}
+							parse_connect_reply(argc, argv);
 							connected = 1;
 							report(RPT_NOTICE,
 							       "Connection established - "
@@ -896,7 +931,12 @@ void main_loop(void)
 			}
 
 		drain_socket:
-			len = sock_recv(sock, buf, 8000);
+			// Carry the unterminated rest over; drop it if no line fits the buffer
+			keep = total - complete;
+			if (keep >= 8000)
+				keep = 0;
+			memmove(buf, buf + complete, keep);
+			len = sock_recv(sock, buf + keep, 8000 - keep);
 		}
 
 		// Update all active screens based on timing

@@ -41,4 +41,38 @@
  */
 int get_args(char **argv, char *str, int max_args);
 
+/**
+ * \brief Convert a decimal string to an int, with error checking
+ * \param s String to convert, e.g. a protocol or command line argument
+ * \param value Receives the converted value on success, unchanged otherwise
+ * \retval 0 Success
+ * \retval -1 Empty string, trailing characters or value outside the int range
+ *
+ * \details Replacement for atoi(), which returns 0 for invalid input and has
+ * undefined behaviour on overflow. Leading whitespace and a sign are accepted,
+ * like strtol(); anything after the number makes the conversion fail.
+ */
+int str_to_int(const char *s, int *value);
+
+/**
+ * \brief Read whitespace-separated unsigned integers from a string
+ * \param s String to read, e.g. a line from /proc
+ * \param values Array that receives the numbers
+ * \param count Number of values to read at most
+ * \retval >=0 Number of values read (stops at the first non-number or overflow)
+ *
+ * \details Replacement for sscanf("%lu %lu ...") without undefined behaviour on
+ * overflow.
+ */
+int str_to_ulongs(const char *s, unsigned long *values, int count);
+
+/**
+ * \brief Read whitespace-separated floating point numbers from a string
+ * \param s String to read, e.g. /proc/uptime
+ * \param values Array that receives the numbers
+ * \param count Number of values to read at most
+ * \retval >=0 Number of values read (stops at the first non-number or overflow)
+ */
+int str_to_doubles(const char *s, double *values, int count);
+
 #endif

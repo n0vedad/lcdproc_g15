@@ -24,6 +24,8 @@
  * configuration files.
  */
 
+#include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,4 +66,74 @@ int get_args(char **argv, char *str, int max_args)
 	}
 
 	return i;
+}
+
+// Convert a decimal string to an int, rejecting trailing characters and overflow
+int str_to_int(const char *s, int *value)
+{
+	char *end;
+	long v;
+
+	if (s == NULL || *s == '\0') {
+		return -1;
+	}
+
+	errno = 0;
+	v = strtol(s, &end, 10);
+	if (errno != 0 || end == s || *end != '\0' || v < INT_MIN || v > INT_MAX) {
+		return -1;
+	}
+
+	*value = (int)v;
+	return 0;
+}
+
+// Read up to count whitespace-separated unsigned integers
+int str_to_ulongs(const char *s, unsigned long *values, int count)
+{
+	int n = 0;
+
+	while (s != NULL && n < count) {
+		char *end;
+
+		while (*s == ' ' || *s == '\t') {
+			s++;
+		}
+		// strtoul() would accept and negate a leading minus sign
+		if (*s == '-') {
+			break;
+		}
+
+		errno = 0;
+		unsigned long v = strtoul(s, &end, 10);
+		if (errno != 0 || end == s) {
+			break;
+		}
+
+		values[n++] = v;
+		s = end;
+	}
+
+	return n;
+}
+
+// Read up to count whitespace-separated floating point numbers
+int str_to_doubles(const char *s, double *values, int count)
+{
+	int n = 0;
+
+	while (s != NULL && n < count) {
+		char *end;
+
+		errno = 0;
+		double v = strtod(s, &end);
+		if (errno != 0 || end == s) {
+			break;
+		}
+
+		values[n++] = v;
+		s = end;
+	}
+
+	return n;
 }

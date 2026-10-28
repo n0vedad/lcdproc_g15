@@ -114,7 +114,11 @@ void report(const int level, const char *format, ...);
  * \details The code that this function generates will not be in the executable when
  * compiled without debugging. This way memory and CPU cycles are saved.
  */
-static inline void dont_report(const int level, const char *format, ... /*args*/) {}
+static inline void dont_report(const int level, const char *format, ... /*args*/)
+{
+	(void)level;
+	(void)format;
+}
 
 /**
  * \brief Debug output macro that conditionally compiles to report() or dont_report()

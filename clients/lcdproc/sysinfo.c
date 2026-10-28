@@ -44,6 +44,7 @@
 #include "shared/configfile.h"
 #include "shared/report.h"
 #include "shared/sockets.h"
+#include "shared/str.h"
 
 #include "chrono.h"
 #include "machine.h"
@@ -69,6 +70,24 @@ static int get_gpu_temp(int *temp)
 }
 
 /**
+ * \brief Read a number from the first line of a file or command output
+ * \param fp Open file or popen() stream
+ * \param value Receives the number
+ * \retval 0 Success
+ * \retval -1 No line or no number at its start
+ */
+static int read_number(FILE *fp, double *value)
+{
+	char line[64];
+
+	if (fgets(line, sizeof(line), fp) == NULL || str_to_doubles(line, value, 1) != 1) {
+		return -1;
+	}
+
+	return 0;
+}
+
+/**
  * \brief Get GPU load percentage
  * \param load Pointer to store load percentage (0-100), or -1 if unavailable
  * \retval 0 Success (GPU monitoring available)
@@ -85,7 +104,7 @@ static int get_gpu_temp(int *temp)
 static int get_gpu_load(int *load)
 {
 	FILE *fp;
-	int value;
+	double value;
 	char path[256];
 	static int warned = 0; // Log warning only once
 
@@ -94,8 +113,8 @@ static int get_gpu_load(int *load)
 		snprintf(path, sizeof(path), "/sys/class/drm/card%d/device/gpu_busy_percent", card);
 		fp = fopen(path, "r");
 		if (fp != NULL) {
-			if (fscanf(fp, "%d", &value) == 1) {
-				*load = value;
+			if (read_number(fp, &value) == 0) {
+				*load = (int)value;
 				fclose(fp);
 				return 0; // Success
 			}
@@ -105,13 +124,13 @@ static int get_gpu_load(int *load)
 
 	// Try NVIDIA GPU (nvidia-smi utility)
 	// CERT-ENV33-C: Safe - uses hardcoded command with no user input
-	// NOLINTNEXTLINE(cert-env33-c)
+	// NOLINTNEXTLINE(cert-env33-c,bugprone-command-processor)
 	fp = popen(
 	    "nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null",
 	    "r");
 	if (fp != NULL) {
-		if (fscanf(fp, "%d", &value) == 1) {
-			*load = value;
+		if (read_number(fp, &value) == 0) {
+			*load = (int)value;
 			pclose(fp);
 			return 0; // Success
 		}
@@ -120,14 +139,13 @@ static int get_gpu_load(int *load)
 
 	// Try Intel GPU (intel_gpu_top utility with 1 sample)
 	// CERT-ENV33-C: Safe - uses hardcoded command with no user input
-	// NOLINTNEXTLINE(cert-env33-c)
+	// NOLINTNEXTLINE(cert-env33-c,bugprone-command-processor)
 	fp = popen("timeout 0.5 intel_gpu_top -J -s 100 2>/dev/null | grep -oP "
 		   "'\"Render/3D/0\".*?\"busy\":\\s*\\K[0-9.]+' | head -1",
 		   "r");
 	if (fp != NULL) {
-		float float_value;
-		if (fscanf(fp, "%f", &float_value) == 1) {
-			*load = (int)float_value;
+		if (read_number(fp, &value) == 0) {
+			*load = (int)value;
 			pclose(fp);
 			return 0; // Success
 		}

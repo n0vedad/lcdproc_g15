@@ -110,6 +110,7 @@ struct keycode {
 static struct keycode *keycode_create(const char *configvalue)
 {
 	long code;
+	const char *comma;
 	char *button;
 	struct keycode *ret;
 
@@ -118,12 +119,12 @@ static struct keycode *keycode_create(const char *configvalue)
 		return NULL;
 	}
 
-	button = strchr(configvalue, ',');
-	if (!button) {
+	comma = strchr(configvalue, ',');
+	if (!comma) {
 		return NULL;
 	}
 
-	button = strdup(&button[1]);
+	button = strdup(&comma[1]);
 	if (!button) {
 		return NULL;
 	}
@@ -153,10 +154,13 @@ typedef struct linuxInput_private_data {
  * Driver metadata exported to the LCDd server core
  */
 ///@{
+// Must keep external linkage: LCDd resolves these via dlsym() (driver_symbols in server/driver.c)
+// NOLINTBEGIN(misc-use-internal-linkage)
 MODULE_EXPORT char *api_version = API_VERSION;	   ///< Driver API version string
 MODULE_EXPORT int stay_in_foreground = 0;	   ///< Can run as daemon
 MODULE_EXPORT int supports_multiple = 1;	   ///< Supports multiple instances
 MODULE_EXPORT char *symbol_prefix = "linuxInput_"; ///< Function symbol prefix for this driver
+// NOLINTEND(misc-use-internal-linkage)
 ///@}
 
 /**

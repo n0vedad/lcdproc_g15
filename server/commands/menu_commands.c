@@ -52,10 +52,10 @@
 
 // Internal function declarations: menu event handler and functions to set predecessor/successor
 /** @cond */
-MenuEventFunc(menu_commands_handler);
+static MenuEventFunc(menu_commands_handler);
 /** @endcond */
-int set_predecessor(MenuItem *item, char *itemid, Client *client);
-int set_successor(MenuItem *item, char *itemid, Client *client);
+static int set_predecessor(MenuItem *item, char *itemid, Client *client);
+static int set_successor(MenuItem *item, char *itemid, Client *client);
 
 // Handle menu_add_item command for creating menu items
 int menu_add_item_func(Client *c, int argc, char **argv)
@@ -665,7 +665,7 @@ int menu_goto_func(Client *c, int argc, char **argv)
  * navigation commands (_quit_, _close_, _none_) and validates that predecessor
  * menu item exists.
  */
-int set_predecessor(MenuItem *item, char *itemid, Client *c)
+static int set_predecessor(MenuItem *item, char *itemid, Client *c)
 {
 	assert(item != NULL);
 	debug(RPT_DEBUG, "%s(%s, %s, %d)", __FUNCTION__, item->id, itemid, c->sock);
@@ -708,7 +708,7 @@ int set_predecessor(MenuItem *item, char *itemid, Client *c)
  * navigation commands (_quit_, _close_, _none_) and validates that successor
  * menu item exists.
  */
-int set_successor(MenuItem *item, char *itemid, Client *c)
+static int set_successor(MenuItem *item, char *itemid, Client *c)
 {
 	assert(item != NULL);
 	debug(RPT_DEBUG, "%s(%s, %s, %d)", __FUNCTION__, item->id, itemid, c->sock);
@@ -785,7 +785,7 @@ int menu_set_main_func(Client *c, int argc, char **argv)
 }
 
 /** @cond */
-MenuEventFunc(menu_commands_handler)
+static MenuEventFunc(menu_commands_handler)
 /** @endcond */
 {
 	/** @cond */

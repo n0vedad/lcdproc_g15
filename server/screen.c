@@ -51,8 +51,8 @@
  * Default duration and timeout settings for new screens
  */
 ///@{
-int default_duration = 0; ///< Default screen display duration (0 = infinite)
-int default_timeout = -1; ///< Default screen timeout (-1 = never timeout)
+int default_duration = 0;	 ///< Default screen display duration (0 = infinite)
+static int default_timeout = -1; ///< Default screen timeout (-1 = never timeout)
 ///@}
 
 /** \brief Priority level name strings
@@ -60,7 +60,7 @@ int default_timeout = -1; ///< Default screen timeout (-1 = never timeout)
  * \details Array of string names for priority levels, indexed by Priority enum.
  * Null-terminated for iteration. Used for protocol messages and configuration.
  */
-char *pri_names[] = {
+static char *pri_names[] = {
     "hidden", "background", "info", "foreground", "alert", "input", NULL,
 };
 

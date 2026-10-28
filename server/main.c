@@ -88,6 +88,7 @@
 
 #include "clients.h"
 #include "drivers.h"
+#include "drop_privs.h"
 #include "input.h"
 #include "main.h"
 #include "menuscreens.h"
@@ -110,7 +111,7 @@
 /** \brief Default configuration file path */
 #define DEFAULT_CONFIGFILE SYSCONFDIR "/LCDd.conf"
 /** \brief Default user for privilege dropping */
-#define DEFAULT_USER "nobody"
+#define DEFAULT_USER "lcdd"
 /** \brief Default LCD driver */
 #define DEFAULT_DRIVER "curses"
 /** \brief Default driver search path */
@@ -145,7 +146,7 @@
 ///@{
 char *version = VERSION;		   ///< LCDd server version string
 char *protocol_version = PROTOCOL_VERSION; ///< Client-server protocol version
-char *api_version = API_VERSION;	   ///< Driver API version
+static char *api_version = API_VERSION;	   ///< Driver API version
 ///@}
 
 /** \name Network Configuration
@@ -199,7 +200,6 @@ static void child_ok_func(int signal);
 static pid_t daemonize(void);
 static int wave_to_parent(pid_t parent_pid);
 static int init_drivers(void);
-static int drop_privs(char *user);
 static void do_reload(void);
 static void do_mainloop(void);
 static void exit_program(int val);
@@ -303,7 +303,11 @@ int main(int argc, char **argv)
 		wave_to_parent(parent_pid);
 	}
 
-	drop_privs(user);
+	// Must follow wave_to_parent(): an unprivileged child can't signal its root parent
+	if (drop_privs(user) < 0) {
+		report(RPT_CRIT, "Refusing to run with root privileges, abort.");
+		exit(EXIT_FAILURE);
+	}
 	do_mainloop();
 
 	return 0;
@@ -794,36 +798,6 @@ static int init_drivers(void)
 	report(RPT_ERR, "There is no output driver");
 
 	return -1;
-}
-
-/**
- * \brief Drop privs
- * \param user char *user
- * \return Return value
- */
-static int drop_privs(char *user)
-{
-	struct passwd pwd;
-	struct passwd *pwent;
-	char buffer[4096];
-
-	debug(RPT_DEBUG, "%s(user=\"%.40s\")", __FUNCTION__, user);
-
-	if (getuid() == 0 || geteuid() == 0) {
-		// getpwnam_r() is thread-safe (POSIX.1-2001), uses caller-provided buffer
-		int result = getpwnam_r(user, &pwd, buffer, sizeof(buffer), &pwent);
-		if (result != 0 || pwent == NULL) {
-			report(RPT_ERR, "User %.40s not a valid user!", user);
-			return -1;
-		} else {
-			if (setuid(pwent->pw_uid) < 0) {
-				report(RPT_ERR, "Unable to switch to user %.40s", user);
-				return -1;
-			}
-		}
-	}
-
-	return 0;
 }
 
 /**

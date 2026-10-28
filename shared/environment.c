@@ -51,7 +51,7 @@ static struct {
 	char home[PATH_MAX];  ///< Cached HOME directory path
 	char shell[PATH_MAX]; ///< Cached SHELL path
 	bool initialized;     ///< Cache initialization flag
-} env_cache = {0};
+} env_cache = {0};	      ///< Environment cache instance
 
 // Initialize environment variable cache from actual environment
 void env_cache_init(void)

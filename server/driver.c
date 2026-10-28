@@ -77,39 +77,40 @@ typedef struct driver_symbols {
  * driver module loading to resolve and validate driver entry points. Table is
  * null-terminated.
  */
-DriverSymbols driver_symbols[] = {{"api_version", offsetof(Driver, api_version), 1},
-				  {"stay_in_foreground", offsetof(Driver, stay_in_foreground), 1},
-				  {"supports_multiple", offsetof(Driver, supports_multiple), 1},
-				  {"symbol_prefix", offsetof(Driver, symbol_prefix), 1},
-				  {"init", offsetof(Driver, init), 1},
-				  {"close", offsetof(Driver, close), 1},
-				  {"width", offsetof(Driver, width), 0},
-				  {"height", offsetof(Driver, height), 0},
-				  {"clear", offsetof(Driver, clear), 0},
-				  {"flush", offsetof(Driver, flush), 0},
-				  {"string", offsetof(Driver, string), 0},
-				  {"chr", offsetof(Driver, chr), 0},
-				  {"vbar", offsetof(Driver, vbar), 0},
-				  {"hbar", offsetof(Driver, hbar), 0},
-				  {"pbar", offsetof(Driver, pbar), 0},
-				  {"num", offsetof(Driver, num), 0},
-				  {"heartbeat", offsetof(Driver, heartbeat), 0},
-				  {"icon", offsetof(Driver, icon), 0},
-				  {"cursor", offsetof(Driver, cursor), 0},
-				  {"set_char", offsetof(Driver, set_char), 0},
-				  {"get_free_chars", offsetof(Driver, get_free_chars), 0},
-				  {"cellwidth", offsetof(Driver, cellwidth), 0},
-				  {"cellheight", offsetof(Driver, cellheight), 0},
-				  {"get_contrast", offsetof(Driver, get_contrast), 0},
-				  {"set_contrast", offsetof(Driver, set_contrast), 0},
-				  {"get_brightness", offsetof(Driver, get_brightness), 0},
-				  {"set_brightness", offsetof(Driver, set_brightness), 0},
-				  {"backlight", offsetof(Driver, backlight), 0},
-				  {"output", offsetof(Driver, output), 0},
-				  {"set_macro_leds", offsetof(Driver, set_macro_leds), 0},
-				  {"get_key", offsetof(Driver, get_key), 0},
-				  {"get_info", offsetof(Driver, get_info), 0},
-				  {NULL, 0, 0}};
+static DriverSymbols driver_symbols[] = {
+    {"api_version", offsetof(Driver, api_version), 1},
+    {"stay_in_foreground", offsetof(Driver, stay_in_foreground), 1},
+    {"supports_multiple", offsetof(Driver, supports_multiple), 1},
+    {"symbol_prefix", offsetof(Driver, symbol_prefix), 1},
+    {"init", offsetof(Driver, init), 1},
+    {"close", offsetof(Driver, close), 1},
+    {"width", offsetof(Driver, width), 0},
+    {"height", offsetof(Driver, height), 0},
+    {"clear", offsetof(Driver, clear), 0},
+    {"flush", offsetof(Driver, flush), 0},
+    {"string", offsetof(Driver, string), 0},
+    {"chr", offsetof(Driver, chr), 0},
+    {"vbar", offsetof(Driver, vbar), 0},
+    {"hbar", offsetof(Driver, hbar), 0},
+    {"pbar", offsetof(Driver, pbar), 0},
+    {"num", offsetof(Driver, num), 0},
+    {"heartbeat", offsetof(Driver, heartbeat), 0},
+    {"icon", offsetof(Driver, icon), 0},
+    {"cursor", offsetof(Driver, cursor), 0},
+    {"set_char", offsetof(Driver, set_char), 0},
+    {"get_free_chars", offsetof(Driver, get_free_chars), 0},
+    {"cellwidth", offsetof(Driver, cellwidth), 0},
+    {"cellheight", offsetof(Driver, cellheight), 0},
+    {"get_contrast", offsetof(Driver, get_contrast), 0},
+    {"set_contrast", offsetof(Driver, set_contrast), 0},
+    {"get_brightness", offsetof(Driver, get_brightness), 0},
+    {"set_brightness", offsetof(Driver, set_brightness), 0},
+    {"backlight", offsetof(Driver, backlight), 0},
+    {"output", offsetof(Driver, output), 0},
+    {"set_macro_leds", offsetof(Driver, set_macro_leds), 0},
+    {"get_key", offsetof(Driver, get_key), 0},
+    {"get_info", offsetof(Driver, get_info), 0},
+    {NULL, 0, 0}};
 
 // Internal helper function declarations: display dimension requests and private data storage for
 // driver instances
@@ -315,7 +316,7 @@ bool driver_stay_in_foreground(Driver *driver) { return *driver->stay_in_foregro
  * \param driver Driver *driver
  * \return Return value
  */
-bool driver_supports_multiple(Driver *driver) { return *driver->supports_multiple; }
+static bool driver_supports_multiple(Driver *driver) { return *driver->supports_multiple; }
 
 /**
  * \brief Driver store private ptr

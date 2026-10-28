@@ -88,7 +88,7 @@ typedef struct _ClientSocketMap {
  * \details Array of FD_SETSIZE ClientSocketMap entries allocated at startup.
  * Provides recycled mapping objects to avoid malloc/free overhead.
  */
-ClientSocketMap *freeClientSocketPool;
+static ClientSocketMap *freeClientSocketPool;
 
 /** \brief Maximum message length for socket transmission
  *
@@ -397,7 +397,7 @@ static int sock_read_from_client(ClientSocketMap *clientSocketMap)
  * \param client void *client
  * \return Return value
  */
-int byClient(void *csm, void *client)
+static int byClient(void *csm, void *client)
 {
 	return (((ClientSocketMap *)csm)->client == (Client *)client) ? 0 : -1;
 }

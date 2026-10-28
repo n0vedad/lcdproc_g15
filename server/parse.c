@@ -155,7 +155,7 @@ static void parse_message(const char *str, Client *c)
 				if (str[pos]) {
 					const char escape_chars[] = "nrt";
 					const char escape_trans[] = "\n\r\t";
-					char *p = strchr(escape_chars, str[pos]);
+					const char *p = strchr(escape_chars, str[pos]);
 
 					/**
 					 * \todo Is it wise to have the characters \\n, \\r & \\t

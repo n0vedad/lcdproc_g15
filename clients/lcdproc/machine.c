@@ -43,6 +43,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -92,6 +93,7 @@
 #include "shared/LL.h"
 #include "shared/posix_wrappers.h"
 #include "shared/report.h"
+#include "shared/str.h"
 
 /** \name /proc File Descriptors
  * Cached file descriptors for reading system statistics from /proc
@@ -205,6 +207,22 @@ int machine_close(void)
 }
 
 /**
+ * \brief Read the number of a /proc/[pid]/status line
+ * \param line Line such as "VmData:	    1234 kB"
+ * \retval >=0 The number after the label, or 0 if the line has none
+ */
+static int status_line_value(const char *line)
+{
+	unsigned long value;
+	const char *p = strpbrk(line, " \t");
+
+	if (p == NULL || str_to_ulongs(p, &value, 1) != 1 || value > INT_MAX)
+		return 0;
+
+	return (int)value;
+}
+
+/**
  * \brief Reread data from /proc file into buffer
  * \param f File descriptor of open /proc file
  * \param errmsg Error message to display on failure
@@ -260,6 +278,9 @@ static int getentry(const char *tag, const char *bufptr, long *value)
 int machine_get_battstat(int *acstat, int *battflag, int *percent)
 {
 	char str[64];
+	ssize_t len;
+	long field[4];
+	int fields = 0;
 	int battstat;
 
 	if (batt_fd < 0) {
@@ -274,12 +295,29 @@ int machine_get_battstat(int *acstat, int *battflag, int *percent)
 		return (FALSE);
 
 	// Read APM battery status from /proc/apm into buffer
-	if (read(batt_fd, str, sizeof(str) - 1) < 0)
+	len = read(batt_fd, str, sizeof(str) - 1);
+	if (len < 13)
+		return (FALSE);
+	str[len] = '\0';
+
+	// Parse APM status: skip first 13 chars, read three hex values and the percentage
+	for (const char *p = str + 13; fields < 4; fields++) {
+		char *end;
+
+		errno = 0;
+		field[fields] = strtol(p, &end, (fields < 3) ? 16 : 10);
+		if (errno != 0 || end == p || field[fields] < 0 || field[fields] > INT_MAX)
+			break;
+		p = end;
+	}
+	if (fields < 3)
 		return (FALSE);
 
-	// Parse APM status: skip first 13 chars, read hex values and percentage
-	if (3 > sscanf(str + 13, "0x%x 0x%x 0x%x %d", acstat, &battstat, battflag, percent))
-		return (FALSE);
+	*acstat = (int)field[0];
+	battstat = (int)field[1];
+	*battflag = (int)field[2];
+	if (fields == 4)
+		*percent = (int)field[3];
 
 	// Translate APM battery flags to lcdproc constants
 	if (*battflag == 0xff)
@@ -404,14 +442,27 @@ int machine_get_load(load_type *curr_load)
 {
 	static load_type last_load = {0, 0, 0, 0, 0};
 	load_type load;
-	int ret;
-	unsigned long load_iowait, load_irq, load_softirq;
+	int ret = 0;
+	unsigned long field[7];
+	unsigned long load_iowait = 0, load_irq = 0, load_softirq = 0;
 
 	reread(load_fd, "get_load");
 
 	// Parse CPU line: "cpu user nice system idle iowait irq softirq"
-	ret = sscanf(procbuf, "cpu %lu %lu %lu %lu %lu %lu %lu", &load.user, &load.nice,
-		     &load.system, &load.idle, &load_iowait, &load_irq, &load_softirq);
+	if (strncmp(procbuf, "cpu ", 4) == 0)
+		ret = str_to_ulongs(procbuf + 4, field, 7);
+	if (ret < 4)
+		return (FALSE);
+	load.user = field[0];
+	load.nice = field[1];
+	load.system = field[2];
+	load.idle = field[3];
+	if (ret >= 5)
+		load_iowait = field[4];
+	if (ret >= 6)
+		load_irq = field[5];
+	if (ret >= 7)
+		load_softirq = field[6];
 
 	// Merge modern kernel extensions into existing categories
 	if (ret >= 5)
@@ -461,7 +512,8 @@ int machine_get_loadavg(double *load)
 	*load = loadavg[LOADAVG_1MIN];
 #else
 	reread(loadavg_fd, "get_loadavg");
-	sscanf(procbuf, "%lf", load);
+	if (str_to_doubles(procbuf, load, 1) != 1)
+		return (FALSE);
 #endif
 	return (TRUE);
 }
@@ -495,12 +547,12 @@ int machine_get_procs(LinkedList *procs)
 	struct dirent *procdir;
 
 	char procName[16];
-	int procSize, procRSS, procData, procStk, procExe;
-	const char *NameLine = "Name:", *VmSizeLine = "VmSize:", *VmRSSLine = "VmRSS",
-		   *VmDataLine = "VmData", *VmStkLine = "VmStk", *VmExeLine = "VmExe";
+	int procSize, procData, procStk, procExe;
+	const char *NameLine = "Name:", *VmSizeLine = "VmSize:", *VmDataLine = "VmData",
+		   *VmStkLine = "VmStk", *VmExeLine = "VmExe";
 	const int NameLineLen = strlen(NameLine), VmSizeLineLen = strlen(VmSizeLine),
 		  VmDataLineLen = strlen(VmDataLine), VmStkLineLen = strlen(VmStkLine),
-		  VmExeLineLen = strlen(VmExeLine), VmRSSLineLen = strlen(VmRSSLine);
+		  VmExeLineLen = strlen(VmExeLine);
 
 	// Memory threshold: only track processes using >400KB
 	int threshold = 400, unique;
@@ -540,20 +592,18 @@ int machine_get_procs(LinkedList *procs)
 			continue;
 		}
 
-		procRSS = procSize = procData = procStk = procExe = 0;
+		procSize = procData = procStk = procExe = 0;
 		while (fgets(buf, sizeof(buf), StatusFile)) {
 			if (!strncmp(buf, NameLine, NameLineLen)) {
 				sscanf(buf, "%*s %s", procName);
 			} else if (!strncmp(buf, VmSizeLine, VmSizeLineLen)) {
-				sscanf(buf, "%*s %d", &procSize);
-			} else if (!strncmp(buf, VmRSSLine, VmRSSLineLen)) {
-				sscanf(buf, "%*s %d", &procRSS);
+				procSize = status_line_value(buf);
 			} else if (!strncmp(buf, VmDataLine, VmDataLineLen)) {
-				sscanf(buf, "%*s %d", &procData);
+				procData = status_line_value(buf);
 			} else if (!strncmp(buf, VmStkLine, VmStkLineLen)) {
-				sscanf(buf, "%*s %d", &procStk);
+				procStk = status_line_value(buf);
 			} else if (!strncmp(buf, VmExeLine, VmExeLineLen)) {
-				sscanf(buf, "%*s %d", &procExe);
+				procExe = status_line_value(buf);
 			}
 		}
 		fclose(StatusFile);
@@ -622,10 +672,24 @@ int machine_get_smpload(load_type *result, int *numcpus)
 	token = strtok_r(procbuf, "\n", &saveptr);
 	while (token != NULL) {
 		if ((strlen(token) > 3) && (!strncmp(token, "cpu", 3)) && isdigit(token[3])) {
-			ret = sscanf(token, "cpu%*d %lu %lu %lu %lu %lu %lu %lu",
-				     &curr_load[ncpu].user, &curr_load[ncpu].nice,
-				     &curr_load[ncpu].system, &curr_load[ncpu].idle, &load_iowait,
-				     &load_irq, &load_softirq);
+			const char *values = token + 3;
+			unsigned long field[7];
+
+			// Skip the CPU number of "cpuN"
+			while (isdigit((unsigned char)*values))
+				values++;
+			ret = str_to_ulongs(values, field, 7);
+			if (ret < 4) {
+				token = strtok_r(NULL, "\n", &saveptr);
+				continue;
+			}
+			curr_load[ncpu].user = field[0];
+			curr_load[ncpu].nice = field[1];
+			curr_load[ncpu].system = field[2];
+			curr_load[ncpu].idle = field[3];
+			load_iowait = (ret >= 5) ? field[4] : 0;
+			load_irq = (ret >= 6) ? field[5] : 0;
+			load_softirq = (ret >= 7) ? field[6] : 0;
 
 			// Merge modern kernel extensions
 			if (ret >= 5)
@@ -661,10 +725,13 @@ int machine_get_smpload(load_type *result, int *numcpus)
 // Get system uptime and idle time statistics
 int machine_get_uptime(double *up, double *idle)
 {
+	double field[2] = {0, 0};
 	double local_up, local_idle;
 
 	reread(uptime_fd, "get_uptime");
-	sscanf(procbuf, "%lf %lf", &local_up, &local_idle);
+	str_to_doubles(procbuf, field, 2);
+	local_up = field[0];
+	local_idle = field[1];
 
 	if (up != NULL)
 		*up = local_up;
@@ -702,13 +769,20 @@ int machine_get_iface_stats(IfaceInfo *interface)
 				interface->status = up;
 				interface->last_online = time(NULL);
 
+				double field[10];
+
 				ch_pointer = strchr(buffer, ':');
+				if (ch_pointer == NULL)
+					continue;
 				ch_pointer++;
 
-				// Parse: rx_bytes rx_packets ... tx_bytes tx_packets
-				sscanf(ch_pointer, "%lf %lf %*s %*s %*s %*s %*s %*s %lf %lf",
-				       &interface->rc_byte, &interface->rc_pkt, &interface->tr_byte,
-				       &interface->tr_pkt);
+				// Parse: rx_bytes rx_packets (6 more rx fields) tx_bytes tx_packets
+				if (str_to_doubles(ch_pointer, field, 10) == 10) {
+					interface->rc_byte = field[0];
+					interface->rc_pkt = field[1];
+					interface->tr_byte = field[8];
+					interface->tr_pkt = field[9];
+				}
 
 				// Initialize old values on first call to prevent spikes
 				if (first_time) {

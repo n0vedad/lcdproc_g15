@@ -46,6 +46,9 @@ extern Screen *menuscreen;
  */
 extern Menu *main_menu;
 
+/** \brief User-configurable main menu (defined in menuscreens.c) */
+extern Menu *custom_main_menu;
+
 /**
  * \brief Initializes the menu screen system
  * \retval 0 Success

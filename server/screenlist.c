@@ -43,16 +43,16 @@
 #include "screen.h"
 #include "screenlist.h"
 
-int compare_priority(void *one, void *two);
+static int compare_priority(void *one, void *two);
 
 /** \name Global Screen Rotation State
  * Screen list, current screen tracking, and autorotate configuration
  */
 ///@{
-int autorotate = UNSET_INT;		///< Auto-rotation enabled flag (see render.h)
-LinkedList *screenlist = NULL;		///< Priority-sorted list of all screens
-Screen *current_screen = NULL;		///< Currently displayed screen
-long int current_screen_start_time = 0; ///< Frame counter when current screen started
+int autorotate = UNSET_INT;		       ///< Auto-rotation enabled flag (see render.h)
+static LinkedList *screenlist = NULL;	       ///< Priority-sorted list of all screens
+static Screen *current_screen = NULL;	       ///< Currently displayed screen
+static long int current_screen_start_time = 0; ///< Frame counter when current screen started
 ///@}
 
 // Initialize screenlist and prepare screen management
@@ -272,7 +272,7 @@ int screenlist_goto_prev(void)
  * \param two void *two
  * \return Return value
  */
-int compare_priority(void *one, void *two)
+static int compare_priority(void *one, void *two)
 {
 	Screen *a, *b;
 

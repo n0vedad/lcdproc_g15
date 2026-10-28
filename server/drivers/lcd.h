@@ -201,46 +201,72 @@ typedef struct lcd_logical_driver {
 	void (*close)(struct lcd_logical_driver *drvthis); ///< Close driver
 
 	// Essential output functions (necessary for output drivers)
+	/// Display width in characters
 	int (*width)(struct lcd_logical_driver *drvthis);
+	/// Display height in characters
 	int (*height)(struct lcd_logical_driver *drvthis);
+	/// Clear the frame buffer
 	void (*clear)(struct lcd_logical_driver *drvthis);
+	/// Send the frame buffer to the display
 	void (*flush)(struct lcd_logical_driver *drvthis);
+	/// Write a string at position x, y (1-based)
 	void (*string)(struct lcd_logical_driver *drvthis, int x, int y, const char *str);
+	/// Write a single character at position x, y (1-based)
 	void (*chr)(struct lcd_logical_driver *drvthis, int x, int y, char c);
 
 	// Essential input functions (necessary for all input drivers)
+	/// Return the name of the next pressed key, or NULL
 	const char *(*get_key)(struct lcd_logical_driver *drvthis);
 
 	// Extended output functions (optional; core provides alternatives)
+	/// Draw a vertical bar growing upwards
 	void (*vbar)(struct lcd_logical_driver *drvthis, int x, int y, int len, int promille,
 		     int pattern);
+	/// Draw a horizontal bar growing to the right
 	void (*hbar)(struct lcd_logical_driver *drvthis, int x, int y, int len, int promille,
 		     int pattern);
+	/// Draw a percentage bar
 	void (*pbar)(struct lcd_logical_driver *drvthis, int x, int y, int width, int promille);
+	/// Draw a big number (0-9, 10 = colon) at column x
 	void (*num)(struct lcd_logical_driver *drvthis, int x, int num);
+	/// Show or hide the heartbeat indicator
 	void (*heartbeat)(struct lcd_logical_driver *drvthis, int state);
+	/// Draw an icon; returns -1 if the core should draw a replacement
 	int (*icon)(struct lcd_logical_driver *drvthis, int x, int y, int icon);
+	/// Set cursor position and type
 	void (*cursor)(struct lcd_logical_driver *drvthis, int x, int y, int type);
 
 	// user-defined character functions, are those still supported ?
+	/// Define user-defined character n from dat
 	void (*set_char)(struct lcd_logical_driver *drvthis, int n, unsigned char *dat);
+	/// Number of user-definable characters
 	int (*get_free_chars)(struct lcd_logical_driver *drvthis);
+	/// Character cell width in pixels
 	int (*cellwidth)(struct lcd_logical_driver *drvthis);
+	/// Character cell height in pixels
 	int (*cellheight)(struct lcd_logical_driver *drvthis);
 
 	// Hardware functions
+	/// Current contrast (0-1000)
 	int (*get_contrast)(struct lcd_logical_driver *drvthis);
+	/// Set contrast (0-1000)
 	void (*set_contrast)(struct lcd_logical_driver *drvthis, int promille);
+	/// Brightness (0-1000) for backlight state on/off
 	int (*get_brightness)(struct lcd_logical_driver *drvthis, int state);
+	/// Set brightness (0-1000) for backlight state on/off
 	void (*set_brightness)(struct lcd_logical_driver *drvthis, int state, int promille);
+	/// Switch the backlight on or off
 	void (*backlight)(struct lcd_logical_driver *drvthis, int on);
+	/// Set the M1/M2/M3/MR macro LEDs (G15/G510 keyboards)
 	int (*set_macro_leds)(struct lcd_logical_driver *drvthis, int m1, int m2, int m3, int mr);
+	/// Set general purpose outputs (bit mask)
 	void (*output)(struct lcd_logical_driver *drvthis, int state);
 
 	// informational functions
+	/// Driver information string
 	const char *(*get_info)(struct lcd_logical_driver *drvthis);
-	char *name;	// Name of this driver
-	char *filename; // Filename of the shared module
+	char *name;	///< Name of this driver
+	char *filename; ///< Filename of the shared module
 
 	/**
 	 * \note The handle of the loaded shared module
@@ -255,23 +281,31 @@ typedef struct lcd_logical_driver {
 	 */
 	void *private_data;
 
-	// Store the driver's private data
+	/// Store the driver's private data pointer (provided by the server)
 	int (*store_private_ptr)(struct lcd_logical_driver *driver, void *private_data);
 
 	// Configfile functions
+	/// Read a boolean from the configuration (provided by the server)
 	short (*config_get_bool)(const char *sectionname, const char *keyname, int skip,
 				 short default_value);
+	/// Read an integer from the configuration (provided by the server)
 	long int (*config_get_int)(const char *sectionname, const char *keyname, int skip,
 				   long int default_value);
+	/// Read a float from the configuration (provided by the server)
 	double (*config_get_float)(const char *sectionname, const char *keyname, int skip,
 				   double default_value);
+	/// Read a string from the configuration (provided by the server)
 	const char *(*config_get_string)(const char *sectionname, const char *keyname, int skip,
 					 const char *default_value);
+	/// Check whether a configuration section exists (provided by the server)
 	int (*config_has_section)(const char *sectionname);
+	/// Check whether a configuration key exists (provided by the server)
 	int (*config_has_key)(const char *sectionname, const char *keyname);
 
 	// Display properties functions (for drivers that adapt to other loaded drivers)
+	/// Width of the display of the output driver (provided by the server)
 	int (*request_display_width)();
+	/// Height of the display of the output driver (provided by the server)
 	int (*request_display_height)();
 
 } Driver;

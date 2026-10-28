@@ -37,14 +37,12 @@
 #ifndef WIDGET_H
 #define WIDGET_H
 
-/** \brief Include only type definitions from screen.h
+/** \brief Screen a widget belongs to (defined in screen.h)
  *
- * \details Prevents circular dependencies by including only struct/typedef
- * declarations from screen.h, not full function prototypes.
+ * \details Widgets only hold pointers to screens, so a forward declaration is
+ * enough and screen.h, which includes this header, is not included back.
  */
-#define INC_TYPES_ONLY 1
-#include "screen.h"
-#undef INC_TYPES_ONLY
+typedef struct Screen Screen;
 
 /**
  * \brief Widget type enumeration

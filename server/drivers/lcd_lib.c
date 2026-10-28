@@ -40,6 +40,7 @@
 #endif
 
 #include "lcd.h"
+#include "lcd_lib.h"
 
 /**
  * \brief Draw bar using pre-defined custom characters

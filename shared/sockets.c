@@ -140,6 +140,8 @@ int sock_printf(int fd, const char *format, ...)
 	int size = 0;
 
 	va_start(ap, format);
+	// clang-analyzer does not model C23 va_start and reports ap as uninitialized
+	// NOLINTNEXTLINE(clang-analyzer-security.VAList)
 	size = vsnprintf(buf, sizeof(buf), format, ap);
 	va_end(ap);
 
@@ -300,6 +302,8 @@ int sock_printf_error(int fd, const char *format, ...)
 
 	// Format variable arguments into buffer after "huh? " prefix and ensure null-termination
 	va_start(ap, format);
+	// clang-analyzer does not model C23 va_start and reports ap as uninitialized
+	// NOLINTNEXTLINE(clang-analyzer-security.VAList)
 	size = vsnprintf(buf + (sizeof(huh) - 1), sizeof(buf) - (sizeof(huh) - 1), format, ap);
 	buf[sizeof(buf) - 1] = '\0';
 	va_end(ap);

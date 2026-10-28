@@ -68,12 +68,15 @@ void report(const int level, const char *format, ...)
 		char buf[1024];
 		va_list ap;
 
+		// clang-analyzer does not model C23 va_start (__builtin_c23_va_start) and reports
+		// ap as uninitialized below; ap is initialized here
 		va_start(ap, format);
 
 		switch (report_dest) {
 
 		// Output to stderr with newline
 		case RPT_DEST_STDERR:
+			// NOLINTNEXTLINE(clang-analyzer-security.VAList)
 			vfprintf(stderr, format, ap);
 			fprintf(stderr, "\n");
 			break;
@@ -88,12 +91,14 @@ void report(const int level, const char *format, ...)
 
 		// Store message in memory buffer
 		case RPT_DEST_STORE:
+			// NOLINTNEXTLINE(clang-analyzer-security.VAList)
 			vsnprintf(buf, sizeof(buf), format, ap);
 			buf[sizeof(buf) - 1] = 0;
 			store_report_message(level, buf);
 			break;
 		}
 
+		// NOLINTNEXTLINE(clang-analyzer-security.VAList)
 		va_end(ap);
 	}
 }

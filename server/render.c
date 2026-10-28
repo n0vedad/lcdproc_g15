@@ -90,8 +90,8 @@ int backlight = BACKLIGHT_OPEN;		      ///< Backlight control mode (see render.h
 static int backlight_fallback = BACKLIGHT_ON; ///< Fallback backlight mode when client doesn't set
 int titlespeed = 1;			      ///< Title scroll speed setting
 int output_state = 0;			      ///< Hardware output state bitmask
-char *server_msg_text;			      ///< Server message text to display
-int server_msg_expire = 0;		      ///< Frame count when server message expires
+static char *server_msg_text;		      ///< Server message text to display
+static int server_msg_expire = 0;	      ///< Frame count when server message expires
 ///@}
 
 /**

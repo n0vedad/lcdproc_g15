@@ -31,12 +31,7 @@
  * is represented as a 32x32 pixel bitmap stored as an array of 1032 values.
  */
 
-/** \brief Length of each big number bitmap array
- *
- * \details Size of bitmap data for each digit (32x32 pixels plus padding = 1032 bytes).
- * Used to index into the g15_bignum[] array for different digits.
- */
-#define G15_BIGNUM_LEN 1032
+#include "g15.h"
 
 /**
  * \note Bitmap data for big numbers 0-9 and colon character

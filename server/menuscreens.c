@@ -54,12 +54,12 @@
  * Configurable key names for menu navigation
  */
 ///@{
-char *menu_key;		     ///< Key to enter/exit menu system
-char *enter_key;	     ///< Key to select/activate menu item
-char *up_key;		     ///< Key to navigate up in menu
-char *down_key;		     ///< Key to navigate down in menu
-char *left_key;		     ///< Key to decrease value or go back
-char *right_key;	     ///< Key to increase value or go forward
+static char *menu_key;	     ///< Key to enter/exit menu system
+static char *enter_key;	     ///< Key to select/activate menu item
+static char *up_key;	     ///< Key to navigate up in menu
+static char *down_key;	     ///< Key to navigate down in menu
+static char *left_key;	     ///< Key to decrease value or go back
+static char *right_key;	     ///< Key to increase value or go forward
 static unsigned int keymask; ///< Bitmask for simultaneous key press detection
 ///@}
 
@@ -67,11 +67,11 @@ static unsigned int keymask; ///< Bitmask for simultaneous key press detection
  * Screen, active item, and menu hierarchy references
  */
 ///@{
-Screen *menuscreen = NULL;	  ///< Screen object for menu display
-MenuItem *active_menuitem = NULL; ///< Currently selected menu item
-Menu *main_menu = NULL;		  ///< Root of main menu tree
-Menu *custom_main_menu = NULL;	  ///< Root of custom client menu tree
-Menu *screens_menu = NULL;	  ///< Menu for screen management
+Screen *menuscreen = NULL;		 ///< Screen object for menu display
+static MenuItem *active_menuitem = NULL; ///< Currently selected menu item
+Menu *main_menu = NULL;			 ///< Root of main menu tree
+Menu *custom_main_menu = NULL;		 ///< Root of custom client menu tree
+static Menu *screens_menu = NULL;	 ///< Menu for screen management
 ///@}
 
 // Internal menu navigation and action handlers for menu result processing and screen transitions
@@ -80,8 +80,8 @@ static void handle_close(void);
 static void handle_none(void);
 static void handle_enter(void);
 static void handle_successor(void);
-void menuscreen_switch_item(MenuItem *new_menuitem);
-void menuscreen_create_menu(void);
+static void menuscreen_switch_item(MenuItem *new_menuitem);
+static void menuscreen_create_menu(void);
 
 #ifdef LCDPROC_TESTMENUS
 void menuscreen_create_testmenu(void);
@@ -89,15 +89,15 @@ void menuscreen_create_testmenu(void);
 
 // Internal function hidden from Doxygen documentation
 /** @cond */
-Menu *menuscreen_get_main(void);
+static Menu *menuscreen_get_main(void);
 /** @endcond */
 // Internal menu event handlers hidden from Doxygen documentation
 /** @cond */
-MenuEventFunc(heartbeat_handler);
-MenuEventFunc(backlight_handler);
-MenuEventFunc(titlespeed_handler);
-MenuEventFunc(contrast_handler);
-MenuEventFunc(brightness_handler);
+static MenuEventFunc(heartbeat_handler);
+static MenuEventFunc(backlight_handler);
+static MenuEventFunc(titlespeed_handler);
+static MenuEventFunc(contrast_handler);
+static MenuEventFunc(brightness_handler);
 /** @endcond */
 
 // Initialize the menu screen system
@@ -255,7 +255,7 @@ bool is_menu_key(const char *key)
  * \details Handles item transitions, screen rebuilds, and ENTER/LEAVE events.
  * Updates menuscreen priority based on active state.
  */
-void menuscreen_switch_item(MenuItem *new_menuitem)
+static void menuscreen_switch_item(MenuItem *new_menuitem)
 {
 	MenuItem *old_menuitem = active_menuitem;
 
@@ -515,7 +515,7 @@ void menuscreen_key_handler(const char *key)
  * \details Initializes menuscreen and builds initial menu hierarchy
  * from configured menu items.
  */
-void menuscreen_create_menu(void)
+static void menuscreen_create_menu(void)
 {
 	Menu *options_menu;
 	Menu *driver_menu;
@@ -704,7 +704,7 @@ void menuscreen_create_testmenu(void)
 #endif
 
 /** @cond */
-MenuEventFunc(heartbeat_handler)
+static MenuEventFunc(heartbeat_handler)
 /** @endcond */
 {
 	/** @cond */
@@ -721,7 +721,7 @@ MenuEventFunc(heartbeat_handler)
 }
 
 /** @cond */
-MenuEventFunc(backlight_handler)
+static MenuEventFunc(backlight_handler)
 /** @endcond */
 {
 	debug(RPT_DEBUG, "%s(item=[%s], event=%d)", __FUNCTION__,
@@ -736,7 +736,7 @@ MenuEventFunc(backlight_handler)
 }
 
 /** @cond */
-MenuEventFunc(titlespeed_handler)
+static MenuEventFunc(titlespeed_handler)
 /** @endcond */
 {
 	/** @cond */
@@ -752,7 +752,7 @@ MenuEventFunc(titlespeed_handler)
 }
 
 /** @cond */
-MenuEventFunc(contrast_handler)
+static MenuEventFunc(contrast_handler)
 /** @endcond */
 {
 	debug(RPT_DEBUG, "%s(item=[%s], event=%d)", __FUNCTION__,
@@ -772,7 +772,7 @@ MenuEventFunc(contrast_handler)
 }
 
 /** @cond */
-MenuEventFunc(brightness_handler)
+static MenuEventFunc(brightness_handler)
 /** @endcond */
 {
 	debug(RPT_DEBUG, "%s(item=[%s], event=%d)", __FUNCTION__,
@@ -871,4 +871,4 @@ int menuscreen_set_main(Menu *menu)
  * \brief Menuscreen get main
  * \return Return value
  */
-Menu *menuscreen_get_main(void) { return custom_main_menu ? custom_main_menu : main_menu; }
+static Menu *menuscreen_get_main(void) { return custom_main_menu ? custom_main_menu : main_menu; }
