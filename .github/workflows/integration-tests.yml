@@ -40,10 +40,12 @@ jobs:
     - name: Install dependencies
       run: |
         # Sync database WITHOUT system upgrade to avoid ICU breakage
-        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear clang-tools-extra libusb libftdi-compat
+        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear clang-tools-extra libusb libftdi-compat doxygen graphviz
 
         # Create non-root user for AUR builds
         useradd -m -s /bin/bash builder
+        # LCDd started as root drops its privileges to user lcdd (as in the package)
+        systemd-sysusers "$GITHUB_WORKSPACE/services/sysusers.d/lcdproc-g15.conf"
         echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 
         # Install G15 libraries from AUR
@@ -120,10 +122,12 @@ jobs:
     - name: Install dependencies
       run: |
         # Sync database WITHOUT system upgrade to avoid ICU breakage
-        pacman -Sy --noconfirm base-devel git clang make autoconf automake bear libusb libftdi-compat
+        pacman -Sy --noconfirm base-devel git clang make autoconf automake bear libusb libftdi-compat doxygen graphviz
 
         # Create non-root user for AUR builds
         useradd -m -s /bin/bash builder
+        # LCDd started as root drops its privileges to user lcdd (as in the package)
+        systemd-sysusers "$GITHUB_WORKSPACE/services/sysusers.d/lcdproc-g15.conf"
         echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 
         # Install G15 libraries from AUR
@@ -187,10 +191,12 @@ jobs:
     - name: Install dependencies
       run: |
         # Sync database WITHOUT system upgrade to avoid ICU breakage
-        pacman -Sy --noconfirm base-devel git clang make autoconf automake libusb libftdi-compat
+        pacman -Sy --noconfirm base-devel git clang make autoconf automake libusb libftdi-compat doxygen graphviz
 
         # Create non-root user for AUR builds
         useradd -m -s /bin/bash builder
+        # LCDd started as root drops its privileges to user lcdd (as in the package)
+        systemd-sysusers "$GITHUB_WORKSPACE/services/sysusers.d/lcdproc-g15.conf"
         echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 
         # Install G15 libraries from AUR

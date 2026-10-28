@@ -51,11 +51,13 @@ jobs:
     - name: Install dependencies
       run: |
         # Install base tools and hardware libraries
-        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear npm
+        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear npm doxygen graphviz
         # Install standard hardware libraries
         pacman -Sy --noconfirm libusb libftdi-compat
         # Create non-root user for AUR builds
         useradd -m -s /bin/bash builder
+        # LCDd started as root drops its privileges to user lcdd (as in the package)
+        systemd-sysusers "$GITHUB_WORKSPACE/services/sysusers.d/lcdproc-g15.conf"
         echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
         # Install G15 libraries from AUR
         sudo -u builder bash -c '
@@ -93,10 +95,9 @@ jobs:
         echo "Expected RGB support: ${{ matrix.device.rgb_support }}"
         make test-verbose
         
-    - name: Skip memory leak detection  
+    - name: Memory leak detection
       run: |
-        echo "⚠️  Memory leak detection skipped"
-        echo "Memory issues detected even in Arch container environment"
+        make test-memcheck
         
     - name: Validate RGB behavior
       run: |
@@ -105,7 +106,7 @@ jobs:
           echo "✅ RGB commands should be accepted for this device"
           make test-g510
         else
-          echo "❌ RGB commands should be rejected for this device"  
+          echo "ℹ️ RGB commands should be rejected for this device (expected)"
           make test-g15
         fi
 
@@ -124,11 +125,13 @@ jobs:
     - name: Install dependencies
       run: |
         # Install base development tools  
-        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear npm
+        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear npm doxygen graphviz
         # Install standard hardware libraries
         pacman -Sy --noconfirm libusb libftdi-compat
         # Create non-root user for AUR builds
         useradd -m -s /bin/bash builder
+        # LCDd started as root drops its privileges to user lcdd (as in the package)
+        systemd-sysusers "$GITHUB_WORKSPACE/services/sysusers.d/lcdproc-g15.conf"
         echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
         # Install G15 libraries from AUR
         sudo -u builder bash -c '

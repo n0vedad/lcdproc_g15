@@ -46,10 +46,12 @@ jobs:
       run: |
         # Sync database WITHOUT system upgrade to avoid ICU breakage
         # Just install missing packages, don't upgrade existing ones
-        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear clang-tools-extra libusb libftdi-compat
+        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear clang-tools-extra libusb libftdi-compat doxygen graphviz
 
         # Create non-root user for AUR builds
         useradd -m -s /bin/bash builder
+        # LCDd started as root drops its privileges to user lcdd (as in the package)
+        systemd-sysusers "$GITHUB_WORKSPACE/services/sysusers.d/lcdproc-g15.conf"
         echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 
         # Install G15 libraries from AUR
@@ -111,10 +113,12 @@ jobs:
     - name: Install dependencies
       run: |
         # Sync database WITHOUT system upgrade to avoid ICU breakage
-        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear clang-tools-extra libusb libftdi-compat
+        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear clang-tools-extra libusb libftdi-compat doxygen graphviz
 
         # Create non-root user for AUR builds
         useradd -m -s /bin/bash builder
+        # LCDd started as root drops its privileges to user lcdd (as in the package)
+        systemd-sysusers "$GITHUB_WORKSPACE/services/sysusers.d/lcdproc-g15.conf"
         echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 
         # Install G15 libraries from AUR
@@ -164,8 +168,10 @@ jobs:
       run: |
         # Sync database WITHOUT system upgrade to avoid ICU breakage
         # Note: clang is the primary compiler for this project
-        pacman -Sy --noconfirm base-devel git sudo clang make autoconf automake bear
+        pacman -Sy --noconfirm base-devel git sudo clang make autoconf automake bear doxygen graphviz
         useradd -m -G wheel -s /bin/bash builder
+        # LCDd started as root drops its privileges to user lcdd (as in the package)
+        systemd-sysusers "$GITHUB_WORKSPACE/services/sysusers.d/lcdproc-g15.conf"
         echo 'builder ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
     
     - name: Install AUR dependencies
@@ -217,10 +223,12 @@ jobs:
     - name: Install dependencies including coverage tools
       run: |
         # Sync database WITHOUT system upgrade to avoid ICU breakage
-        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear lcov llvm gcovr libusb libftdi-compat
+        pacman -Sy --noconfirm base-devel git clang gcc make autoconf automake bear lcov llvm gcovr libusb libftdi-compat doxygen graphviz
 
         # Create non-root user for AUR builds
         useradd -m -s /bin/bash builder
+        # LCDd started as root drops its privileges to user lcdd (as in the package)
+        systemd-sysusers "$GITHUB_WORKSPACE/services/sysusers.d/lcdproc-g15.conf"
         echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 
         # Install G15 libraries from AUR
