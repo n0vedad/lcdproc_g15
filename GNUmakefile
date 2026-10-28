@@ -369,6 +369,16 @@ check-dev-deps:
 		printf "$(BLUE)📦 Install with: $(BLUE)yay -S act$(NC)\n"; \
 		MISSING_OPT="$$MISSING_OPT act"; \
 	}; \
+	command -v doxygen > /dev/null 2>&1 || { \
+		printf "$(YELLOW)⚠ doxygen not found$(NC)\n"; \
+		printf "$(BLUE)📦 Install with: $(BLUE)sudo pacman -S doxygen$(NC)\n"; \
+		MISSING_OPT="$$MISSING_OPT doxygen"; \
+	}; \
+	command -v dot > /dev/null 2>&1 || { \
+		printf "$(YELLOW)⚠ dot not found (graphs in the Doxygen documentation)$(NC)\n"; \
+		printf "$(BLUE)📦 Install with: $(BLUE)sudo pacman -S graphviz$(NC)\n"; \
+		MISSING_OPT="$$MISSING_OPT graphviz"; \
+	}; \
 	python -c "import evdev" 2>/dev/null || { \
 		printf "$(YELLOW)⚠ python-evdev not found$(NC)\n"; \
 		printf "$(BLUE)📦 Install with: $(BLUE)sudo pacman -S python-evdev$(NC)\n"; \
@@ -444,7 +454,7 @@ install-dev-deps:
 			exit 1; \
 		}; \
 		printf "$(YELLOW)📦 Installing optional development tools...$(NC)\n"; \
-		sudo pacman -S --needed gcc npm bear python-evdev || { \
+		sudo pacman -S --needed gcc npm bear python-evdev doxygen graphviz || { \
 			printf "$(YELLOW)⚠ Some optional tools may have failed to install$(NC)\n"; \
 		}; \
 		printf "$(YELLOW)📦 Installing AUR development tools...$(NC)\n"; \
@@ -653,7 +663,7 @@ clean:
 		fi; \
 	else \
 		has_artifacts=0; \
-		if [ -f tests/test_unit_g15 ] || [ -f tests/test_integration_g15 ] || [ -f tests/mock_g15 ] || ls tests/*.o >/dev/null 2>&1 || ls tests/*.log >/dev/null 2>&1 || ls tests/*.trs >/dev/null 2>&1; then \
+		if [ -f tests/test_unit_g15 ] || [ -f tests/test_unit_privs ] || [ -f tests/test_unit_str ] || [ -f tests/test_integration_g15 ] || [ -f tests/mock_g15 ] || ls tests/*.o >/dev/null 2>&1 || ls tests/*.log >/dev/null 2>&1 || ls tests/*.trs >/dev/null 2>&1; then \
 			has_artifacts=1; \
 		fi; \
 		has_patches=$$(find . -name "*.orig" -o -name "*.rej" | head -1); \
@@ -661,7 +671,7 @@ clean:
 			printf "$(BLUE)=== Cleaning Bootstrap Mode ===$(NC)\n"; \
 			if [ $$has_artifacts -eq 1 ]; then \
 				printf "$(YELLOW)Cleaning test artifacts...$(NC)\n"; \
-				rm -f tests/test_unit_g15 tests/test_integration_g15 tests/mock_g15 tests/*.o tests/*.log tests/*.trs tests/test-suite.log; \
+				rm -f tests/test_unit_g15 tests/test_unit_privs tests/test_unit_str tests/test_integration_g15 tests/mock_g15 tests/*.o tests/*.log tests/*.trs tests/test-suite.log; \
 				printf "$(GREEN)✓ Test artifacts cleaned$(NC)\n"; \
 			fi; \
 			if [ -n "$$has_patches" ]; then \

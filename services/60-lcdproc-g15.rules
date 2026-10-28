@@ -1,0 +1,10 @@
+# Device access for lcdd.service, which runs as user lcdd
+
+# LCD, RGB backlight and macro LEDs via hidraw: G15, G15 v2, G510, G510s, Z-10
+# Once logind has added an ACL for the seat user (uaccess), MODE only changes the
+# ACL mask, so a re-triggered node would keep "group::---". The named ACL entry
+# grants lcdd access in that case too.
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c222|c227|c22d|c22e|0a07", GROUP="lcdd", MODE="0660", RUN+="/usr/bin/setfacl -m g:lcdd:rw $devnode"
+
+# RGB backlight via the LED subsystem (RGBMethod=led_subsystem)
+SUBSYSTEM=="leds", KERNEL=="g15::*", ACTION!="remove", RUN+="/bin/sh -c 'cd /sys%p && for f in brightness multi_intensity; do [ -e $$f ] && chgrp lcdd $$f && chmod g+w $$f; done; exit 0'"

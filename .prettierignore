@@ -33,6 +33,9 @@ ar-lib
 
 # Generated files
 stamp-h1
+# Lock files are rewritten by npm/pnpm (format differs between versions)
+package-lock.json
+pnpm-lock.yaml
 *.1
 *.5
 *.8

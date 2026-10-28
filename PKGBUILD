@@ -2,13 +2,13 @@
 # Based on original LCDproc by various contributors
 
 pkgname=lcdproc-g15
-pkgver=0.0.5
+pkgver=0.0.6
 pkgrel=1
 pkgdesc="LCDproc for Logitech G15/G510/G510s keyboards - optimized for G510s with RGB backlight and macro support"
 arch=('x86_64')
 url="https://lcdproc.org/"
 license=('GPL')
-depends=('libg15' 'libg15render' 'libusb' 'libftdi-compat' 'ydotool' 'popt')
+depends=('libg15' 'libg15render' 'libusb' 'libftdi-compat' 'ydotool' 'popt' 'acl')
 makedepends=('clang' 'make' 'autoconf' 'automake')
 optdepends=('gcc: alternative supported compiler (multi-compiler-test)'
             'npm: for prettier code formatting'

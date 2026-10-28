@@ -6,10 +6,22 @@ COLOR_YELLOW='\033[1;33m'
 COLOR_BLUE='\033[1;34m'
 COLOR_CYAN='\033[1;36m'
 
+# pacman runs its sysusers and udev hooks only after the transaction, but
+# lcdd.service (User=lcdd) is started from here
+setup_lcdd_user() {
+    printf "${COLOR_CYAN}Creating user lcdd and applying udev rules...${COLOR_RESET}\n"
+    systemd-sysusers lcdproc-g15.conf
+    udevadm control --reload
+    udevadm trigger --subsystem-match=hidraw --subsystem-match=leds
+    udevadm settle
+    printf "${COLOR_GREEN}✓ User lcdd and device permissions ready${COLOR_RESET}\n\n"
+}
+
 post_install() {
     printf "${COLOR_CYAN}Reloading systemd daemon...${COLOR_RESET}\n"
     systemctl daemon-reload
     printf "${COLOR_GREEN}✓ Systemd daemon reloaded${COLOR_RESET}\n\n"
+    setup_lcdd_user
 
     printf "${COLOR_BLUE}Enabling and starting lcdd service...${COLOR_RESET}\n"
     if systemctl enable lcdd.service 2>&1; then
@@ -81,6 +93,7 @@ post_upgrade() {
     printf "${COLOR_CYAN}Reloading systemd daemon...${COLOR_RESET}\n"
     systemctl daemon-reload
     printf "${COLOR_GREEN}✓ Systemd daemon reloaded${COLOR_RESET}\n\n"
+    setup_lcdd_user
 
     printf "${COLOR_BLUE}Restarting services...${COLOR_RESET}\n"
     if systemctl restart lcdd.service 2>&1; then

@@ -6,9 +6,10 @@ sbin_PROGRAMS=LCDd
 
 sysconf_DATA = LCDd.conf
 
-LCDd_SOURCES= client.c client.h clients.c clients.h input.c input.h main.c main.h menuitem.c menuitem.h menu.c menu.h menuscreens.c menuscreens.h parse.c parse.h render.c render.h screen.c screen.h screenlist.c screenlist.h serverscreens.c serverscreens.h sock.c sock.h widget.c widget.h drivers.c drivers.h driver.c driver.h
+LCDd_SOURCES= client.c client.h clients.c clients.h input.c input.h main.c main.h menuitem.c menuitem.h menu.c menu.h menuscreens.c menuscreens.h parse.c parse.h render.c render.h screen.c screen.h screenlist.c screenlist.h serverscreens.c serverscreens.h sock.c sock.h widget.c widget.h drivers.c drivers.h driver.c driver.h drop_privs.h
 
-LDADD = ../shared/libLCDstuff.a commands/libLCDcommands.a @POPT_LIBS@
+# libLCDcommands.a uses libLCDstuff.a, so it must come first
+LDADD = commands/libLCDcommands.a ../shared/libLCDstuff.a @POPT_LIBS@
 
 AM_LDFLAGS = -rdynamic
 

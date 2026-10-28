@@ -4,6 +4,12 @@ Description=LCD display driver
 [Service]
 Type=forking
 ExecStart=/usr/bin/LCDd -c /etc/LCDd.conf
+# Start unprivileged instead of dropping root in LCDd. hidraw and the g15:: LED
+# files are opened through group lcdd (60-lcdproc-g15.rules), the G-keys
+# (linux_input) through group input.
+User=lcdd
+Group=lcdd
+SupplementaryGroups=input
 
 [Install]
 WantedBy=multi-user.target

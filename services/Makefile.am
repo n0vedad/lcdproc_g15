@@ -6,8 +6,14 @@ systemdservicedir = /usr/lib/systemd/system
 # Install system service files with 644 permissions
 systemdservice_DATA = lcdd.service lcdproc.service ydotoold.service
 
+# System user lcdd and its device access (see lcdd.service)
+sysusersdir = /usr/lib/sysusers.d
+sysusers_DATA = sysusers.d/lcdproc-g15.conf
+udevrulesdir = /usr/lib/udev/rules.d
+udevrules_DATA = 60-lcdproc-g15.rules
+
 # Make sure service files are included in distribution
-EXTRA_DIST = $(systemdservice_DATA)
+EXTRA_DIST = $(systemdservice_DATA) $(sysusers_DATA) $(udevrules_DATA)
 
 # ANSI color codes for colored terminal output
 COLOR_RESET = \033[0m
@@ -23,6 +29,12 @@ install-data-hook:
 		printf "$(COLOR_CYAN)Reloading systemd daemon...$(COLOR_RESET)\n"; \
 		systemctl daemon-reload; \
 		printf "$(COLOR_GREEN)✓ Systemd daemon reloaded$(COLOR_RESET)\n"; \
+		printf "$(COLOR_CYAN)Creating user lcdd and applying udev rules...$(COLOR_RESET)\n"; \
+		systemd-sysusers lcdproc-g15.conf; \
+		udevadm control --reload; \
+		udevadm trigger --subsystem-match=hidraw --subsystem-match=leds; \
+		udevadm settle; \
+		printf "$(COLOR_GREEN)✓ User lcdd and device permissions ready$(COLOR_RESET)\n"; \
 		printf "\n"; \
 		printf "$(COLOR_BLUE)Enabling and starting lcdd service...$(COLOR_RESET)\n"; \
 		if systemctl enable lcdd.service 2>&1; then \
