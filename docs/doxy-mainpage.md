@@ -2,6 +2,11 @@
 
 Welcome to the LCDproc-G15 documentation! This page serves as the central hub for all project documentation.
 
+## Changelog and Known Issues
+
+- \ref md_CHANGELOG "Changelog" - Changes and fixed bugs per version
+- \ref todo "ToDo List" - All known open issues, collected from `\todo` entries in the source code
+
 ## ToDo Categories
 
 Browse ToDos organized by priority:
@@ -32,6 +37,7 @@ For installation, configuration, and usage instructions, see these markdown file
 - **INSTALL.md**: Detailed installation instructions for Arch Linux and other systems
 - **CONTRIBUTING.md**: Development setup, coding standards, testing, and contribution guidelines
 - **FAQ.md**: Frequently asked questions and troubleshooting
+- **CHANGELOG.md**: Changes and fixed bugs per version
 - **tests/README.md** - Detailed testing documentation and usage guide
 
 ## Project Overview

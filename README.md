@@ -62,6 +62,8 @@ Refer to [INSTALL.md](INSTALL.md) for detailed installation instructions, prereq
 
 This fork has been stripped down to include only the G15 driver and essential components.
 
+Changes and fixed bugs per version are listed in [CHANGELOG.md](CHANGELOG.md), known open issues in the Doxygen TODO list (see [CONTRIBUTING.md](CONTRIBUTING.md#documentation)).
+
 ## G-Key macro system
 
 This fork includes an advanced G-Key macro recording and playback system. See [INSTALL.md](INSTALL.md#g-key-macro-system)

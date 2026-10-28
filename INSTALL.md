@@ -15,17 +15,22 @@ This section explains the purpose of each directory and file in the repository:
   - `server/drivers/hidraw_lib.*` - HID device communication library
   - `server/drivers/debug.c` - Debug driver for testing without hardware
   - `server/main.c` - Main daemon entry point
+  - `server/drop_privs.h` - Root privilege drop (shared with the unit tests)
 
 - **`services/`** - Systemd service files for automatic startup
   - `lcdd.service` - LCDd daemon service
   - `lcdproc.service` - System monitor client service
   - `ydotoold.service` - Input automation daemon for G-Key macros
+  - `sysusers.d/lcdproc-g15.conf` - System user `lcdd` that runs `lcdd.service`
+  - `60-lcdproc-g15.rules` - udev rule giving group `lcdd` access to the keyboard (hidraw, LEDs)
 
 - **`shared/`** - Common libraries used by both server and clients
   - Networking, configuration parsing, string utilities
 
 - **`tests/`** - Test suite for hardware drivers and integration
   - `test_unit_g15.c` - Unit tests for G15 driver functionality
+  - `test_unit_privs.c` - Unit tests for the LCDd privilege drop
+  - `test_unit_str.c` - Unit tests for the checked number conversions
   - `test_integration_g15.c` - Integration tests with mock hardware
   - `tests/test_*.c` - Unit and integration tests
   - `tests/mock_*.c` - Hardware simulation for CI testing
@@ -255,14 +260,18 @@ The installation process automatically installs, enables and starts ydotoold.ser
 systemctl status ydotoold.service
 ```
 
-### Root Privileges for Input Recording
+### Input Device Access for Recording
 
-The G-Key macro system requires root privileges to access `/dev/input/event*` devices for real-time input recording. Besides to run with sudo privileges you have to add your current user to input group:
+The G-Key macro system reads `/dev/input/event*` devices for real-time input recording. `lcdproc.service` already runs the client with the group `input` (`SupplementaryGroups=input`), so no setup is needed when you use the service.
+
+Only if you run the `lcdproc` client manually as your own user, that user needs the group `input`:
 
 ```bash
 # Add your user to the input group, log out and back in or restart
 sudo usermod -a -G input $USER
 ```
+
+Note that every program running as your user can then read all keyboards, so remove it again (`sudo gpasswd -d $USER input`) once you no longer need it.
 
 Once both LCDd server and lcdproc client are running with proper permissions:
 
@@ -321,6 +330,8 @@ If you've installed the program successfully just run
 sudo /usr/bin/LCDd -f -c /etc/LCDd.conf
 ```
 
+LCDd opens the keyboard as root and then switches to the user set by `User=` in `LCDd.conf` (`lcdd`, see [Permissions](#permissions)). If that switch fails, LCDd stops with `Refusing to run with root privileges, abort.` instead of continuing as root.
+
 For security reasons, LCDd by default only accepts connections from localhost (`127.0.0.1`), it will not accept connections from other computers on your network / the Internet and the client tries to connect to a server located on localhost listening to port 13666.
 
 You can change this behaviour in the configuration files.
@@ -353,4 +364,21 @@ sudo systemctl enable lcdproc.service
 # Start ydotool daemon (required for G-Key macros)
 sudo systemctl start ydotoold.service
 sudo systemctl enable ydotoold.service
+```
+
+### Permissions
+
+`lcdd.service` starts LCDd directly as the unprivileged system user `lcdd` (`User=lcdd`, `SupplementaryGroups=input`), so LCDd never runs as root. `User=` in `LCDd.conf` is ignored in this case. The package sets up:
+
+- the user `lcdd` (`/usr/lib/sysusers.d/lcdproc-g15.conf`)
+- group access for `lcdd` to the keyboard's hidraw device and to the `brightness`/`multi_intensity` files of the `g15::*` LEDs (`/usr/lib/udev/rules.d/60-lcdproc-g15.rules`). LCDd needs both while running: the G510 changes its USB product ID when a headset is plugged in, and the backlight is switched at runtime.
+- the group `input` for the G-Keys (`linux_input` driver)
+
+If LCDd reports `Permission denied` for the keyboard after an installation without the package scripts, create the user and apply the rule by hand:
+
+```bash
+sudo systemd-sysusers lcdproc-g15.conf
+sudo udevadm control --reload
+sudo udevadm trigger --subsystem-match=hidraw --subsystem-match=leds
+sudo systemctl restart lcdd.service
 ```

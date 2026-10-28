@@ -13,13 +13,13 @@ For development work, you'll need these additional tools beyond the runtime requ
 - `npm` for Markdown/JSON/Shell formatting (includes Node.js)
 - `bear` for generating compile database
 - `doxygen` and `graphviz` for generating source code documentation
-- `act` for testing GitHub workflow locally (optional)
-- `python-evdev` for for reading raw input events from /dev/input/event\*
+- `act` and `docker` for testing GitHub workflow locally (optional; start the daemon with `sudo systemctl start docker`)
+- `python-evdev` for reading raw input events from /dev/input/event\*
 - `gcovr` for code coverage analysis and reporting
 
 ```bash
 # Install all optional dependencies
-sudo pacman -S clang-format clang-tidy gcc npm bear doxygen graphviz act python-evdev gcovr
+sudo pacman -S clang-format clang-tidy gcc npm bear doxygen graphviz act docker python-evdev gcovr
 ```
 
 ### Build for Development
@@ -175,6 +175,11 @@ Follow conventional commit format:
 - `docs:` for documentation changes
 - `refactor:` for code refactoring
 - `test:` for test improvements
+- `build:` for the build system, packaging and services
+- `ci:` for the GitHub workflows
+- `chore:` for removals and maintenance without functional change
+
+Versions are git tags (`v0.0.6`); each version and its changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
 ### Pull Requests
 

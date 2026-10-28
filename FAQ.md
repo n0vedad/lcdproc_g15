@@ -18,8 +18,8 @@ A: See [INSTALL.md](INSTALL.md#install-required-dependencies) for complete depen
 
 ## G-Key macro system
 
-**Q: Why do I need root privileges for macros?**  
-A: The macro system requires access to `/dev/input/event*` devices for real-time input recording. Add your user to the `input` group: `sudo usermod -a -G input $USER` (requires logout or reboot).
+**Q: Do I need root privileges or the `input` group for macros?**  
+A: Not with the services: `lcdproc.service` runs the client with the group `input`, which it needs to read `/dev/input/event*` for recording. Only when you run the `lcdproc` client manually as your own user, add that user to `input` (see [INSTALL.md](INSTALL.md#input-device-access-for-recording)).
 
 **Q: Do G-Key macros work on Wayland?**  
 A: Yes! The system uses `ydotool` for Wayland compatibility. The `ydotoold.service` is automatically installed and started.
@@ -57,6 +57,12 @@ A: Yes! Please refer to [INSTALL.md](INSTALL.md#running-manually)
 
 **Q: Why isn't my G-Series LCD working?**  
 A: First verify your device is supported (`lsusb | grep -i logitech`). Then check dependencies are installed, `lcdd.service` is running, and device is connected properly. Check logs: `journalctl -u lcdd.service lcdproc.service`.
+
+**Q: Does LCDd run as root?**  
+A: No. `lcdd.service` starts it as the system user `lcdd`, which gets access to the keyboard through a udev rule. See [INSTALL.md](INSTALL.md#permissions).
+
+**Q: LCDd stops with `Refusing to run with root privileges, abort.` What now?**  
+A: LCDd was started as root and could not switch to the user set by `User=` in `LCDd.conf`, e.g. because the user does not exist or a systemd drop-in removed `CAP_SETUID`/`CAP_SETGID` (`CapabilityBoundingSet=`). Older versions silently kept running as root in this case. Start LCDd through `lcdd.service`, which does not need to switch users, or fix the user in `LCDd.conf`.
 
 ## Development Workflow
 
