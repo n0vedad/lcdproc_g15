@@ -34,6 +34,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#include "mock_g15.h"
 #include "mock_hidraw_lib.h"
 
 /** \brief Unix socket path for mock G15 server */
@@ -48,20 +49,6 @@
 static int server_socket = -1;
 static int client_sockets[MAX_CLIENTS];
 static int running = 1;
-
-// Shared with unit test mock
-extern int mock_g15_rgb_command_count;
-extern int mock_g15_device_state;
-
-// Integration mock protocol commands
-typedef enum {
-	MOCK_CMD_INIT_DEVICE = 1,
-	MOCK_CMD_SET_RGB,
-	MOCK_CMD_GET_STATE,
-	MOCK_CMD_SIMULATE_ERROR,
-	MOCK_CMD_RESET_COUNTERS,
-	MOCK_CMD_SHUTDOWN
-} mock_command_t;
 
 // Mock message structure
 typedef struct {

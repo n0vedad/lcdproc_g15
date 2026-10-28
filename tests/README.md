@@ -6,7 +6,7 @@ This directory contains comprehensive unit tests, integration tests, mock system
 
 The test suite consists of two complementary systems:
 
-1. **Unit Tests** (`test_unit_g15`) - Mock-based component testing
+1. **Unit Tests** (`test_unit_g15`, `test_unit_privs`, `test_unit_str`) - Mock-based component testing
 2. **Integration Tests** (`test_integration_g15`) - End-to-end system testing
 
 ### **Unit Test System (Mock-Based)**
@@ -22,6 +22,19 @@ struct mock_device_info test_devices[] = {
     {0x046d, 0xc221, "Unknown Logitech Device", 0, 0},   // Unknown
 };
 ```
+
+### **Privilege Drop Tests**
+
+`test_unit_privs` tests `drop_privs()` from `server/drop_privs.h`, the code LCDd runs when started as root. `getuid()`, `geteuid()`, `getpwnam_r()`, `initgroups()`, `setgid()` and `setuid()` are replaced by mocks through the linker (`-Wl,--wrap=...`), so the test needs no root privileges and changes nothing on the system. It checks:
+
+- supplementary groups, gid and uid are set in this order
+- a failing step returns `-1` and skips the remaining steps
+- unknown users are rejected before any credential change
+- an unprivileged process (e.g. started by `lcdd.service` with `User=`) is left untouched
+
+### **Number Conversion Tests**
+
+`test_unit_str` tests `str_to_int()`, `str_to_ulongs()` and `str_to_doubles()` from `shared/str.c`, which replace `atoi()` and `sscanf()` for protocol arguments, command line options and `/proc` parsing. It checks that trailing characters (`12abc`), empty input and overflow are rejected, which `atoi()` silently accepted.
 
 ### **Integration Test System**
 
@@ -58,6 +71,10 @@ Type `make help` for further informations.
 - ✅ **RGB command validation**: HID reports + LED subsystem methods
 - ✅ **G-Key macro system**: 18 G-keys, M1/M2/M3 modes
 - ✅ **Debug driver**: Virtual display functionality
+- ✅ **Privilege drop**: Groups before uid, abort on failure (`test_unit_privs`)
+- ✅ **Number parsing**: Whole numbers only, no overflow (`test_unit_str`)
+- ✅ **Protocol replies**: One line per reply, asynchronous `listen`/`ignore` messages skipped
+- ✅ **G-key delivery**: lcdproc client reserves G-keys exclusively and receives key messages split across reads (scripted server)
 - ✅ **Error handling**: Device failures, connection issues, memory management
 
 ## Running Tests
@@ -122,7 +139,7 @@ make test-compilers # Multi-compiler build testing only
 
 **Understanding Test Targets:**
 
-All unit test targets execute the same binary (`test_unit_g15`) with different command-line flags:
+All unit test targets below execute the same binary (`test_unit_g15`) with different command-line flags. `test_unit_privs` and `test_unit_str` run with `make check`:
 
 - **`test-g15`/`test-g510`**: Filter tests by hardware type (useful for hardware-specific debugging)
 - **`test-scenario-*`**: Run isolated test categories (device detection, RGB, macros, failures)

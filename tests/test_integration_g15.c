@@ -51,6 +51,7 @@
 #include <fcntl.h>
 #include <locale.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <signal.h>
 #include <spawn.h>
 #include <stdio.h>
@@ -58,14 +59,11 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
 
-/** \brief Enable GNU extensions */
-#define _GNU_SOURCE
-/** \brief Enable POSIX.1-2008 functions */
-#define _POSIX_C_SOURCE 200809L
 /** \brief Test server hostname for integration tests */
 #define TEST_SERVER_HOST "127.0.0.1"
 /** \brief Maximum buffer size for socket communication */
@@ -74,6 +72,8 @@
 #define TEST_TIMEOUT 10
 /** \brief Process startup timeout in seconds */
 #define PROCESS_START_TIMEOUT 5
+/** \brief Timeout in seconds for a single protocol reply */
+#define REPLY_TIMEOUT 5
 
 // Global test state: test statistics counters, dynamic server port, spawned process IDs, and
 // temporary config directory path
@@ -121,6 +121,7 @@ static int find_free_port(void);
 static int wait_for_tcp_port(const char *host, int port, int timeout);
 static int send_tcp_command(const char *host, int port, const char *command, char *response,
 			    size_t response_size);
+static ssize_t recv_reply(int sock, char *reply, size_t reply_size);
 static int create_test_config_file(const char *filename, const char *content);
 static void setup_test_environment(void);
 static void cleanup_test_environment(void);
@@ -136,6 +137,7 @@ static void test_widget_operations(void);
 static void test_client_disconnection(void);
 static void test_lcdproc_client_integration(void);
 static void test_multiple_clients(void);
+static void test_client_key_delivery(void);
 static void test_g15_driver_integration(void);
 
 // Handle interrupt signals for clean shutdown
@@ -261,14 +263,43 @@ static int send_tcp_command(const char *host, int port, const char *command, cha
 		return -1;
 	}
 
-	bytes_received = recv(sock, response, response_size - 1, 0);
-	if (bytes_received > 0) {
-		response[bytes_received] = '\0';
-	}
+	bytes_received = recv_reply(sock, response, response_size);
 
 	close(sock);
 
 	return bytes_received > 0 ? 0 : -1;
+}
+
+// Receive the reply to the last command, skipping asynchronous server messages.
+// LCDd sends "listen <screen>" / "ignore <screen>" on its own whenever it switches screens,
+// so a single recv() after a command may return such a line instead of the reply. Reads one
+// line at a time and returns the first other line (without newline), or -1 on timeout/error.
+static ssize_t recv_reply(int sock, char *reply, size_t reply_size)
+{
+	struct timeval timeout = {.tv_sec = REPLY_TIMEOUT, .tv_usec = 0};
+	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+
+	for (;;) {
+		size_t len = 0;
+		char c;
+
+		while (recv(sock, &c, 1, 0) == 1) {
+			if (c == '\n') {
+				break;
+			}
+			if (len < reply_size - 1) {
+				reply[len++] = c;
+			}
+		}
+		reply[len] = '\0';
+
+		if (len == 0) {
+			return -1;
+		}
+		if (strncmp(reply, "listen ", 7) != 0 && strncmp(reply, "ignore ", 7) != 0) {
+			return (ssize_t)len;
+		}
+	}
 }
 
 // Create configuration file with specified content
@@ -525,7 +556,7 @@ static void test_lcdproc_protocol_handshake(void)
 			ssize_t bytes_sent = send(sock, "hello\n", 6, 0);
 			ASSERT_TRUE(bytes_sent == 6, "Hello command sent successfully");
 
-			ssize_t bytes_received = recv(sock, response, sizeof(response) - 1, 0);
+			ssize_t bytes_received = recv_reply(sock, response, sizeof(response));
 
 			if (bytes_received > 0) {
 				response[bytes_received] = '\0';
@@ -572,14 +603,14 @@ static void test_screen_lifecycle(void)
 	// Initialize connection
 	if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) == 0) {
 		send(sock, "hello\n", 6, 0);
-		recv(sock, response, sizeof(response) - 1, 0);
+		recv_reply(sock, response, sizeof(response));
 
 		send(sock, "client_set -name test_screen_client\n", 36, 0);
-		recv(sock, response, sizeof(response) - 1, 0);
+		recv_reply(sock, response, sizeof(response));
 
 		// Test screen_add command
 		send(sock, "screen_add test_screen\n", 23, 0);
-		ssize_t bytes = recv(sock, response, sizeof(response) - 1, 0);
+		ssize_t bytes = recv_reply(sock, response, sizeof(response));
 
 		if (bytes > 0) {
 			response[bytes] = '\0';
@@ -589,7 +620,7 @@ static void test_screen_lifecycle(void)
 
 		// Test screen_set command
 		send(sock, "screen_set test_screen -name \"Test Screen\" -priority 128\n", 57, 0);
-		bytes = recv(sock, response, sizeof(response) - 1, 0);
+		bytes = recv_reply(sock, response, sizeof(response));
 
 		if (bytes > 0) {
 			response[bytes] = '\0';
@@ -599,7 +630,7 @@ static void test_screen_lifecycle(void)
 
 		// Test screen_del command
 		send(sock, "screen_del test_screen\n", 23, 0);
-		bytes = recv(sock, response, sizeof(response) - 1, 0);
+		bytes = recv_reply(sock, response, sizeof(response));
 
 		if (bytes > 0) {
 			response[bytes] = '\0';
@@ -638,17 +669,17 @@ static void test_widget_operations(void)
 	// Initialize connection and create screen
 	if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) == 0) {
 		send(sock, "hello\n", 6, 0);
-		recv(sock, response, sizeof(response) - 1, 0);
+		recv_reply(sock, response, sizeof(response));
 
 		send(sock, "client_set -name test_widget_client\n", 36, 0);
-		recv(sock, response, sizeof(response) - 1, 0);
+		recv_reply(sock, response, sizeof(response));
 
 		send(sock, "screen_add widget_screen\n", 25, 0);
-		recv(sock, response, sizeof(response) - 1, 0);
+		recv_reply(sock, response, sizeof(response));
 
 		// Test widget_add for string widget
 		send(sock, "widget_add widget_screen test_string string\n", 45, 0);
-		ssize_t bytes = recv(sock, response, sizeof(response) - 1, 0);
+		ssize_t bytes = recv_reply(sock, response, sizeof(response));
 		if (bytes > 0) {
 			response[bytes] = '\0';
 			ASSERT_TRUE(strstr(response, "success") != NULL,
@@ -657,7 +688,7 @@ static void test_widget_operations(void)
 
 		// Test widget_set for string content
 		send(sock, "widget_set widget_screen test_string 1 1 \"Hello World\"\n", 56, 0);
-		bytes = recv(sock, response, sizeof(response) - 1, 0);
+		bytes = recv_reply(sock, response, sizeof(response));
 		if (bytes > 0) {
 			response[bytes] = '\0';
 			ASSERT_TRUE(strstr(response, "success") != NULL,
@@ -666,7 +697,7 @@ static void test_widget_operations(void)
 
 		// Test widget_add for title widget
 		send(sock, "widget_add widget_screen test_title title\n", 42, 0);
-		bytes = recv(sock, response, sizeof(response) - 1, 0);
+		bytes = recv_reply(sock, response, sizeof(response));
 		if (bytes > 0) {
 			response[bytes] = '\0';
 			ASSERT_TRUE(strstr(response, "success") != NULL,
@@ -675,13 +706,26 @@ static void test_widget_operations(void)
 
 		// Test widget_set for title content
 		send(sock, "widget_set widget_screen test_title \"Integration Test\"\n", 55, 0);
-		bytes = recv(sock, response, sizeof(response) - 1, 0);
+		bytes = recv_reply(sock, response, sizeof(response));
 
 		if (bytes > 0) {
 			response[bytes] = '\0';
 			ASSERT_TRUE(strstr(response, "success") != NULL,
 				    "Title widget content set successfully");
 		}
+
+		// Each reply is exactly one line: before the fix the widget commands sent a
+		// literal "\\n" instead of a newline, so replies ran into the next message
+		send(sock, "widget_del widget_screen test_title\n", 36, 0);
+		bytes = recv_reply(sock, response, sizeof(response));
+		ASSERT_TRUE(bytes > 0 && strcmp(response, "success") == 0,
+			    "Widget reply is a single line");
+
+		// Coordinates must be whole numbers, "12abc" used to be read as 12
+		send(sock, "widget_set widget_screen test_string 12abc 1 \"x\"\n", 49, 0);
+		bytes = recv_reply(sock, response, sizeof(response));
+		ASSERT_TRUE(bytes > 0 && strcmp(response, "huh? Invalid coordinates") == 0,
+			    "Invalid coordinates rejected");
 
 		send(sock, "bye\n", 4, 0);
 	} else {
@@ -721,22 +765,22 @@ static void test_client_disconnection(void)
 		// Initialize first client
 		if (connect1 == 0 && connect2 == 0) {
 			send(sock1, "hello\n", 6, 0);
-			recv(sock1, response, sizeof(response) - 1, 0);
+			recv_reply(sock1, response, sizeof(response));
 			send(sock1, "client_set -name client1\n", 25, 0);
-			recv(sock1, response, sizeof(response) - 1, 0);
+			recv_reply(sock1, response, sizeof(response));
 
 			// Initialize second client
 			send(sock2, "hello\n", 6, 0);
-			recv(sock2, response, sizeof(response) - 1, 0);
+			recv_reply(sock2, response, sizeof(response));
 			send(sock2, "client_set -name client2\n", 25, 0);
-			recv(sock2, response, sizeof(response) - 1, 0);
+			recv_reply(sock2, response, sizeof(response));
 
 			// Simulate abrupt client crash by closing socket
 			close(sock1);
 
 			// Verify second client continues working after first disconnect
 			send(sock2, "screen_add test_disconnect\n", 27, 0);
-			ssize_t bytes = recv(sock2, response, sizeof(response) - 1, 0);
+			ssize_t bytes = recv_reply(sock2, response, sizeof(response));
 
 			if (bytes > 0) {
 				response[bytes] = '\0';
@@ -804,6 +848,107 @@ static void test_lcdproc_client_integration(void)
 	}
 }
 
+// Test G-key delivery to the lcdproc client against a scripted server: the keys must be
+// reserved exclusively (otherwise LCDd keeps them while one of its own screens is shown), and
+// a key message split across two reads or sharing a read with another one must arrive
+static void test_client_key_delivery(void)
+{
+	char config_path[320], log_path[320], config[256], buf[MAX_BUFFER_SIZE];
+	struct sockaddr_in addr;
+	struct timeval timeout = {.tv_sec = 1, .tv_usec = 0};
+	int port = find_free_port();
+	int listen_sock = socket(AF_INET, SOCK_STREAM, 0);
+	int sock = -1;
+	int status;
+	pid_t pid;
+
+	printf("\n" COLOR_BLUE "🎮 Testing G-key delivery to the lcdproc client..." COLOR_RESET
+	       "\n");
+
+	memset(&addr, 0, sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(port);
+	inet_pton(AF_INET, TEST_SERVER_HOST, &addr.sin_addr);
+	if (port < 0 || listen_sock < 0 ||
+	    bind(listen_sock, (struct sockaddr *)&addr, sizeof(addr)) < 0 ||
+	    listen(listen_sock, 1) < 0) {
+		ASSERT_TRUE(0, "Scripted server socket created");
+		if (listen_sock >= 0)
+			close(listen_sock);
+		return;
+	}
+
+	snprintf(config_path, sizeof(config_path), "%s/lcdproc_keys.conf", temp_config_dir);
+	snprintf(log_path, sizeof(log_path), "%s/lcdproc_keys.log", temp_config_dir);
+	snprintf(config, sizeof(config),
+		 "[lcdproc]\nServer=%s\nPort=%d\nReportLevel=4\nReportToSyslog=false\n"
+		 "Foreground=true\n",
+		 TEST_SERVER_HOST, port);
+	create_test_config_file(config_path, config);
+
+	pid = fork();
+	if (pid == 0) {
+		char *args[] = {"../clients/lcdproc/lcdproc", "-c", config_path, "-f", NULL};
+		int log = open(log_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+		if (log >= 0) {
+			dup2(log, STDOUT_FILENO);
+			dup2(log, STDERR_FILENO);
+			close(log);
+		}
+		execv(args[0], args);
+		exit(1);
+	}
+
+	setsockopt(listen_sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+	for (int i = 0; i < 5 && sock < 0; i++)
+		sock = accept(listen_sock, NULL, NULL);
+	ASSERT_TRUE(sock >= 0, "lcdproc client connected to scripted server");
+
+	if (sock >= 0) {
+		const char *connect_msg = "connect LCDproc 0.0.6 protocol 0.0.6 lcd wid 20 hgt 4 "
+					  "cellwid 5 cellhgt 8\n";
+		size_t got = 0;
+		ssize_t n;
+		int one = 1;
+
+		setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
+		setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+		send(sock, connect_msg, strlen(connect_msg), 0);
+
+		// Collect the client's setup commands until it falls silent; the buffer is zeroed
+		// and its last byte never written, so it stays terminated
+		memset(buf, 0, sizeof(buf));
+		while (got < sizeof(buf) - 1 &&
+		       (n = recv(sock, buf + got, sizeof(buf) - 1 - got, 0)) > 0)
+			got += (size_t)n;
+		ASSERT_TRUE(strstr(buf, "client_add_key -exclusively G1\n") != NULL,
+			    "G-keys reserved exclusively");
+
+		send(sock, "key G", 5, 0);
+		usleep(300000);
+		send(sock, "9\n", 2, 0);
+		usleep(300000);
+		send(sock, "key G10\nkey G11\n", 16, 0);
+		sleep(1);
+		close(sock);
+	}
+
+	kill(pid, SIGTERM);
+	waitpid(pid, &status, 0);
+	close(listen_sock);
+
+	FILE *log = fopen(log_path, "r");
+	size_t len = log ? fread(buf, 1, sizeof(buf) - 1, log) : 0;
+	buf[len] = '\0';
+	if (log)
+		fclose(log);
+	ASSERT_TRUE(strstr(buf, "KEY EVENT RECEIVED: G9") != NULL,
+		    "Key message split across two reads delivered");
+	ASSERT_TRUE(strstr(buf, "KEY EVENT RECEIVED: G10") != NULL &&
+			strstr(buf, "KEY EVENT RECEIVED: G11") != NULL,
+		    "Two key messages in one read delivered");
+}
+
 // Test multiple concurrent client connections
 static void test_multiple_clients(void)
 {
@@ -827,21 +972,21 @@ static void test_multiple_clients(void)
 		if (connect(sock1, (struct sockaddr *)&addr, sizeof(addr)) == 0 &&
 		    connect(sock2, (struct sockaddr *)&addr, sizeof(addr)) == 0) {
 			send(sock1, "hello\n", 6, 0);
-			recv(sock1, response, sizeof(response) - 1, 0);
+			recv_reply(sock1, response, sizeof(response));
 			send(sock1, "client_set -name multi_client1\n", 31, 0);
-			recv(sock1, response, sizeof(response) - 1, 0);
+			recv_reply(sock1, response, sizeof(response));
 
 			send(sock2, "hello\n", 6, 0);
-			recv(sock2, response, sizeof(response) - 1, 0);
+			recv_reply(sock2, response, sizeof(response));
 			send(sock2, "client_set -name multi_client2\n", 31, 0);
-			recv(sock2, response, sizeof(response) - 1, 0);
+			recv_reply(sock2, response, sizeof(response));
 
 			// Test concurrent screen creation
 			send(sock1, "screen_add screen1\n", 19, 0);
-			recv(sock1, response, sizeof(response) - 1, 0);
+			recv_reply(sock1, response, sizeof(response));
 
 			send(sock2, "screen_add screen2\n", 19, 0);
-			ssize_t bytes = recv(sock2, response, sizeof(response) - 1, 0);
+			ssize_t bytes = recv_reply(sock2, response, sizeof(response));
 			if (bytes > 0) {
 				response[bytes] = '\0';
 				ASSERT_TRUE(strstr(response, "success") != NULL,
@@ -851,7 +996,7 @@ static void test_multiple_clients(void)
 			// Test different priority settings for each client with 50ms cooldown
 			send(sock1, "screen_set screen1 -priority 200\n", 34, 0);
 			usleep(50000);
-			bytes = recv(sock1, response, sizeof(response) - 1, 0);
+			bytes = recv_reply(sock1, response, sizeof(response));
 
 			if (bytes > 0) {
 				response[bytes] = '\0';
@@ -862,7 +1007,7 @@ static void test_multiple_clients(void)
 
 			send(sock2, "screen_set screen2 -priority 100\n", 34, 0);
 			usleep(50000);
-			bytes = recv(sock2, response, sizeof(response) - 1, 0);
+			bytes = recv_reply(sock2, response, sizeof(response));
 
 			if (bytes > 0) {
 				response[bytes] = '\0';
@@ -872,7 +1017,7 @@ static void test_multiple_clients(void)
 				// Retry once if response not received
 			} else {
 				usleep(100000);
-				bytes = recv(sock2, response, sizeof(response) - 1, 0);
+				bytes = recv_reply(sock2, response, sizeof(response));
 
 				if (bytes > 0) {
 					response[bytes] = '\0';
@@ -1009,6 +1154,7 @@ int main(int argc, char *argv[])
 	if (shutdown_requested)
 		goto cleanup;
 	test_lcdproc_client_integration();
+	test_client_key_delivery();
 	if (shutdown_requested)
 		goto cleanup;
 	test_multiple_clients();

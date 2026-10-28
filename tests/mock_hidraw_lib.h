@@ -185,4 +185,9 @@ int mock_get_feature_reports_sent(void);
  */
 void mock_increment_rgb_commands(void);
 
+/** \brief RGB output reports received (shared with the integration mock server) */
+extern int mock_g15_rgb_command_count;
+/** \brief Simulated device state (shared with the integration mock server) */
+extern int mock_g15_device_state;
+
 #endif

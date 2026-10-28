@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0+
 
 # Test programs (executable tests only)
-check_PROGRAMS = test_unit_g15 test_integration_g15
+check_PROGRAMS = test_unit_g15 test_unit_privs test_unit_str test_integration_g15
 
 # Additional programs built for testing (not run as tests)
 noinst_PROGRAMS = mock_g15
@@ -13,6 +13,12 @@ test_unit_g15_SOURCES = \
 	test_unit_g15.c \
 	mock_hidraw_lib.c \
 	mock_hidraw_lib.h
+
+test_unit_privs_SOURCES = \
+	test_unit_privs.c
+
+test_unit_str_SOURCES = \
+	test_unit_str.c
 
 # Integration test sources
 test_integration_g15_SOURCES = \
@@ -29,6 +35,14 @@ test_unit_g15_CPPFLAGS = \
 	-I$(top_srcdir)/server/drivers \
 	-I$(top_srcdir)/shared
 
+test_unit_privs_CPPFLAGS = \
+	-I$(top_srcdir) \
+	-I$(top_srcdir)/shared
+
+test_unit_str_CPPFLAGS = \
+	-I$(top_srcdir) \
+	-I$(top_srcdir)/shared
+
 test_integration_g15_CPPFLAGS = \
 	-I$(top_srcdir) \
 	-I$(top_srcdir)/server \
@@ -41,6 +55,16 @@ mock_g15_CPPFLAGS = \
 
 # Compiler flags for tests
 test_unit_g15_CFLAGS = \
+	$(AM_CFLAGS) \
+	-Wall -Wextra -std=c11 -g -O0 \
+	-fsanitize=address -fsanitize=leak -fno-omit-frame-pointer
+
+test_unit_privs_CFLAGS = \
+	$(AM_CFLAGS) \
+	-Wall -Wextra -std=c11 -g -O0 \
+	-fsanitize=address -fsanitize=leak -fno-omit-frame-pointer
+
+test_unit_str_CFLAGS = \
 	$(AM_CFLAGS) \
 	-Wall -Wextra -std=c11 -g -O0 \
 	-fsanitize=address -fsanitize=leak -fno-omit-frame-pointer
@@ -61,6 +85,18 @@ test_unit_g15_LDADD = \
 
 test_unit_g15_LDFLAGS = \
 	-fsanitize=address -fsanitize=leak
+
+test_unit_str_LDADD = \
+	$(top_builddir)/shared/libLCDstuff.a
+
+test_unit_str_LDFLAGS = \
+	-fsanitize=address -fsanitize=leak
+
+# Credential calls are replaced by the mocks in test_unit_privs.c
+test_unit_privs_LDFLAGS = \
+	-fsanitize=address -fsanitize=leak \
+	-Wl,--wrap=getuid,--wrap=geteuid,--wrap=getpwnam_r \
+	-Wl,--wrap=initgroups,--wrap=setgid,--wrap=setuid
 
 test_integration_g15_LDADD = \
 	$(top_builddir)/shared/libLCDstuff.a
@@ -133,26 +169,21 @@ test-memcheck: $(check_PROGRAMS)
 	@echo "ℹ️  Tests are compiled with -fsanitize=address -fsanitize=leak"
 	@echo "ℹ️  ASan will automatically detect memory leaks and errors"
 	@echo ""
-	@if ASAN_OPTIONS=detect_leaks=1 ./test_unit_g15 2>&1 | tee /tmp/asan.out; then \
-		if grep -q "LeakSanitizer" /tmp/asan.out 2>/dev/null; then \
-			echo ""; \
-			echo "❌ Memory leaks detected! See output above for details"; \
-			exit 1; \
-		else \
-			echo ""; \
-			echo "✅ No memory leaks detected"; \
+	@failed=""; \
+	for t in test_unit_g15 test_unit_privs test_unit_str; do \
+		echo "▶ $$t"; \
+		if ! ASAN_OPTIONS=detect_leaks=1 ./$$t > $$t.asan 2>&1 || grep -q "Sanitizer" $$t.asan; then \
+			cat $$t.asan; \
+			failed="$$failed $$t"; \
 		fi; \
-	else \
-		if grep -q "LeakSanitizer" /tmp/asan.out 2>/dev/null; then \
-			echo ""; \
-			echo "❌ Memory leaks detected! See output above for details"; \
-			exit 1; \
-		else \
-			echo ""; \
-			echo "❌ Tests failed - see output above"; \
-			exit 1; \
-		fi; \
-	fi
+	done; \
+	if [ -n "$$failed" ]; then \
+		echo ""; \
+		echo "❌ Memory errors, leaks or test failures in:$$failed (see output above)"; \
+		exit 1; \
+	fi; \
+	echo ""; \
+	echo "✅ No memory leaks detected"
 
 # Test coverage analysis (requires llvm and gcovr)
 test-coverage:
@@ -204,10 +235,12 @@ test-compilers:
 		echo "Testing with $$compiler..."; \
 		if command -v $$compiler >/dev/null 2>&1; then \
 			$(MAKE) mostlyclean >/dev/null 2>&1; \
-			if $(MAKE) -C .. -f Makefile CC=$$compiler mostlyclean >/dev/null 2>&1 && $(MAKE) -C .. -f Makefile CC=$$compiler all >/dev/null 2>&1 && $(MAKE) CC=$$compiler check >/dev/null 2>&1; then \
+			log=test-compilers-$$compiler.log; \
+			if $(MAKE) -C .. -f Makefile CC=$$compiler mostlyclean >$$log 2>&1 && $(MAKE) -C .. -f Makefile CC=$$compiler all >>$$log 2>&1 && $(MAKE) CC=$$compiler check >>$$log 2>&1; then \
 				echo "✅ $$compiler build and test successful"; \
 			else \
-				echo "❌ $$compiler build failed"; \
+				echo "❌ $$compiler build failed, last lines of $$log:"; \
+				tail -n 25 $$log; \
 			fi; \
 		else \
 			echo "⚠️ $$compiler not available"; \
